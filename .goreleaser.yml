@@ -1,5 +1,8 @@
 version: 2
 
+env:
+  - GPG_FINGERPRINT={{ .Env.GPG_FINGERPRINT }}
+
 before:
   hooks:
     - go mod tidy
@@ -33,8 +36,10 @@ checksum:
 
 signs:
   - artifacts: checksum
+    cmd: gpg
     args:
       - "--batch"
+      - "--yes"
       - "--local-user"
       - "{{ .Env.GPG_FINGERPRINT }}"
       - "--output"
