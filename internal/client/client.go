@@ -39,10 +39,10 @@ func NewVeeamClient(baseURL, username, password string) (*VeeamClient, error) {
 func (c *VeeamClient) authenticate(username, password string) error {
 	url := c.BaseURL + "/api/v1/token"
 
-authReq := models.AuthRequest{
-	Username: username,
-	Password: password,
-}
+	authReq := models.AuthRequest{
+		Username: username,
+		Password: password,
+	}
 
 	body, err := json.Marshal(authReq)
 	if err != nil {
@@ -93,10 +93,10 @@ func (c *VeeamClient) RefreshToken() error {
 
 	url := c.BaseURL + "/api/v1/refresh"
 
-refreshReq := models.TokenRefreshRequest{
-	RefreshToken: c.TokenInfo.RefreshToken,
-	GrantType:    "refresh_token",
-}
+	refreshReq := models.TokenRefreshRequest{
+		RefreshToken: c.TokenInfo.RefreshToken,
+		GrantType:    "refresh_token",
+	}
 
 	body, err := json.Marshal(refreshReq)
 	if err != nil {

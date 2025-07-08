@@ -62,8 +62,8 @@ testall:
 .PHONY: lint
 lint:
 	@echo "Running linter..."
-	@which golangci-lint > /dev/null || (echo "golangci-lint not found, installing..." && go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest)
-	@golangci-lint run ./...
+	@which $(HOME)/go/bin/golangci-lint > /dev/null || (echo "golangci-lint not found, installing..." && go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest)
+	@$(HOME)/go/bin/golangci-lint run ./...
 
 # Format the code
 .PHONY: fmt

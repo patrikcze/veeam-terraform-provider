@@ -23,10 +23,10 @@ type RepositoriesDataSource struct {
 
 // RepositoriesDataSourceModel describes the data source data model.
 type RepositoriesDataSourceModel struct {
-	ID           types.String            `tfsdk:"id"`
-	RepositoryID types.String            `tfsdk:"repository_id"`
+	ID             types.String          `tfsdk:"id"`
+	RepositoryID   types.String          `tfsdk:"repository_id"`
 	RepositoryName types.String          `tfsdk:"repository_name"`
-	Repositories []RepositoryDataModel   `tfsdk:"repositories"`
+	Repositories   []RepositoryDataModel `tfsdk:"repositories"`
 }
 
 // RepositoryDataModel describes the repository data model.
@@ -156,7 +156,7 @@ func (d *RepositoriesDataSource) Read(ctx context.Context, req datasource.ReadRe
 			)
 			return
 		}
-		
+
 		// Convert single repository to array
 		repositories := []RepositoryDataModel{
 			{
@@ -173,7 +173,7 @@ func (d *RepositoriesDataSource) Read(ctx context.Context, req datasource.ReadRe
 				UpdatedAt:   types.StringValue(getStringValue(apiResult, "updatedAt")),
 			},
 		}
-		
+
 		data.ID = types.StringValue(fmt.Sprintf("repository_%s", data.RepositoryID.ValueString()))
 		data.Repositories = repositories
 	} else {
@@ -228,19 +228,4 @@ func (d *RepositoriesDataSource) Read(ctx context.Context, req datasource.ReadRe
 
 	// Save data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
-}
-
-// Helper function to safely extract int64 values from API response
-func getInt64Value(data map[string]interface{}, key string) int64 {
-	if value, ok := data[key]; ok {
-		switch v := value.(type) {
-		case int:
-			return int64(v)
-		case int64:
-			return v
-		case float64:
-			return int64(v)
-		}
-	}
-	return 0
 }

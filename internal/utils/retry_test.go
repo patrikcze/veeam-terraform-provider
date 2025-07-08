@@ -12,7 +12,7 @@ import (
 
 func TestRetryRequest_Success(t *testing.T) {
 	callCount := 0
-	
+
 	requestFunc := func() (*http.Response, error) {
 		callCount++
 		return &http.Response{StatusCode: 200}, nil
@@ -35,7 +35,7 @@ func TestRetryRequest_Success(t *testing.T) {
 
 func TestRetryRequest_RetryOnNetworkError(t *testing.T) {
 	callCount := 0
-	
+
 	requestFunc := func() (*http.Response, error) {
 		callCount++
 		if callCount < 3 {
@@ -61,7 +61,7 @@ func TestRetryRequest_RetryOnNetworkError(t *testing.T) {
 
 func TestRetryRequest_RetryOnRetryableStatusCodes(t *testing.T) {
 	callCount := 0
-	
+
 	requestFunc := func() (*http.Response, error) {
 		callCount++
 		if callCount < 3 {
@@ -87,7 +87,7 @@ func TestRetryRequest_RetryOnRetryableStatusCodes(t *testing.T) {
 
 func TestRetryRequest_ExhaustedRetries(t *testing.T) {
 	callCount := 0
-	
+
 	requestFunc := func() (*http.Response, error) {
 		callCount++
 		return nil, errors.New("persistent error")
@@ -111,7 +111,7 @@ func TestRetryRequest_ExhaustedRetries(t *testing.T) {
 
 func TestRetryRequest_NonRetryableError(t *testing.T) {
 	callCount := 0
-	
+
 	requestFunc := func() (*http.Response, error) {
 		callCount++
 		return &http.Response{StatusCode: 400}, nil // Bad Request - not retryable
@@ -134,10 +134,10 @@ func TestRetryRequest_NonRetryableError(t *testing.T) {
 
 func TestDefaultShouldRetryFunc(t *testing.T) {
 	tests := []struct {
-		name           string
-		resp           *http.Response
-		err            error
-		shouldRetry    bool
+		name        string
+		resp        *http.Response
+		err         error
+		shouldRetry bool
 	}{
 		{
 			name:        "Network error",
@@ -205,12 +205,12 @@ func TestDefaultShouldRetryFunc(t *testing.T) {
 
 func TestCalculateDelay(t *testing.T) {
 	tests := []struct {
-		name        string
-		attempt     int
-		baseDelay   time.Duration
-		maxDelay    time.Duration
-		multiplier  float64
-		expected    time.Duration
+		name       string
+		attempt    int
+		baseDelay  time.Duration
+		maxDelay   time.Duration
+		multiplier float64
+		expected   time.Duration
 	}{
 		{
 			name:       "First attempt",

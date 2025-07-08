@@ -218,6 +218,11 @@ func (r *Credential) Delete(ctx context.Context, req resource.DeleteRequest, res
 	}
 }
 
+// NewCredential is a helper function to simplify the provider implementation.
+func NewCredential() resource.Resource {
+	return &Credential{}
+}
+
 // ImportState imports the resource state.
 func (r *Credential) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	// Set the ID from the import request

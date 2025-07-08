@@ -9,6 +9,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/patrikcze/terraform-provider-veeam/internal/client"
+	"github.com/patrikcze/terraform-provider-veeam/pkg/datasources"
+	"github.com/patrikcze/terraform-provider-veeam/pkg/resources"
 )
 
 // Ensure provider defined types fully satisfy framework interfaces.
@@ -108,14 +111,8 @@ func (p *Provider) Configure(ctx context.Context, req provider.ConfigureRequest,
 		return
 	}
 
-	// Set default value for insecure if not provided
-	insecure := false
-	if !data.Insecure.IsNull() && !data.Insecure.IsUnknown() {
-		insecure = data.Insecure.ValueBool()
-	}
-
 	// Initialize the API client
-	client, err := NewAPIClient(data.Host.ValueString(), data.Username.ValueString(), data.Password.ValueString(), insecure)
+	client, err := client.NewVeeamClient(data.Host.ValueString(), data.Username.ValueString(), data.Password.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Create Veeam API Client",
@@ -133,48 +130,16 @@ func (p *Provider) Configure(ctx context.Context, req provider.ConfigureRequest,
 // Resources defines the resources implemented in the provider.
 func (p *Provider) Resources(ctx context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
-		// Resources will be added here
+		resources.NewBackupJob,
+		resources.NewCredential,
+		resources.NewRepository,
 	}
 }
 
 // DataSources defines the data sources implemented in the provider.
 func (p *Provider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
-		// Data sources will be added here
+		datasources.NewBackupJobsDataSource,
+		datasources.NewRepositoriesDataSource,
 	}
-}
-
-// APIClient represents the Veeam API client.
-type APIClient struct {
-	Host     string
-	Username string
-	Password string
-	Insecure bool
-	// Add other client fields as needed
-}
-
-// NewAPIClient creates a new Veeam API client instance.
-func NewAPIClient(host, username, password string, insecure bool) (*APIClient, error) {
-	if host == "" {
-		return nil, fmt.Errorf("host cannot be empty")
-	}
-	if username == "" {
-		return nil, fmt.Errorf("username cannot be empty")
-	}
-	if password == "" {
-		return nil, fmt.Errorf("password cannot be empty")
-	}
-
-	client := &APIClient{
-		Host:     host,
-		Username: username,
-		Password: password,
-		Insecure: insecure,
-	}
-
-	// Initialize HTTP client, authenticate, etc.
-	// This would typically involve creating an HTTP client and
-	// performing initial authentication with the Veeam server
-
-	return client, nil
 }

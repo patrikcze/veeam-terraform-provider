@@ -28,4 +28,3 @@ func (m *MockVeeamClient) DeleteJSON(endpoint string) error {
 	args := m.Called(endpoint)
 	return args.Error(0)
 }
-

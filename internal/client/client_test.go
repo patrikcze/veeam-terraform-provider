@@ -29,7 +29,7 @@ func TestNewVeeamClient(t *testing.T) {
 
 	// Test successful client creation
 	client, err := NewVeeamClient(server.URL, "testuser", "testpass")
-	
+
 	require.NoError(t, err)
 	assert.NotNil(t, client)
 	assert.Equal(t, server.URL, client.BaseURL)
@@ -61,7 +61,7 @@ func TestVeeamClient_authenticate(t *testing.T) {
 
 	// Test successful authentication
 	err := client.authenticate("testuser", "testpass")
-	
+
 	require.NoError(t, err)
 	assert.Equal(t, "test-token", client.TokenInfo.AccessToken)
 	assert.Equal(t, "Bearer", client.TokenInfo.TokenType)
@@ -84,7 +84,7 @@ func TestVeeamClient_authenticate_Failure(t *testing.T) {
 
 	// Test authentication failure
 	err := client.authenticate("testuser", "wrongpass")
-	
+
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to authenticate")
 }
@@ -117,7 +117,7 @@ func TestVeeamClient_RefreshToken(t *testing.T) {
 
 	// Test token refresh
 	err := client.RefreshToken()
-	
+
 	require.NoError(t, err)
 	assert.Equal(t, "new-test-token", client.TokenInfo.AccessToken)
 }
@@ -136,7 +136,7 @@ func TestVeeamClient_RefreshToken_NotNeeded(t *testing.T) {
 
 	// Test that refresh is not needed
 	err := client.RefreshToken()
-	
+
 	require.NoError(t, err)
 	assert.Equal(t, "valid-token", client.TokenInfo.AccessToken) // Should remain unchanged
 }
@@ -163,7 +163,7 @@ func TestVeeamClient_RefreshToken_Failure(t *testing.T) {
 
 	// Test token refresh failure
 	err := client.RefreshToken()
-	
+
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to refresh token")
 }

@@ -23,12 +23,12 @@ func TestAccWorkflow_CredentialRepositoryBackupJob(t *testing.T) {
 					resource.TestCheckResourceAttr("veeam_credential.example", "name", "workflow-credential"),
 					resource.TestCheckResourceAttr("veeam_credential.example", "type", "linux"),
 					resource.TestCheckResourceAttrSet("veeam_credential.example", "id"),
-					
+
 					// Check repository
 					resource.TestCheckResourceAttr("veeam_repository.example", "name", "workflow-repository"),
 					resource.TestCheckResourceAttr("veeam_repository.example", "type", "local"),
 					resource.TestCheckResourceAttrSet("veeam_repository.example", "id"),
-					
+
 					// Check backup job
 					resource.TestCheckResourceAttr("veeam_backup_job.example", "name", "workflow-backup-job"),
 					resource.TestCheckResourceAttr("veeam_backup_job.example", "enabled", "true"),

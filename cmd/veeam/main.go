@@ -8,7 +8,9 @@ import (
 )
 
 func main() {
-	providerserver.Serve(context.Background(), internal.New("dev"), providerserver.ServeOpts{
+	if err := providerserver.Serve(context.Background(), internal.New("dev"), providerserver.ServeOpts{
 		Address: "registry.terraform.io/patrikcze/veeam",
-	})
+	}); err != nil {
+		panic(err)
+	}
 }

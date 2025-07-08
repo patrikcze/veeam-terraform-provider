@@ -12,7 +12,7 @@ import (
 
 // Ensure the implementation satisfies the expected interfaces.
 var (
-	_ resource.Resource                = &BackupJob{}
+	_ resource.Resource              = &BackupJob{}
 	_ resource.ResourceWithConfigure = &BackupJob{}
 )
 
@@ -151,8 +151,12 @@ func (r *BackupJob) Delete(ctx context.Context, req resource.DeleteRequest, resp
 	}
 }
 
+// NewBackupJob is a helper function to simplify the provider implementation.
+func NewBackupJob() resource.Resource {
+	return &BackupJob{}
+}
+
 // Launch the CRUD operations and necessary configurations.
 func (r *BackupJob) ImportState(_ context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	// Example import functionality would be added here, if required
 }
-

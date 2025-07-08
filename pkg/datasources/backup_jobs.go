@@ -146,7 +146,7 @@ func (d *BackupJobsDataSource) Read(ctx context.Context, req datasource.ReadRequ
 			)
 			return
 		}
-		
+
 		// Convert single job to array
 		backupJobs := []BackupJobDataModel{
 			{
@@ -161,7 +161,7 @@ func (d *BackupJobsDataSource) Read(ctx context.Context, req datasource.ReadRequ
 				UpdatedAt:   types.StringValue(getStringValue(apiResult, "updatedAt")),
 			},
 		}
-		
+
 		data.ID = types.StringValue(fmt.Sprintf("backup_job_%s", data.JobID.ValueString()))
 		data.BackupJobs = backupJobs
 	} else {
@@ -214,24 +214,4 @@ func (d *BackupJobsDataSource) Read(ctx context.Context, req datasource.ReadRequ
 
 	// Save data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
-}
-
-// Helper function to safely extract string values from API response
-func getStringValue(data map[string]interface{}, key string) string {
-	if value, ok := data[key]; ok {
-		if str, ok := value.(string); ok {
-			return str
-		}
-	}
-	return ""
-}
-
-// Helper function to safely extract bool values from API response
-func getBoolValue(data map[string]interface{}, key string) bool {
-	if value, ok := data[key]; ok {
-		if b, ok := value.(bool); ok {
-			return b
-		}
-	}
-	return false
 }
