@@ -1,0 +1,128 @@
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+    - go generate ./...
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    mod_timestamp: '{{ .CommitTimestamp }}'
+    flags:
+      - -trimpath
+    ldflags:
+      - '-s -w -X main.version={{.Version}} -X main.commit={{.Commit}}'
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: darwin
+        goarch: arm64
+    main: ./cmd/veeam
+    binary: '{{ .ProjectName }}_v{{ .Version }}'
+
+archives:
+  - format: zip
+    name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
+
+checksum:
+  name_template: '{{ .ProjectName }}_{{ .Version }}_SHA256SUMS'
+  algorithm: sha256
+
+signs:
+  - artifacts: checksum
+    args:
+      - "--batch"
+      - "--local-user"
+      - "{{ .Env.GPG_FINGERPRINT }}"
+      - "--output"
+      - "${signature}"
+      - "--detach-sign"
+      - "${artifact}"
+
+release:
+  draft: false
+  prerelease: auto
+  mode: replace
+  header: |
+    ## What's Changed
+    
+    This release includes the following changes:
+  footer: |
+    ## Docker Images
+    
+    Docker images are available at:
+    
+    - `ghcr.io/patrikcze/terraform-provider-veeam:{{ .Tag }}`
+    - `ghcr.io/patrikcze/terraform-provider-veeam:latest`
+    
+    ## Installation
+    
+    ### Automatic Installation (Terraform 0.13+)
+    
+    ```hcl
+    terraform {
+      required_providers {
+        veeam = {
+          source = "patrikcze/veeam"
+          version = "~> {{ .Version }}"
+        }
+      }
+    }
+    ```
+    
+    ### Manual Installation
+    
+    1. Download the appropriate binary for your operating system from the release assets
+    2. Extract the binary to your Terraform plugins directory
+    3. Run `terraform init` to initialize the provider
+    
+    ## Verify the Release
+    
+    You can verify the release signature with:
+    
+    ```bash
+    # Download the checksum file and signature
+    curl -L https://github.com/patrikcze/terraform-provider-veeam/releases/download/{{ .Tag }}/{{ .ProjectName }}_{{ .Version }}_SHA256SUMS > checksums.txt
+    curl -L https://github.com/patrikcze/terraform-provider-veeam/releases/download/{{ .Tag }}/{{ .ProjectName }}_{{ .Version }}_SHA256SUMS.sig > checksums.sig
+    
+    # Import the public key (if not already imported)
+    curl -L https://github.com/patrikcze.gpg | gpg --import
+    
+    # Verify the signature
+    gpg --verify checksums.sig checksums.txt
+    
+    # Verify the binary checksum
+    sha256sum -c checksums.txt
+    ```
+
+changelog:
+  disable: false
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
+      - '^refactor:'
+      - '^style:'
+      - '^chore:'
+      - Merge pull request
+      - Merge branch
+      - go mod tidy
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\(.+\))??!?:.+$'
+      order: 0
+    - title: Bug Fixes
+      regexp: '^.*?fix(\(.+\))??!?:.+$'
+      order: 1
+    - title: Documentation
+      regexp: '^.*?docs(\(.+\))??!?:.+$'
+      order: 2
+    - title: Others
+      order: 999

@@ -1,0 +1,21 @@
+# Example Terraform Variables for Advanced Configuration
+# Copy this file to terraform.tfvars and update with your values
+
+# Veeam Server Configuration
+veeam_host        = "veeam.example.com"
+veeam_username    = "admin"
+veeam_password    = "your-veeam-password"
+veeam_insecure    = false
+
+# Linux Credentials
+linux_admin_username = "root"
+linux_admin_password = "your-linux-password"
+
+# Windows Credentials
+windows_domain            = "DOMAIN"
+windows_admin_username    = "administrator"
+windows_admin_password    = "your-windows-password"
+
+# vCenter Credentials
+vcenter_admin_username = "administrator@vsphere.local"
+vcenter_admin_password = "your-vcenter-password"

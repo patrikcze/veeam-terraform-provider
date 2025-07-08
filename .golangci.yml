@@ -1,0 +1,129 @@
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+  skip-dirs:
+    - vendor
+    - bin
+    - dist
+  skip-files:
+    - ".*\\.pb\\.go$"
+    - ".*_test\\.go$"
+
+linters:
+  enable:
+    - bodyclose
+    - deadcode
+    - depguard
+    - dogsled
+    - dupl
+    - errcheck
+    - exhaustive
+    - funlen
+    - gochecknoinits
+    - goconst
+    - gocritic
+    - gocyclo
+    - gofmt
+    - gofumpt
+    - goheader
+    - goimports
+    - golint
+    - gomnd
+    - gomodguard
+    - goprintffuncname
+    - gosec
+    - gosimple
+    - govet
+    - ineffassign
+    - interfacer
+    - lll
+    - maligned
+    - misspell
+    - nakedret
+    - noctx
+    - nolintlint
+    - revive
+    - rowserrcheck
+    - scopelint
+    - staticcheck
+    - structcheck
+    - stylecheck
+    - typecheck
+    - unconvert
+    - unparam
+    - unused
+    - varcheck
+    - whitespace
+
+  disable:
+    - exhaustivestruct
+    - gochecknoglobals
+    - testpackage
+    - wrapcheck
+
+linters-settings:
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
+    
+  funlen:
+    lines: 120
+    statements: 60
+    
+  gocyclo:
+    min-complexity: 15
+    
+  golint:
+    min-confidence: 0.8
+    
+  govet:
+    check-shadowing: true
+    
+  lll:
+    line-length: 120
+    
+  misspell:
+    locale: US
+    
+  nakedret:
+    max-func-lines: 30
+    
+  revive:
+    confidence: 0.8
+    
+  unused:
+    check-exported: false
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - gomnd
+        - funlen
+        - gocyclo
+        - dupl
+        - goconst
+        - gosec
+        - lll
+        
+    - linters:
+        - lll
+      source: "^//go:generate "
+      
+    - linters:
+        - gocritic
+      text: "unnecessaryDefer"
+      
+  exclude:
+    - "Error return value of .((os\\.)?std(out|err)\\..*|.*Close|.*Flush|os\\.Remove(All)?|.*print(f|ln)?|os\\.(Un)?Setenv). is not checked"
+    - "should have a package comment, unless it's in another file for this package"
+    - "don't use an underscore in package name"
+    
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+output:
+  format: colored-line-number
+  print-issued-lines: true
+  print-linter-name: true
+  uniq-by-line: true
