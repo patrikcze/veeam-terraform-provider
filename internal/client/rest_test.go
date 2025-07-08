@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -33,7 +34,7 @@ func TestVeeamClient_GET(t *testing.T) {
 	}
 
 	// Test GET request
-	resp, err := client.GET("/api/v1/test")
+	resp, err := client.GET(context.Background(), "/api/v1/test")
 
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
@@ -67,7 +68,7 @@ func TestVeeamClient_POST(t *testing.T) {
 	}
 
 	// Test POST request
-	resp, err := client.POST("/api/v1/test", payload)
+	resp, err := client.POST(context.Background(), "/api/v1/test", payload)
 
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusCreated, resp.StatusCode)
@@ -101,7 +102,7 @@ func TestVeeamClient_PUT(t *testing.T) {
 	}
 
 	// Test PUT request
-	resp, err := client.PUT("/api/v1/test/123", payload)
+	resp, err := client.PUT(context.Background(), "/api/v1/test/123", payload)
 
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
@@ -128,7 +129,7 @@ func TestVeeamClient_DELETE(t *testing.T) {
 	}
 
 	// Test DELETE request
-	resp, err := client.DELETE("/api/v1/test/123")
+	resp, err := client.DELETE(context.Background(), "/api/v1/test/123")
 
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusNoContent, resp.StatusCode)
@@ -159,7 +160,7 @@ func TestVeeamClient_GetJSON(t *testing.T) {
 	var result map[string]interface{}
 
 	// Test GetJSON request
-	err := client.GetJSON("/api/v1/test", &result)
+	err := client.GetJSON(context.Background(), "/api/v1/test", &result)
 
 	require.NoError(t, err)
 	assert.Equal(t, "success", result["message"])
@@ -195,7 +196,7 @@ func TestVeeamClient_PostJSON(t *testing.T) {
 	var result map[string]interface{}
 
 	// Test PostJSON request
-	err := client.PostJSON("/api/v1/test", payload, &result)
+	err := client.PostJSON(context.Background(), "/api/v1/test", payload, &result)
 
 	require.NoError(t, err)
 	assert.Equal(t, "123", result["id"])
@@ -231,7 +232,7 @@ func TestVeeamClient_PutJSON(t *testing.T) {
 	var result map[string]interface{}
 
 	// Test PutJSON request
-	err := client.PutJSON("/api/v1/test/123", payload, &result)
+	err := client.PutJSON(context.Background(), "/api/v1/test/123", payload, &result)
 
 	require.NoError(t, err)
 	assert.Equal(t, "123", result["id"])
@@ -258,7 +259,7 @@ func TestVeeamClient_DeleteJSON(t *testing.T) {
 	}
 
 	// Test DeleteJSON request
-	err := client.DeleteJSON("/api/v1/test/123")
+	err := client.DeleteJSON(context.Background(), "/api/v1/test/123")
 
 	require.NoError(t, err)
 }
@@ -285,7 +286,7 @@ func TestVeeamClient_GetJSON_ErrorResponse(t *testing.T) {
 	var result map[string]interface{}
 
 	// Test GetJSON request with error
-	err := client.GetJSON("/api/v1/test", &result)
+	err := client.GetJSON(context.Background(), "/api/v1/test", &result)
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "API request failed with status 500")
@@ -317,7 +318,7 @@ func TestVeeamClient_PostJSON_ErrorResponse(t *testing.T) {
 	var result map[string]interface{}
 
 	// Test PostJSON request with error
-	err := client.PostJSON("/api/v1/test", payload, &result)
+	err := client.PostJSON(context.Background(), "/api/v1/test", payload, &result)
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "API request failed with status 400")

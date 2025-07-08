@@ -3,6 +3,7 @@ package internal
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
@@ -83,36 +84,60 @@ func (p *Provider) Configure(ctx context.Context, req provider.ConfigureRequest,
 		return
 	}
 
+	// Get configuration from environment variables if not set
+	host := data.Host.ValueString()
+	if host == "" {
+		host = os.Getenv("VEEAM_HOST")
+	}
+
+	username := data.Username.ValueString()
+	if username == "" {
+		username = os.Getenv("VEEAM_USERNAME")
+	}
+
+	password := data.Password.ValueString()
+	if password == "" {
+		password = os.Getenv("VEEAM_PASSWORD")
+	}
+
 	// Validate configuration
-	if data.Host.IsNull() || data.Host.IsUnknown() || data.Host.ValueString() == "" {
+	if host == "" {
 		resp.Diagnostics.AddError(
 			"Missing Host Configuration",
 			"The provider requires a host to be configured. "+
-				"Please provide a value for the host attribute.",
+				"Please provide a value for the host attribute or set the VEEAM_HOST environment variable.",
 		)
 		return
 	}
 
-	if data.Username.IsNull() || data.Username.IsUnknown() || data.Username.ValueString() == "" {
+	if username == "" {
 		resp.Diagnostics.AddError(
 			"Missing Username Configuration",
 			"The provider requires a username to be configured. "+
-				"Please provide a value for the username attribute.",
+				"Please provide a value for the username attribute or set the VEEAM_USERNAME environment variable.",
 		)
 		return
 	}
 
-	if data.Password.IsNull() || data.Password.IsUnknown() || data.Password.ValueString() == "" {
+	if password == "" {
 		resp.Diagnostics.AddError(
 			"Missing Password Configuration",
 			"The provider requires a password to be configured. "+
-				"Please provide a value for the password attribute.",
+				"Please provide a value for the password attribute or set the VEEAM_PASSWORD environment variable.",
 		)
 		return
 	}
 
+	// Get insecure flag
+	insecure := false
+	if !data.Insecure.IsNull() && !data.Insecure.IsUnknown() {
+		insecure = data.Insecure.ValueBool()
+	} else if os.Getenv("VEEAM_INSECURE") == "true" {
+		insecure = true
+	}
+
 	// Initialize the API client
-	client, err := client.NewVeeamClient(data.Host.ValueString(), data.Username.ValueString(), data.Password.ValueString())
+	client, err := client.NewVeeamClient(ctx, host, username, password, insecure)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Create Veeam API Client",

@@ -72,11 +72,11 @@ func (r *BackupJob) Create(ctx context.Context, req resource.CreateRequest, resp
 	}
 
 	var result map[string]interface{}
-	err := r.client.PostJSON("/backupJobs", payload, &result)
+	err := r.client.PostJSON(ctx, "/backupJobs", payload, &result)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating backup job",
-			fmt.Sprintf("Could not create backup job: %s", err),
+			fmt.Sprintf("Could not create backup job: %s", err.Error()),
 		)
 		return
 	}
@@ -94,7 +94,7 @@ func (r *BackupJob) Read(ctx context.Context, req resource.ReadRequest, resp *re
 	}
 
 	var result map[string]interface{}
-	err := r.client.GetJSON(fmt.Sprintf("/backupJobs/%s", data.Name.ValueString()), &result)
+	err := r.client.GetJSON(ctx, fmt.Sprintf("/backupJobs/%s", data.Name.ValueString()), &result)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error reading backup job",
@@ -120,11 +120,11 @@ func (r *BackupJob) Update(ctx context.Context, req resource.UpdateRequest, resp
 		"enabled": data.Enabled.ValueBool(),
 	}
 
-	err := r.client.PutJSON(fmt.Sprintf("/backupJobs/%s", data.Name.ValueString()), payload, nil)
+	err := r.client.PutJSON(ctx, fmt.Sprintf("/backupJobs/%s", data.Name.ValueString()), payload, nil)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error updating backup job",
-			fmt.Sprintf("Could not update backup job: %s", err),
+			fmt.Sprintf("Could not update backup job: %s", err.Error()),
 		)
 		return
 	}
@@ -141,11 +141,11 @@ func (r *BackupJob) Delete(ctx context.Context, req resource.DeleteRequest, resp
 		return
 	}
 
-	err := r.client.DeleteJSON(fmt.Sprintf("/backupJobs/%s", data.Name.ValueString()))
+	err := r.client.DeleteJSON(ctx, fmt.Sprintf("/backupJobs/%s", data.Name.ValueString()))
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error deleting backup job",
-			fmt.Sprintf("Could not delete backup job: %s", err),
+			fmt.Sprintf("Could not delete backup job: %s", err.Error()),
 		)
 		return
 	}

@@ -3,7 +3,7 @@
 variable "veeam_host" {
   description = "Veeam Backup & Replication server hostname or IP address"
   type        = string
-  default     = "veeam.example.com"
+  default     = "https://veeam.example.com"
 }
 
 variable "veeam_username" {

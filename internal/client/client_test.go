@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -28,7 +29,7 @@ func TestNewVeeamClient(t *testing.T) {
 	defer server.Close()
 
 	// Test successful client creation
-	client, err := NewVeeamClient(server.URL, "testuser", "testpass")
+	client, err := NewVeeamClient(context.Background(), server.URL, "testuser", "testpass", false)
 
 	require.NoError(t, err)
 	assert.NotNil(t, client)
@@ -60,7 +61,7 @@ func TestVeeamClient_authenticate(t *testing.T) {
 	}
 
 	// Test successful authentication
-	err := client.authenticate("testuser", "testpass")
+	err := client.authenticate(context.Background(), "testuser", "testpass")
 
 	require.NoError(t, err)
 	assert.Equal(t, "test-token", client.TokenInfo.AccessToken)
@@ -83,10 +84,10 @@ func TestVeeamClient_authenticate_Failure(t *testing.T) {
 	}
 
 	// Test authentication failure
-	err := client.authenticate("testuser", "wrongpass")
+	err := client.authenticate(context.Background(), "testuser", "wrongpass")
 
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to authenticate")
+	assert.Contains(t, err.Error(), "authentication failed with status")
 }
 
 func TestVeeamClient_RefreshToken(t *testing.T) {
@@ -116,7 +117,7 @@ func TestVeeamClient_RefreshToken(t *testing.T) {
 	}
 
 	// Test token refresh
-	err := client.RefreshToken()
+	err := client.RefreshToken(context.Background())
 
 	require.NoError(t, err)
 	assert.Equal(t, "new-test-token", client.TokenInfo.AccessToken)
@@ -135,7 +136,7 @@ func TestVeeamClient_RefreshToken_NotNeeded(t *testing.T) {
 	}
 
 	// Test that refresh is not needed
-	err := client.RefreshToken()
+	err := client.RefreshToken(context.Background())
 
 	require.NoError(t, err)
 	assert.Equal(t, "valid-token", client.TokenInfo.AccessToken) // Should remain unchanged
@@ -162,7 +163,7 @@ func TestVeeamClient_RefreshToken_Failure(t *testing.T) {
 	}
 
 	// Test token refresh failure
-	err := client.RefreshToken()
+	err := client.RefreshToken(context.Background())
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to refresh token")

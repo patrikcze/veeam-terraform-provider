@@ -138,7 +138,7 @@ func (d *BackupJobsDataSource) Read(ctx context.Context, req datasource.ReadRequ
 	if !data.JobID.IsNull() {
 		// Fetch single job by ID
 		var apiResult map[string]interface{}
-		err := d.client.GetJSON(fmt.Sprintf("/api/v1/backupJobs/%s", data.JobID.ValueString()), &apiResult)
+		err := d.client.GetJSON(ctx, fmt.Sprintf("/api/v1/backupJobs/%s", data.JobID.ValueString()), &apiResult)
 		if err != nil {
 			resp.Diagnostics.AddError(
 				"Error fetching backup job",
@@ -167,7 +167,7 @@ func (d *BackupJobsDataSource) Read(ctx context.Context, req datasource.ReadRequ
 	} else {
 		// Fetch all backup jobs
 		var apiResult []map[string]interface{}
-		err := d.client.GetJSON("/api/v1/backupJobs", &apiResult)
+		err := d.client.GetJSON(ctx, "/api/v1/backupJobs", &apiResult)
 		if err != nil {
 			resp.Diagnostics.AddError(
 				"Error fetching backup jobs",

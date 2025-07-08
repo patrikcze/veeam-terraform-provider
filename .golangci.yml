@@ -1,5 +1,8 @@
+version: 2
+
 run:
   timeout: 5m
+  go: "1.24"
 
 issues:
   exclude-dirs:
@@ -18,7 +21,6 @@ issues:
   exclude:
     - "Error return value of .((os\\.)?std(out|err)\\..*|.*Close|.*Flush|os\\.Remove(All)?|.*print(f|ln)?|os\\.(Un)?Setenv). is not checked"
     - "should have a package comment, unless it's in another file for this package"
-    - "SA1019: \"io/ioutil\" has been deprecated since Go 1.19"
 
   max-issues-per-linter: 0
   max-same-issues: 0
@@ -36,3 +38,93 @@ linters:
     - goimports
     - misspell
     - unconvert
+    - gocritic
+    - revive
+    - unparam
+
+  disable:
+    - exhaustruct
+    - exhaustive
+    - lll
+    - nlreturn
+    - wsl
+    - funlen
+    - gocognit
+    - cyclop
+    - gocyclo
+    - maintidx
+    - gomnd
+    - testpackage
+    - paralleltest
+    - tparallel
+    - prealloc
+    - wrapcheck
+    - goerr113
+    - forcetypeassert
+    - forbidigo
+    - godot
+    - godox
+    - varnamelen
+    - interfacebloat
+    - containedctx
+    - contextcheck
+    - depguard
+    - dupl
+    - nonamedreturns
+    - nolintlint
+    - ireturn
+    - exportloopref
+    - tagliatelle
+    - gosec
+    - nestif
+    - bodyclose
+    - stylecheck
+    - whitespace
+    - gci
+    - grouper
+    - importas
+    - nilerr
+    - nilnil
+    - noctx
+    - rowserrcheck
+    - sqlclosecheck
+    - structcheck
+    - tenv
+    - testifylint
+    - thelper
+    - wastedassign
+    - usestdlibvars
+    - zerologlint
+
+linters-settings:
+  goimports:
+    local-prefixes: github.com/patrikcze/terraform-provider-veeam
+  gocritic:
+    enabled-checks:
+      - argOrder
+      - assignOp
+      - badCond
+      - caseOrder
+      - defaultCaseOrder
+      - dupArg
+      - dupBranch
+      - dupCase
+      - elseif
+      - flagDeref
+      - ifElseChain
+      - regexpMust
+      - singleCaseSwitch
+      - sloppyLen
+      - switchTrue
+      - typeSwitchVar
+      - underef
+      - unlabelStmt
+      - unslice
+      - valSwap
+      - yodaStyleExpr
+  revive:
+    rules:
+      - name: exported
+        disabled: true
+      - name: package-comments
+        disabled: true

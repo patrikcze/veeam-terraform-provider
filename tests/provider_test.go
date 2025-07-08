@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"testing"
@@ -43,7 +44,7 @@ func testAccProviderConnection() error {
 	username := os.Getenv("VEEAM_USERNAME")
 	password := os.Getenv("VEEAM_PASSWORD")
 
-	client, err := client.NewVeeamClient(host, username, password)
+	client, err := client.NewVeeamClient(context.Background(), host, username, password, false)
 	if err != nil {
 		return fmt.Errorf("failed to create API client: %w", err)
 	}

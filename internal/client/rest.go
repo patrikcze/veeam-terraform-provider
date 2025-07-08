@@ -2,39 +2,42 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/patrikcze/terraform-provider-veeam/internal/utils"
 )
 
 // GET performs a GET request to the specified endpoint
-func (c *VeeamClient) GET(endpoint string) (*http.Response, error) {
-	return c.doRequest("GET", endpoint, nil)
+func (c *VeeamClient) GET(ctx context.Context, endpoint string) (*http.Response, error) {
+	return c.doRequest(ctx, "GET", endpoint, nil)
 }
 
 // POST performs a POST request to the specified endpoint with a JSON payload
-func (c *VeeamClient) POST(endpoint string, payload interface{}) (*http.Response, error) {
-	return c.doRequest("POST", endpoint, payload)
+func (c *VeeamClient) POST(ctx context.Context, endpoint string, payload interface{}) (*http.Response, error) {
+	return c.doRequest(ctx, "POST", endpoint, payload)
 }
 
 // PUT performs a PUT request to the specified endpoint with a JSON payload
-func (c *VeeamClient) PUT(endpoint string, payload interface{}) (*http.Response, error) {
-	return c.doRequest("PUT", endpoint, payload)
+func (c *VeeamClient) PUT(ctx context.Context, endpoint string, payload interface{}) (*http.Response, error) {
+	return c.doRequest(ctx, "PUT", endpoint, payload)
 }
 
 // DELETE performs a DELETE request to the specified endpoint
-func (c *VeeamClient) DELETE(endpoint string) (*http.Response, error) {
-	return c.doRequest("DELETE", endpoint, nil)
+func (c *VeeamClient) DELETE(ctx context.Context, endpoint string) (*http.Response, error) {
+	return c.doRequest(ctx, "DELETE", endpoint, nil)
 }
 
 // doRequest is the internal method that handles all HTTP requests
-func (c *VeeamClient) doRequest(method, endpoint string, payload interface{}) (*http.Response, error) {
+func (c *VeeamClient) doRequest(ctx context.Context, method, endpoint string, payload interface{}) (*http.Response, error) {
+	tflog.Debug(ctx, "Making API request", map[string]interface{}{"method": method, "endpoint": endpoint})
 	// Refresh token if needed
-	if err := c.RefreshToken(); err != nil {
+	if err := c.RefreshToken(ctx); err != nil {
 		return nil, fmt.Errorf("failed to refresh token: %w", err)
 	}
 
@@ -66,7 +69,7 @@ func (c *VeeamClient) doRequest(method, endpoint string, payload interface{}) (*
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.TokenInfo.AccessToken))
 
 		// Execute the request
-		resp, err := c.HTTPClient.Do(req)
+		resp, err := c.HTTPClient.Do(req.WithContext(ctx))
 		if err != nil {
 			return nil, fmt.Errorf("failed to execute request: %w", err)
 		}
@@ -76,8 +79,8 @@ func (c *VeeamClient) doRequest(method, endpoint string, payload interface{}) (*
 }
 
 // GetJSON performs a GET request and unmarshals the response into the provided interface
-func (c *VeeamClient) GetJSON(endpoint string, result interface{}) error {
-	resp, err := c.GET(endpoint)
+func (c *VeeamClient) GetJSON(ctx context.Context, endpoint string, result interface{}) error {
+	resp, err := c.GET(ctx, endpoint)
 	if err != nil {
 		return err
 	}
@@ -87,7 +90,7 @@ func (c *VeeamClient) GetJSON(endpoint string, result interface{}) error {
 		return fmt.Errorf("API request failed with status %d", resp.StatusCode)
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return fmt.Errorf("failed to read response body: %w", err)
 	}
@@ -100,8 +103,8 @@ func (c *VeeamClient) GetJSON(endpoint string, result interface{}) error {
 }
 
 // PostJSON performs a POST request and unmarshals the response into the provided interface
-func (c *VeeamClient) PostJSON(endpoint string, payload interface{}, result interface{}) error {
-	resp, err := c.POST(endpoint, payload)
+func (c *VeeamClient) PostJSON(ctx context.Context, endpoint string, payload interface{}, result interface{}) error {
+	resp, err := c.POST(ctx, endpoint, payload)
 	if err != nil {
 		return err
 	}
@@ -111,7 +114,7 @@ func (c *VeeamClient) PostJSON(endpoint string, payload interface{}, result inte
 		return fmt.Errorf("API request failed with status %d", resp.StatusCode)
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return fmt.Errorf("failed to read response body: %w", err)
 	}
@@ -126,8 +129,8 @@ func (c *VeeamClient) PostJSON(endpoint string, payload interface{}, result inte
 }
 
 // PutJSON performs a PUT request and unmarshals the response into the provided interface
-func (c *VeeamClient) PutJSON(endpoint string, payload interface{}, result interface{}) error {
-	resp, err := c.PUT(endpoint, payload)
+func (c *VeeamClient) PutJSON(ctx context.Context, endpoint string, payload interface{}, result interface{}) error {
+	resp, err := c.PUT(ctx, endpoint, payload)
 	if err != nil {
 		return err
 	}
@@ -137,7 +140,7 @@ func (c *VeeamClient) PutJSON(endpoint string, payload interface{}, result inter
 		return fmt.Errorf("API request failed with status %d", resp.StatusCode)
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return fmt.Errorf("failed to read response body: %w", err)
 	}
@@ -152,8 +155,8 @@ func (c *VeeamClient) PutJSON(endpoint string, payload interface{}, result inter
 }
 
 // DeleteJSON performs a DELETE request and returns any error
-func (c *VeeamClient) DeleteJSON(endpoint string) error {
-	resp, err := c.DELETE(endpoint)
+func (c *VeeamClient) DeleteJSON(ctx context.Context, endpoint string) error {
+	resp, err := c.DELETE(ctx, endpoint)
 	if err != nil {
 		return err
 	}

@@ -1,7 +1,7 @@
 # Example Terraform Variables
 # Copy this file to terraform.tfvars and update with your values
 
-veeam_host        = "veeam.example.com"
+veeam_host        = "https://veeam.example.com"
 veeam_username    = "admin"
 veeam_password    = "your-veeam-password"
 veeam_insecure    = false

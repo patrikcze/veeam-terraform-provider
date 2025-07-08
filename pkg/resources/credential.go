@@ -108,7 +108,7 @@ func (r *Credential) Create(ctx context.Context, req resource.CreateRequest, res
 	}
 
 	var result map[string]interface{}
-	err := r.client.PostJSON("/credentials", payload, &result)
+	err := r.client.PostJSON(ctx, "/credentials", payload, &result)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating credential",
@@ -135,7 +135,7 @@ func (r *Credential) Read(ctx context.Context, req resource.ReadRequest, resp *r
 	}
 
 	var result map[string]interface{}
-	err := r.client.GetJSON(fmt.Sprintf("/credentials/%s", data.ID.ValueString()), &result)
+	err := r.client.GetJSON(ctx, fmt.Sprintf("/credentials/%s", data.ID.ValueString()), &result)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error reading credential",
@@ -187,7 +187,7 @@ func (r *Credential) Update(ctx context.Context, req resource.UpdateRequest, res
 		payload["domain"] = data.Domain.ValueString()
 	}
 
-	err := r.client.PutJSON(fmt.Sprintf("/credentials/%s", data.ID.ValueString()), payload, nil)
+	err := r.client.PutJSON(ctx, fmt.Sprintf("/credentials/%s", data.ID.ValueString()), payload, nil)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error updating credential",
@@ -208,7 +208,7 @@ func (r *Credential) Delete(ctx context.Context, req resource.DeleteRequest, res
 		return
 	}
 
-	err := r.client.DeleteJSON(fmt.Sprintf("/credentials/%s", data.ID.ValueString()))
+	err := r.client.DeleteJSON(ctx, fmt.Sprintf("/credentials/%s", data.ID.ValueString()))
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error deleting credential",

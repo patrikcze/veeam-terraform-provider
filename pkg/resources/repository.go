@@ -101,7 +101,7 @@ func (r *Repository) Create(ctx context.Context, req resource.CreateRequest, res
 	}
 
 	var result map[string]interface{}
-	err := r.client.PostJSON("/repositories", payload, &result)
+	err := r.client.PostJSON(ctx, "/repositories", payload, &result)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating repository",
@@ -128,7 +128,7 @@ func (r *Repository) Read(ctx context.Context, req resource.ReadRequest, resp *r
 	}
 
 	var result map[string]interface{}
-	err := r.client.GetJSON(fmt.Sprintf("/repositories/%s", data.ID.ValueString()), &result)
+	err := r.client.GetJSON(ctx, fmt.Sprintf("/repositories/%s", data.ID.ValueString()), &result)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error reading repository",
@@ -177,7 +177,7 @@ func (r *Repository) Update(ctx context.Context, req resource.UpdateRequest, res
 		payload["capacity"] = data.Capacity.ValueInt64()
 	}
 
-	err := r.client.PutJSON(fmt.Sprintf("/repositories/%s", data.ID.ValueString()), payload, nil)
+	err := r.client.PutJSON(ctx, fmt.Sprintf("/repositories/%s", data.ID.ValueString()), payload, nil)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error updating repository",
@@ -198,7 +198,7 @@ func (r *Repository) Delete(ctx context.Context, req resource.DeleteRequest, res
 		return
 	}
 
-	err := r.client.DeleteJSON(fmt.Sprintf("/repositories/%s", data.ID.ValueString()))
+	err := r.client.DeleteJSON(ctx, fmt.Sprintf("/repositories/%s", data.ID.ValueString()))
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error deleting repository",

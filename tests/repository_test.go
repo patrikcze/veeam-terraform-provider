@@ -131,7 +131,7 @@ func testAccCheckRepositoryExists(n string) resource.TestCheckFunc {
 		username := os.Getenv("VEEAM_USERNAME")
 		password := os.Getenv("VEEAM_PASSWORD")
 
-		client, err := client.NewVeeamClient(host, username, password)
+		client, err := client.NewVeeamClient(host, username, password, false)
 		if err != nil {
 			return fmt.Errorf("Failed to create client: %s", err)
 		}
@@ -152,7 +152,7 @@ func testAccCheckRepositoryDestroy(s *terraform.State) error {
 	username := os.Getenv("VEEAM_USERNAME")
 	password := os.Getenv("VEEAM_PASSWORD")
 
-	client, err := client.NewVeeamClient(host, username, password)
+	client, err := client.NewVeeamClient(host, username, password, false)
 	if err != nil {
 		return fmt.Errorf("Failed to create client: %s", err)
 	}

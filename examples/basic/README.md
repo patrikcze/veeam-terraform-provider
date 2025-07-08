@@ -19,7 +19,7 @@ This example demonstrates basic usage of the Veeam Terraform provider, including
 1. **Set up variables**: Copy `terraform.tfvars.example` to `terraform.tfvars` and update with your values:
 
 ```hcl
-veeam_host        = "your-veeam-server.com"
+veeam_host        = "https://your-veeam-server.com"
 veeam_username    = "admin"
 veeam_password    = "your-password"
 veeam_insecure    = false
