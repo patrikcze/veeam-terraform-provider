@@ -1,14 +1,12 @@
 package tests
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
-	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/patrikcze/terraform-provider-veeam/internal"
 	"github.com/patrikcze/terraform-provider-veeam/internal/client"
 )
@@ -32,7 +30,7 @@ func testAccPreCheck(t *testing.T) {
 	if v := os.Getenv("VEEAM_PASSWORD"); v == "" {
 		t.Fatal("VEEAM_PASSWORD must be set for acceptance tests")
 	}
-	
+
 	// Test the connection to the Veeam server
 	if err := testAccProviderConnection(); err != nil {
 		t.Fatalf("Failed to connect to Veeam server: %s", err)
@@ -78,10 +76,10 @@ func TestMain(m *testing.M) {
 			os.Exit(1)
 		}
 	}
-	
+
 	// Run tests
 	exitCode := m.Run()
-	
+
 	// Clean up if needed
 	os.Exit(exitCode)
 }

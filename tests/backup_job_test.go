@@ -124,12 +124,12 @@ func testAccCheckBackupJobExists(n string) resource.TestCheckFunc {
 		host := os.Getenv("VEEAM_HOST")
 		username := os.Getenv("VEEAM_USERNAME")
 		password := os.Getenv("VEEAM_PASSWORD")
-		
+
 		client, err := client.NewVeeamClient(host, username, password)
 		if err != nil {
 			return fmt.Errorf("Failed to create client: %s", err)
 		}
-		
+
 		var result map[string]interface{}
 		err = client.GetJSON(fmt.Sprintf("/backupJobs/%s", rs.Primary.ID), &result)
 		if err != nil {
@@ -145,7 +145,7 @@ func testAccCheckBackupJobDestroy(s *terraform.State) error {
 	host := os.Getenv("VEEAM_HOST")
 	username := os.Getenv("VEEAM_USERNAME")
 	password := os.Getenv("VEEAM_PASSWORD")
-	
+
 	client, err := client.NewVeeamClient(host, username, password)
 	if err != nil {
 		return fmt.Errorf("Failed to create client: %s", err)

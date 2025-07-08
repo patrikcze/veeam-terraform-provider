@@ -6,8 +6,8 @@
 terraform {
   required_providers {
     veeam = {
-      source  = "patrikcze/veeam"
-      version = "~> 1.0"
+      source  = "registry.terraform.io/patrikcze/veeam"
+      version = "1.0.0"
     }
   }
   required_version = ">= 1.0"
