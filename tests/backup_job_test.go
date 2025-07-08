@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"testing"
@@ -11,6 +12,8 @@ import (
 )
 
 func TestAccBackupJob_Basic(t *testing.T) {
+	ctx := context.Background()
+
 	if os.Getenv("TF_ACC") == "" {
 		t.Skip("Skipping acceptance test - set TF_ACC=1 to run")
 	}
@@ -23,7 +26,7 @@ func TestAccBackupJob_Basic(t *testing.T) {
 			{
 				Config: testAccBackupJobConfig_basic(),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckBackupJobExists("veeam_backup_job.test"),
+					testAccCheckBackupJobExists(ctx, "veeam_backup_job.test"),
 					resource.TestCheckResourceAttr("veeam_backup_job.test", "name", "test-backup-job"),
 					resource.TestCheckResourceAttr("veeam_backup_job.test", "enabled", "true"),
 				),
@@ -33,6 +36,8 @@ func TestAccBackupJob_Basic(t *testing.T) {
 }
 
 func TestAccBackupJob_Disabled(t *testing.T) {
+	ctx := context.Background()
+
 	if os.Getenv("TF_ACC") == "" {
 		t.Skip("Skipping acceptance test - set TF_ACC=1 to run")
 	}
@@ -45,7 +50,7 @@ func TestAccBackupJob_Disabled(t *testing.T) {
 			{
 				Config: testAccBackupJobConfig_disabled(),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckBackupJobExists("veeam_backup_job.test"),
+					testAccCheckBackupJobExists(ctx, "veeam_backup_job.test"),
 					resource.TestCheckResourceAttr("veeam_backup_job.test", "name", "test-backup-job-disabled"),
 					resource.TestCheckResourceAttr("veeam_backup_job.test", "enabled", "false"),
 				),
@@ -55,6 +60,8 @@ func TestAccBackupJob_Disabled(t *testing.T) {
 }
 
 func TestAccBackupJob_Update(t *testing.T) {
+	ctx := context.Background()
+
 	if os.Getenv("TF_ACC") == "" {
 		t.Skip("Skipping acceptance test - set TF_ACC=1 to run")
 	}
@@ -67,7 +74,7 @@ func TestAccBackupJob_Update(t *testing.T) {
 			{
 				Config: testAccBackupJobConfig_basic(),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckBackupJobExists("veeam_backup_job.test"),
+					testAccCheckBackupJobExists(ctx, "veeam_backup_job.test"),
 					resource.TestCheckResourceAttr("veeam_backup_job.test", "name", "test-backup-job"),
 					resource.TestCheckResourceAttr("veeam_backup_job.test", "enabled", "true"),
 				),
@@ -75,7 +82,7 @@ func TestAccBackupJob_Update(t *testing.T) {
 			{
 				Config: testAccBackupJobConfig_updated(),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckBackupJobExists("veeam_backup_job.test"),
+					testAccCheckBackupJobExists(ctx, "veeam_backup_job.test"),
 					resource.TestCheckResourceAttr("veeam_backup_job.test", "name", "test-backup-job-updated"),
 					resource.TestCheckResourceAttr("veeam_backup_job.test", "enabled", "false"),
 				),
@@ -85,6 +92,8 @@ func TestAccBackupJob_Update(t *testing.T) {
 }
 
 func TestAccBackupJob_Import(t *testing.T) {
+	ctx := context.Background()
+
 	if os.Getenv("TF_ACC") == "" {
 		t.Skip("Skipping acceptance test - set TF_ACC=1 to run")
 	}
@@ -97,7 +106,7 @@ func TestAccBackupJob_Import(t *testing.T) {
 			{
 				Config: testAccBackupJobConfig_basic(),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckBackupJobExists("veeam_backup_job.test"),
+					testAccCheckBackupJobExists(ctx, "veeam_backup_job.test"),
 				),
 			},
 			{
@@ -109,7 +118,7 @@ func TestAccBackupJob_Import(t *testing.T) {
 	})
 }
 
-func testAccCheckBackupJobExists(n string) resource.TestCheckFunc {
+func testAccCheckBackupJobExists(ctx context.Context, n string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[n]
 		if !ok {
@@ -125,13 +134,13 @@ func testAccCheckBackupJobExists(n string) resource.TestCheckFunc {
 		username := os.Getenv("VEEAM_USERNAME")
 		password := os.Getenv("VEEAM_PASSWORD")
 
-		client, err := client.NewVeeamClient(host, username, password, false)
+		client, err := client.NewVeeamClient(ctx, host, username, password, false)
 		if err != nil {
 			return fmt.Errorf("Failed to create client: %s", err)
 		}
 
 		var result map[string]interface{}
-		err = client.GetJSON(fmt.Sprintf("/backupJobs/%s", rs.Primary.ID), &result)
+		err = client.GetJSON(ctx, fmt.Sprintf("/backupJobs/%s", rs.Primary.ID), &result)
 		if err != nil {
 			return fmt.Errorf("Backup Job not found: %s", err)
 		}
@@ -141,12 +150,14 @@ func testAccCheckBackupJobExists(n string) resource.TestCheckFunc {
 }
 
 func testAccCheckBackupJobDestroy(s *terraform.State) error {
+	ctx := context.Background()
+
 	// Get client from environment for testing
 	host := os.Getenv("VEEAM_HOST")
 	username := os.Getenv("VEEAM_USERNAME")
 	password := os.Getenv("VEEAM_PASSWORD")
 
-	client, err := client.NewVeeamClient(host, username, password, false)
+	client, err := client.NewVeeamClient(ctx, host, username, password, false)
 	if err != nil {
 		return fmt.Errorf("Failed to create client: %s", err)
 	}
@@ -157,7 +168,7 @@ func testAccCheckBackupJobDestroy(s *terraform.State) error {
 		}
 
 		var result map[string]interface{}
-		err := client.GetJSON(fmt.Sprintf("/backupJobs/%s", rs.Primary.ID), &result)
+		err := client.GetJSON(ctx, fmt.Sprintf("/backupJobs/%s", rs.Primary.ID), &result)
 		if err == nil {
 			return fmt.Errorf("Backup Job still exists: %s", rs.Primary.ID)
 		}

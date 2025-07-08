@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"testing"
@@ -11,6 +12,8 @@ import (
 )
 
 func TestAccRepository_Basic(t *testing.T) {
+	ctx := context.Background()
+
 	if os.Getenv("TF_ACC") == "" {
 		t.Skip("Skipping acceptance test - set TF_ACC=1 to run")
 	}
@@ -23,7 +26,7 @@ func TestAccRepository_Basic(t *testing.T) {
 			{
 				Config: testAccRepositoryConfig_basic(),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckRepositoryExists("veeam_repository.test"),
+					testAccCheckRepositoryExists(ctx, "veeam_repository.test"),
 					resource.TestCheckResourceAttr("veeam_repository.test", "name", "test-repository"),
 					resource.TestCheckResourceAttr("veeam_repository.test", "description", "Test repository for acceptance tests"),
 					resource.TestCheckResourceAttr("veeam_repository.test", "path", "/backup/test"),
@@ -36,6 +39,8 @@ func TestAccRepository_Basic(t *testing.T) {
 }
 
 func TestAccRepository_WithCapacity(t *testing.T) {
+	ctx := context.Background()
+
 	if os.Getenv("TF_ACC") == "" {
 		t.Skip("Skipping acceptance test - set TF_ACC=1 to run")
 	}
@@ -48,7 +53,7 @@ func TestAccRepository_WithCapacity(t *testing.T) {
 			{
 				Config: testAccRepositoryConfig_withCapacity(),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckRepositoryExists("veeam_repository.test"),
+					testAccCheckRepositoryExists(ctx, "veeam_repository.test"),
 					resource.TestCheckResourceAttr("veeam_repository.test", "name", "test-repository-capacity"),
 					resource.TestCheckResourceAttr("veeam_repository.test", "path", "/backup/test-capacity"),
 					resource.TestCheckResourceAttr("veeam_repository.test", "type", "local"),
@@ -61,6 +66,8 @@ func TestAccRepository_WithCapacity(t *testing.T) {
 }
 
 func TestAccRepository_Update(t *testing.T) {
+	ctx := context.Background()
+
 	if os.Getenv("TF_ACC") == "" {
 		t.Skip("Skipping acceptance test - set TF_ACC=1 to run")
 	}
@@ -73,7 +80,7 @@ func TestAccRepository_Update(t *testing.T) {
 			{
 				Config: testAccRepositoryConfig_basic(),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckRepositoryExists("veeam_repository.test"),
+					testAccCheckRepositoryExists(ctx, "veeam_repository.test"),
 					resource.TestCheckResourceAttr("veeam_repository.test", "name", "test-repository"),
 					resource.TestCheckResourceAttr("veeam_repository.test", "description", "Test repository for acceptance tests"),
 				),
@@ -81,7 +88,7 @@ func TestAccRepository_Update(t *testing.T) {
 			{
 				Config: testAccRepositoryConfig_updated(),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckRepositoryExists("veeam_repository.test"),
+					testAccCheckRepositoryExists(ctx, "veeam_repository.test"),
 					resource.TestCheckResourceAttr("veeam_repository.test", "name", "test-repository-updated"),
 					resource.TestCheckResourceAttr("veeam_repository.test", "description", "Updated description"),
 				),
@@ -91,6 +98,8 @@ func TestAccRepository_Update(t *testing.T) {
 }
 
 func TestAccRepository_Import(t *testing.T) {
+	ctx := context.Background()
+
 	if os.Getenv("TF_ACC") == "" {
 		t.Skip("Skipping acceptance test - set TF_ACC=1 to run")
 	}
@@ -103,7 +112,7 @@ func TestAccRepository_Import(t *testing.T) {
 			{
 				Config: testAccRepositoryConfig_basic(),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckRepositoryExists("veeam_repository.test"),
+					testAccCheckRepositoryExists(ctx, "veeam_repository.test"),
 				),
 			},
 			{
@@ -115,7 +124,7 @@ func TestAccRepository_Import(t *testing.T) {
 	})
 }
 
-func testAccCheckRepositoryExists(n string) resource.TestCheckFunc {
+func testAccCheckRepositoryExists(ctx context.Context, n string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[n]
 		if !ok {
@@ -131,13 +140,13 @@ func testAccCheckRepositoryExists(n string) resource.TestCheckFunc {
 		username := os.Getenv("VEEAM_USERNAME")
 		password := os.Getenv("VEEAM_PASSWORD")
 
-		client, err := client.NewVeeamClient(host, username, password, false)
+		client, err := client.NewVeeamClient(ctx, host, username, password, false)
 		if err != nil {
 			return fmt.Errorf("Failed to create client: %s", err)
 		}
 
 		var result map[string]interface{}
-		err = client.GetJSON(fmt.Sprintf("/repositories/%s", rs.Primary.ID), &result)
+		err = client.GetJSON(ctx, fmt.Sprintf("/repositories/%s", rs.Primary.ID), &result)
 		if err != nil {
 			return fmt.Errorf("Repository not found: %s", err)
 		}
@@ -147,12 +156,14 @@ func testAccCheckRepositoryExists(n string) resource.TestCheckFunc {
 }
 
 func testAccCheckRepositoryDestroy(s *terraform.State) error {
+	ctx := context.Background()
+
 	// Get client from environment for testing
 	host := os.Getenv("VEEAM_HOST")
 	username := os.Getenv("VEEAM_USERNAME")
 	password := os.Getenv("VEEAM_PASSWORD")
 
-	client, err := client.NewVeeamClient(host, username, password, false)
+	client, err := client.NewVeeamClient(ctx, host, username, password, false)
 	if err != nil {
 		return fmt.Errorf("Failed to create client: %s", err)
 	}
@@ -163,7 +174,7 @@ func testAccCheckRepositoryDestroy(s *terraform.State) error {
 		}
 
 		var result map[string]interface{}
-		err := client.GetJSON(fmt.Sprintf("/repositories/%s", rs.Primary.ID), &result)
+		err := client.GetJSON(ctx, fmt.Sprintf("/repositories/%s", rs.Primary.ID), &result)
 		if err == nil {
 			return fmt.Errorf("Repository still exists: %s", rs.Primary.ID)
 		}

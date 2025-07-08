@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -13,8 +14,8 @@ type MockVeeamClient struct {
 	mock.Mock
 }
 
-func (m *MockVeeamClient) GetJSON(endpoint string, result interface{}) error {
-	args := m.Called(endpoint, result)
+func (m *MockVeeamClient) GetJSON(ctx context.Context, endpoint string, result interface{}) error {
+	args := m.Called(ctx, endpoint, result)
 	return args.Error(0)
 }
 
@@ -67,11 +68,11 @@ func TestBackupJob_ReadPayload(t *testing.T) {
 	mockClient := new(MockVeeamClient)
 
 	// Mock successful API response
-	mockClient.On("GetJSON", "/backupJobs/test_backup", mock.Anything).Return(nil)
+	mockClient.On("GetJSON", mock.Anything, "/backupJobs/test_backup", mock.Anything).Return(nil)
 
 	// Execute mock API call
 	var result map[string]interface{}
-	err := mockClient.GetJSON("/backupJobs/test_backup", &result)
+	err := mockClient.GetJSON(context.Background(), "/backupJobs/test_backup", &result)
 
 	// Assert no errors
 	assert.NoError(t, err)

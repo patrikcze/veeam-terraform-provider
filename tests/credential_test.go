@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"testing"
@@ -11,6 +12,8 @@ import (
 )
 
 func TestAccCredential_Basic(t *testing.T) {
+	ctx := context.Background()
+
 	if os.Getenv("TF_ACC") == "" {
 		t.Skip("Skipping acceptance test - set TF_ACC=1 to run")
 	}
@@ -23,7 +26,7 @@ func TestAccCredential_Basic(t *testing.T) {
 			{
 				Config: testAccCredentialConfig_basic(),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckCredentialExists("veeam_credential.test"),
+					testAccCheckCredentialExists(ctx, "veeam_credential.test"),
 					resource.TestCheckResourceAttr("veeam_credential.test", "name", "test-credential"),
 					resource.TestCheckResourceAttr("veeam_credential.test", "description", "Test credential for acceptance tests"),
 					resource.TestCheckResourceAttr("veeam_credential.test", "username", "testuser"),
@@ -36,6 +39,8 @@ func TestAccCredential_Basic(t *testing.T) {
 }
 
 func TestAccCredential_WithDomain(t *testing.T) {
+	ctx := context.Background()
+
 	if os.Getenv("TF_ACC") == "" {
 		t.Skip("Skipping acceptance test - set TF_ACC=1 to run")
 	}
@@ -48,7 +53,7 @@ func TestAccCredential_WithDomain(t *testing.T) {
 			{
 				Config: testAccCredentialConfig_withDomain(),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckCredentialExists("veeam_credential.test"),
+					testAccCheckCredentialExists(ctx, "veeam_credential.test"),
 					resource.TestCheckResourceAttr("veeam_credential.test", "name", "test-credential-domain"),
 					resource.TestCheckResourceAttr("veeam_credential.test", "username", "testuser"),
 					resource.TestCheckResourceAttr("veeam_credential.test", "type", "windows"),
@@ -61,6 +66,8 @@ func TestAccCredential_WithDomain(t *testing.T) {
 }
 
 func TestAccCredential_Update(t *testing.T) {
+	ctx := context.Background()
+
 	if os.Getenv("TF_ACC") == "" {
 		t.Skip("Skipping acceptance test - set TF_ACC=1 to run")
 	}
@@ -73,7 +80,7 @@ func TestAccCredential_Update(t *testing.T) {
 			{
 				Config: testAccCredentialConfig_basic(),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckCredentialExists("veeam_credential.test"),
+					testAccCheckCredentialExists(ctx, "veeam_credential.test"),
 					resource.TestCheckResourceAttr("veeam_credential.test", "name", "test-credential"),
 					resource.TestCheckResourceAttr("veeam_credential.test", "description", "Test credential for acceptance tests"),
 				),
@@ -81,7 +88,7 @@ func TestAccCredential_Update(t *testing.T) {
 			{
 				Config: testAccCredentialConfig_updated(),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckCredentialExists("veeam_credential.test"),
+					testAccCheckCredentialExists(ctx, "veeam_credential.test"),
 					resource.TestCheckResourceAttr("veeam_credential.test", "name", "test-credential-updated"),
 					resource.TestCheckResourceAttr("veeam_credential.test", "description", "Updated description"),
 				),
@@ -91,6 +98,8 @@ func TestAccCredential_Update(t *testing.T) {
 }
 
 func TestAccCredential_Import(t *testing.T) {
+	ctx := context.Background()
+
 	if os.Getenv("TF_ACC") == "" {
 		t.Skip("Skipping acceptance test - set TF_ACC=1 to run")
 	}
@@ -103,7 +112,7 @@ func TestAccCredential_Import(t *testing.T) {
 			{
 				Config: testAccCredentialConfig_basic(),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckCredentialExists("veeam_credential.test"),
+					testAccCheckCredentialExists(ctx, "veeam_credential.test"),
 				),
 			},
 			{
@@ -116,7 +125,7 @@ func TestAccCredential_Import(t *testing.T) {
 	})
 }
 
-func testAccCheckCredentialExists(n string) resource.TestCheckFunc {
+func testAccCheckCredentialExists(ctx context.Context, n string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[n]
 		if !ok {
@@ -132,13 +141,13 @@ func testAccCheckCredentialExists(n string) resource.TestCheckFunc {
 		username := os.Getenv("VEEAM_USERNAME")
 		password := os.Getenv("VEEAM_PASSWORD")
 
-		client, err := client.NewVeeamClient(host, username, password, false)
+		client, err := client.NewVeeamClient(ctx, host, username, password, false)
 		if err != nil {
 			return fmt.Errorf("Failed to create client: %s", err)
 		}
 
 		var result map[string]interface{}
-		err = client.GetJSON(fmt.Sprintf("/credentials/%s", rs.Primary.ID), &result)
+		err = client.GetJSON(ctx, fmt.Sprintf("/credentials/%s", rs.Primary.ID), &result)
 		if err != nil {
 			return fmt.Errorf("Credential not found: %s", err)
 		}
@@ -148,12 +157,14 @@ func testAccCheckCredentialExists(n string) resource.TestCheckFunc {
 }
 
 func testAccCheckCredentialDestroy(s *terraform.State) error {
+	ctx := context.Background()
+
 	// Get client from environment for testing
 	host := os.Getenv("VEEAM_HOST")
 	username := os.Getenv("VEEAM_USERNAME")
 	password := os.Getenv("VEEAM_PASSWORD")
 
-	client, err := client.NewVeeamClient(host, username, password, false)
+	client, err := client.NewVeeamClient(ctx, host, username, password, false)
 	if err != nil {
 		return fmt.Errorf("Failed to create client: %s", err)
 	}
@@ -164,7 +175,7 @@ func testAccCheckCredentialDestroy(s *terraform.State) error {
 		}
 
 		var result map[string]interface{}
-		err := client.GetJSON(fmt.Sprintf("/credentials/%s", rs.Primary.ID), &result)
+		err := client.GetJSON(ctx, fmt.Sprintf("/credentials/%s", rs.Primary.ID), &result)
 		if err == nil {
 			return fmt.Errorf("Credential still exists: %s", rs.Primary.ID)
 		}

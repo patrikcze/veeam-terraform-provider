@@ -1,6 +1,7 @@
 package datasources
 
 import (
+	"context"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -13,8 +14,8 @@ type MockVeeamClient struct {
 	mock.Mock
 }
 
-func (m *MockVeeamClient) GetJSON(endpoint string, result interface{}) error {
-	args := m.Called(endpoint, result)
+func (m *MockVeeamClient) GetJSON(ctx context.Context, endpoint string, result interface{}) error {
+	args := m.Called(ctx, endpoint, result)
 	return args.Error(0)
 }
 
@@ -38,8 +39,8 @@ func TestBackupJobsDataSource_ReadAllJobs(t *testing.T) {
 	mockClient := new(MockVeeamClient)
 
 	// Mock successful API response for all jobs
-	mockClient.On("GetJSON", "/api/v1/backupJobs", mock.Anything).Run(func(args mock.Arguments) {
-		result := args.Get(1).(*[]map[string]interface{})
+	mockClient.On("GetJSON", mock.Anything, "/api/v1/backupJobs", mock.Anything).Run(func(args mock.Arguments) {
+		result := args.Get(2).(*[]map[string]interface{})
 		*result = []map[string]interface{}{
 			{
 				"id":          "job-1",
@@ -68,7 +69,7 @@ func TestBackupJobsDataSource_ReadAllJobs(t *testing.T) {
 
 	// Execute mock API call
 	var response []map[string]interface{}
-	err := mockClient.GetJSON("/api/v1/backupJobs", &response)
+	err := mockClient.GetJSON(context.Background(), "/api/v1/backupJobs", &response)
 
 	// Assert no errors
 	assert.NoError(t, err)
@@ -83,8 +84,8 @@ func TestBackupJobsDataSource_ReadByJobID(t *testing.T) {
 	mockClient := new(MockVeeamClient)
 
 	// Mock successful API response for specific job
-	mockClient.On("GetJSON", "/api/v1/backupJobs/job-1", mock.Anything).Run(func(args mock.Arguments) {
-		result := args.Get(1).(*map[string]interface{})
+	mockClient.On("GetJSON", mock.Anything, "/api/v1/backupJobs/job-1", mock.Anything).Run(func(args mock.Arguments) {
+		result := args.Get(2).(*map[string]interface{})
 		*result = map[string]interface{}{
 			"id":          "job-1",
 			"name":        "Daily Backup",
@@ -100,7 +101,7 @@ func TestBackupJobsDataSource_ReadByJobID(t *testing.T) {
 
 	// Execute mock API call
 	var response map[string]interface{}
-	err := mockClient.GetJSON("/api/v1/backupJobs/job-1", &response)
+	err := mockClient.GetJSON(context.Background(), "/api/v1/backupJobs/job-1", &response)
 
 	// Assert no errors
 	assert.NoError(t, err)

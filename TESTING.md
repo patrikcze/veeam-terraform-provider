@@ -35,8 +35,8 @@ type MockVeeamClient struct {
     mock.Mock
 }
 
-func (m *MockVeeamClient) GetJSON(endpoint string, result interface{}) error {
-    args := m.Called(endpoint, result)
+func (m *MockVeeamClient) GetJSON(ctx context.Context, endpoint string, result interface{}) error {
+    args := m.Called(ctx, endpoint, result)
     return args.Error(0)
 }
 ```

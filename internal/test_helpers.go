@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"context"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -9,8 +10,8 @@ type MockVeeamClient struct {
 	mock.Mock
 }
 
-func (m *MockVeeamClient) GetJSON(endpoint string, result interface{}) error {
-	args := m.Called(endpoint, result)
+func (m *MockVeeamClient) GetJSON(ctx context.Context, endpoint string, result interface{}) error {
+	args := m.Called(ctx, endpoint, result)
 	return args.Error(0)
 }
 
@@ -45,8 +46,8 @@ func NewTestHelper() *TestHelper {
 func (h *TestHelper) SetupMockResponse(method, endpoint string, response interface{}) {
 	switch method {
 	case "GET":
-		h.MockClient.On("GetJSON", endpoint, mock.Anything).Run(func(args mock.Arguments) {
-			result := args.Get(1)
+		h.MockClient.On("GetJSON", mock.Anything, endpoint, mock.Anything).Run(func(args mock.Arguments) {
+			result := args.Get(2)
 			switch v := result.(type) {
 			case *map[string]interface{}:
 				*v = response.(map[string]interface{})

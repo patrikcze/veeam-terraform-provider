@@ -1,4 +1,3 @@
-version: 2
 
 run:
   timeout: 5m
@@ -53,13 +52,11 @@ linters:
     - cyclop
     - gocyclo
     - maintidx
-    - gomnd
     - testpackage
     - paralleltest
     - tparallel
     - prealloc
     - wrapcheck
-    - goerr113
     - forcetypeassert
     - forbidigo
     - godot
@@ -73,7 +70,6 @@ linters:
     - nonamedreturns
     - nolintlint
     - ireturn
-    - exportloopref
     - tagliatelle
     - gosec
     - nestif
@@ -88,7 +84,6 @@ linters:
     - noctx
     - rowserrcheck
     - sqlclosecheck
-    - structcheck
     - tenv
     - testifylint
     - thelper
@@ -101,26 +96,6 @@ linters-settings:
     local-prefixes: github.com/patrikcze/terraform-provider-veeam
   gocritic:
     enabled-checks:
-      - argOrder
-      - assignOp
-      - badCond
-      - caseOrder
-      - defaultCaseOrder
-      - dupArg
-      - dupBranch
-      - dupCase
-      - elseif
-      - flagDeref
-      - ifElseChain
-      - regexpMust
-      - singleCaseSwitch
-      - sloppyLen
-      - switchTrue
-      - typeSwitchVar
-      - underef
-      - unlabelStmt
-      - unslice
-      - valSwap
       - yodaStyleExpr
   revive:
     rules:

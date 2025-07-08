@@ -1,6 +1,7 @@
 package datasources
 
 import (
+	"context"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -13,8 +14,8 @@ func TestRepositoriesDataSource_ReadAllRepositories(t *testing.T) {
 	mockClient := new(MockVeeamClient)
 
 	// Mock successful API response for all repositories
-	mockClient.On("GetJSON", "/api/v1/repositories", mock.Anything).Run(func(args mock.Arguments) {
-		result := args.Get(1).(*[]map[string]interface{})
+	mockClient.On("GetJSON", mock.Anything, "/api/v1/repositories", mock.Anything).Run(func(args mock.Arguments) {
+		result := args.Get(2).(*[]map[string]interface{})
 		*result = []map[string]interface{}{
 			{
 				"id":          "repo-1",
@@ -47,7 +48,7 @@ func TestRepositoriesDataSource_ReadAllRepositories(t *testing.T) {
 
 	// Execute mock API call
 	var response []map[string]interface{}
-	err := mockClient.GetJSON("/api/v1/repositories", &response)
+	err := mockClient.GetJSON(context.Background(), "/api/v1/repositories", &response)
 
 	// Assert no errors
 	assert.NoError(t, err)
