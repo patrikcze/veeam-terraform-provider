@@ -2,6 +2,7 @@ package internal_test
 
 import (
 	"context"
+
 	"github.com/stretchr/testify/mock"
 )
 

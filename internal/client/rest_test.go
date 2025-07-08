@@ -7,9 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/patrikcze/terraform-provider-veeam/internal/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/patrikcze/terraform-provider-veeam/internal/models"
 )
 
 func TestVeeamClient_GET(t *testing.T) {

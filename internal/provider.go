@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+
 	"github.com/patrikcze/terraform-provider-veeam/internal/client"
 	"github.com/patrikcze/terraform-provider-veeam/pkg/datasources"
 	"github.com/patrikcze/terraform-provider-veeam/pkg/resources"

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-log/tflog"
+
 	"github.com/patrikcze/terraform-provider-veeam/internal/models"
 )
 

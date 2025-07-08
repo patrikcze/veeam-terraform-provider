@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-log/tflog"
+
 	"github.com/patrikcze/terraform-provider-veeam/internal/utils"
 )
 

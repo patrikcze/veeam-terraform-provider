@@ -8,6 +8,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
+
 	"github.com/patrikcze/terraform-provider-veeam/internal"
 	"github.com/patrikcze/terraform-provider-veeam/internal/client"
 )
