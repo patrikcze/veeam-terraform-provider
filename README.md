@@ -4,6 +4,7 @@ This Terraform provider allows you to manage Veeam Backup & Replication resource
 
 ## Features
 
+- **Lot of things to update**: There are still lot of things to implement.
 - **Backup Job Management**: Create, update, and delete backup jobs with full storage/schedule/retention configuration
 - **Repository Management**: Polymorphic repositories — WinLocal, LinuxLocal, Nfs, Smb
 - **Credential Management**: Standard (Windows/domain) and Linux SSH credentials
