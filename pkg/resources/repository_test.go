@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -13,9 +14,9 @@ func TestRepository_CreatePayload(t *testing.T) {
 	mockClient := new(MockVeeamClient)
 
 	// Mock successful API response
-	mockClient.On("PostJSON", "/repositories", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+	mockClient.On("PostJSON", mock.Anything, "/repositories", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 		// Simulate setting an ID in the result
-		result := args.Get(2).(*map[string]interface{})
+		result := args.Get(3).(*map[string]interface{})
 		*result = map[string]interface{}{
 			"id": "repo-123",
 		}
@@ -41,7 +42,7 @@ func TestRepository_CreatePayload(t *testing.T) {
 
 	// Execute mock API call
 	var result map[string]interface{}
-	err := mockClient.PostJSON("/repositories", payload, &result)
+	err := mockClient.PostJSON(context.Background(), "/repositories", payload, &result)
 
 	// Assert no errors
 	assert.NoError(t, err)

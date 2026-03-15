@@ -1,15 +1,15 @@
 package client
 
 import (
-	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-log/tflog"
@@ -17,154 +17,218 @@ import (
 	"github.com/patrikcze/terraform-provider-veeam/internal/models"
 )
 
-// VeeamClient represents the client structure
+const (
+	// APIVersion is the Veeam V13 REST API version header value.
+	APIVersion = "1.3-rev0"
+
+	// tokenEndpoint is the V13 OAuth2 token endpoint.
+	tokenEndpoint = "/api/oauth2/token"
+
+	// tokenRefreshBuffer is how far before expiry we proactively refresh.
+	tokenRefreshBuffer = 2 * time.Minute
+
+	// defaultTimeout for HTTP requests.
+	defaultTimeout = 60 * time.Second
+)
+
+// VeeamClient implements APIClient for the Veeam V13 REST API.
 type VeeamClient struct {
 	BaseURL    string
 	HTTPClient *http.Client
 	TokenInfo  models.TokenInfo
+
+	// credentials stored for re-authentication if refresh token expires.
+	// NEVER logged, serialized, or exposed.
+	username string
+	password string
+
+	// mu protects token refresh from concurrent goroutines.
+	mu sync.Mutex
 }
 
-// normalizeURL ensures the URL has a proper protocol scheme
-func normalizeURL(url string) string {
-	if url == "" {
-		return url
+// normalizeURL ensures the URL has a proper https:// scheme.
+// Security: defaults to https, never http.
+func normalizeURL(host string, port int) string {
+	host = strings.TrimSpace(host)
+	if host == "" {
+		return ""
 	}
 
-	// If URL already has a protocol scheme, return as-is
-	if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
-		return url
+	// Strip any existing scheme for normalization
+	host = strings.TrimPrefix(host, "https://")
+	host = strings.TrimPrefix(host, "http://")
+
+	// Strip trailing slashes and port if already present
+	host = strings.TrimRight(host, "/")
+	if idx := strings.LastIndex(host, ":"); idx > 0 {
+		// Host already has a port, use as-is
+		return fmt.Sprintf("https://%s", host)
 	}
 
-	// Default to https:// for security
-	return "https://" + url
+	return fmt.Sprintf("https://%s:%d", host, port)
 }
 
-// NewVeeamClient initializes a new Veeam API client
-func NewVeeamClient(ctx context.Context, baseURL, username, password string, insecure bool) (*VeeamClient, error) {
-	tflog.Debug(ctx, "Initializing Veeam client", map[string]interface{}{"host": baseURL})
-	normalizedURL := normalizeURL(baseURL)
+// NewVeeamClient initializes and authenticates a new Veeam V13 API client.
+func NewVeeamClient(ctx context.Context, host string, port int, username, password string, insecure bool) (*VeeamClient, error) {
+	// Log host only, NEVER credentials
+	tflog.Debug(ctx, "Initializing Veeam client", map[string]interface{}{"host": host, "port": port})
 
-	// Configure HTTP client with TLS settings
+	if insecure {
+		tflog.Warn(ctx, "TLS certificate verification is DISABLED — do not use in production")
+	}
+
+	baseURL := normalizeURL(host, port)
+	if baseURL == "" {
+		return nil, fmt.Errorf("failed to initialize client: host is empty")
+	}
+
 	transport := &http.Transport{
 		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: insecure,
+			InsecureSkipVerify: insecure, //nolint:gosec // user-controlled flag with warning
 		},
 	}
 
-	client := &VeeamClient{
-		BaseURL: normalizedURL,
+	c := &VeeamClient{
+		BaseURL: baseURL,
 		HTTPClient: &http.Client{
-			Timeout:   30 * time.Second,
+			Timeout:   defaultTimeout,
 			Transport: transport,
 		},
+		username: username,
+		password: password,
 	}
 
-	// Authenticate and set token
-	if err := client.authenticate(ctx, username, password); err != nil {
+	if err := c.authenticate(ctx); err != nil {
+		return nil, fmt.Errorf("failed to authenticate with Veeam server at %s: %w", host, err)
+	}
+
+	tflog.Info(ctx, "Veeam client initialized successfully", map[string]interface{}{"host": host})
+	return c, nil
+}
+
+// NewVeeamClientWithHTTPClient creates a client with a custom http.Client (for testing).
+func NewVeeamClientWithHTTPClient(ctx context.Context, baseURL, username, password string, httpClient *http.Client) (*VeeamClient, error) {
+	c := &VeeamClient{
+		BaseURL:    baseURL,
+		HTTPClient: httpClient,
+		username:   username,
+		password:   password,
+	}
+
+	if err := c.authenticate(ctx); err != nil {
 		return nil, fmt.Errorf("failed to authenticate: %w", err)
 	}
 
-	return client, nil
+	return c, nil
 }
 
-// authenticate handles authentication and token retrieval
-func (c *VeeamClient) authenticate(ctx context.Context, username, password string) error {
-	tflog.Debug(ctx, "Authenticating Veeam client", nil)
-	url := c.BaseURL + "/api/v1/token"
+// authenticate performs OAuth2 password grant against POST /api/oauth2/token.
+// Content-Type: application/x-www-form-urlencoded
+// Body: grant_type=password&username=USER&password=PASS
+func (c *VeeamClient) authenticate(ctx context.Context) error {
+	tflog.Debug(ctx, "Authenticating with Veeam server")
 
-	authReq := models.AuthRequest{
-		Username: username,
-		Password: password,
+	formData := url.Values{
+		"grant_type": {"password"},
+		"username":   {c.username},
+		"password":   {c.password},
 	}
 
-	body, err := json.Marshal(authReq)
+	tokenModel, err := c.postTokenRequest(ctx, formData)
 	if err != nil {
-		return err
-	}
-
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.HTTPClient.Do(req.WithContext(ctx))
-	if err != nil {
-		return fmt.Errorf("failed to execute authentication request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("authentication failed with status: %d", resp.StatusCode)
-	}
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-
-	var authResp models.AuthResponse
-	if err := json.Unmarshal(respBody, &authResp); err != nil {
-		return err
+		return fmt.Errorf("authentication failed: %w", err)
 	}
 
 	c.TokenInfo = models.TokenInfo{
-		AccessToken:  authResp.AccessToken,
-		TokenType:    authResp.TokenType,
-		RefreshToken: authResp.RefreshToken,
-		ExpiresAt:    time.Now().Add(time.Duration(authResp.ExpiresIn) * time.Second),
+		AccessToken:  tokenModel.AccessToken,
+		TokenType:    tokenModel.TokenType,
+		RefreshToken: tokenModel.RefreshToken,
+		ExpiresAt:    time.Now().Add(time.Duration(tokenModel.ExpiresIn) * time.Second),
 	}
+
+	tflog.Debug(ctx, "Authentication successful", map[string]interface{}{
+		"expires_in_seconds": tokenModel.ExpiresIn,
+	})
 
 	return nil
 }
 
-// RefreshToken refreshes the access token before it expires
+// RefreshToken refreshes the access token before it expires.
+// Uses grant_type=refresh_token. If the refresh token itself is expired,
+// falls back to full re-authentication with stored credentials.
 func (c *VeeamClient) RefreshToken(ctx context.Context) error {
-	tflog.Debug(ctx, "Refreshing access token", nil)
-	if !c.TokenInfo.WillExpireSoon(5 * time.Minute) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	// No refresh needed yet
+	if !c.TokenInfo.WillExpireSoon(tokenRefreshBuffer) {
 		return nil
 	}
 
-	url := c.BaseURL + "/api/v1/refresh"
+	tflog.Debug(ctx, "Access token expiring soon, refreshing")
 
-	refreshReq := models.TokenRefreshRequest{
-		RefreshToken: c.TokenInfo.RefreshToken,
-		GrantType:    "refresh_token",
+	formData := url.Values{
+		"grant_type":    {"refresh_token"},
+		"refresh_token": {c.TokenInfo.RefreshToken},
 	}
 
-	body, err := json.Marshal(refreshReq)
+	tokenModel, err := c.postTokenRequest(ctx, formData)
 	if err != nil {
-		return err
+		// Refresh failed — try full re-authentication
+		tflog.Warn(ctx, "Token refresh failed, attempting full re-authentication")
+		return c.authenticate(ctx)
 	}
 
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
+	// Update tokens (refresh token is single-use in V13, we get a new one)
+	c.TokenInfo.AccessToken = tokenModel.AccessToken
+	c.TokenInfo.RefreshToken = tokenModel.RefreshToken
+	c.TokenInfo.ExpiresAt = time.Now().Add(time.Duration(tokenModel.ExpiresIn) * time.Second)
 
-	resp, err := c.HTTPClient.Do(req.WithContext(ctx))
+	tflog.Debug(ctx, "Token refreshed successfully")
+	return nil
+}
+
+// postTokenRequest sends a form-encoded POST to the token endpoint
+// and returns the parsed TokenModel.
+func (c *VeeamClient) postTokenRequest(ctx context.Context, formData url.Values) (*models.TokenModel, error) {
+	tokenURL := c.BaseURL + tokenEndpoint
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, tokenURL, strings.NewReader(formData.Encode()))
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("failed to create token request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("x-api-version", APIVersion)
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute token request: %w", err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return errors.New("failed to refresh token")
-	}
-
-	respBody, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("failed to read token response: %w", err)
 	}
 
-	var authResp models.AuthResponse
-	if err := json.Unmarshal(respBody, &authResp); err != nil {
-		return err
+	if resp.StatusCode != http.StatusOK {
+		// Try to parse error response for actionable message
+		var apiErr models.APIError
+		if jsonErr := json.Unmarshal(body, &apiErr); jsonErr == nil && apiErr.Message != "" {
+			return nil, fmt.Errorf("token request failed (HTTP %d): %w", resp.StatusCode, &apiErr)
+		}
+		return nil, fmt.Errorf("token request failed with HTTP %d", resp.StatusCode)
 	}
 
-	c.TokenInfo.AccessToken = authResp.AccessToken
-	c.TokenInfo.ExpiresAt = time.Now().Add(time.Duration(authResp.ExpiresIn) * time.Second)
+	var tokenModel models.TokenModel
+	if err := json.Unmarshal(body, &tokenModel); err != nil {
+		return nil, fmt.Errorf("failed to parse token response: %w", err)
+	}
 
-	return nil
+	if tokenModel.AccessToken == "" {
+		return nil, fmt.Errorf("token response missing access_token")
+	}
+
+	return &tokenModel, nil
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
@@ -45,7 +46,12 @@ func testAccProviderConnection() error {
 	username := os.Getenv("VEEAM_USERNAME")
 	password := os.Getenv("VEEAM_PASSWORD")
 
-	client, err := client.NewVeeamClient(context.Background(), host, username, password, false)
+	port := 9419
+	if p := os.Getenv("VEEAM_PORT"); p != "" {
+		port, _ = strconv.Atoi(p)
+	}
+
+	client, err := client.NewVeeamClient(context.Background(), host, port, username, password, false)
 	if err != nil {
 		return fmt.Errorf("failed to create API client: %w", err)
 	}

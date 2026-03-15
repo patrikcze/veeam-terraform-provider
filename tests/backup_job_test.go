@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
@@ -135,7 +136,12 @@ func testAccCheckBackupJobExists(ctx context.Context, n string) resource.TestChe
 		username := os.Getenv("VEEAM_USERNAME")
 		password := os.Getenv("VEEAM_PASSWORD")
 
-		client, err := client.NewVeeamClient(ctx, host, username, password, false)
+		port := 9419
+		if p := os.Getenv("VEEAM_PORT"); p != "" {
+			port, _ = strconv.Atoi(p)
+		}
+
+		client, err := client.NewVeeamClient(ctx, host, port, username, password, false)
 		if err != nil {
 			return fmt.Errorf("Failed to create client: %s", err)
 		}
@@ -158,7 +164,12 @@ func testAccCheckBackupJobDestroy(s *terraform.State) error {
 	username := os.Getenv("VEEAM_USERNAME")
 	password := os.Getenv("VEEAM_PASSWORD")
 
-	client, err := client.NewVeeamClient(ctx, host, username, password, false)
+	port := 9419
+	if p := os.Getenv("VEEAM_PORT"); p != "" {
+		port, _ = strconv.Atoi(p)
+	}
+
+	client, err := client.NewVeeamClient(ctx, host, port, username, password, false)
 	if err != nil {
 		return fmt.Errorf("Failed to create client: %s", err)
 	}

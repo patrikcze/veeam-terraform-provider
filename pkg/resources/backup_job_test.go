@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// MockVeeamClient is a mock implementation of the VeeamClient for testing
+// MockVeeamClient is a mock implementation of the APIClient interface for testing.
 type MockVeeamClient struct {
 	mock.Mock
 }
@@ -19,18 +19,23 @@ func (m *MockVeeamClient) GetJSON(ctx context.Context, endpoint string, result i
 	return args.Error(0)
 }
 
-func (m *MockVeeamClient) PostJSON(endpoint string, payload interface{}, result interface{}) error {
-	args := m.Called(endpoint, payload, result)
+func (m *MockVeeamClient) PostJSON(ctx context.Context, endpoint string, payload interface{}, result interface{}) error {
+	args := m.Called(ctx, endpoint, payload, result)
 	return args.Error(0)
 }
 
-func (m *MockVeeamClient) PutJSON(endpoint string, payload interface{}, result interface{}) error {
-	args := m.Called(endpoint, payload, result)
+func (m *MockVeeamClient) PutJSON(ctx context.Context, endpoint string, payload interface{}, result interface{}) error {
+	args := m.Called(ctx, endpoint, payload, result)
 	return args.Error(0)
 }
 
-func (m *MockVeeamClient) DeleteJSON(endpoint string) error {
-	args := m.Called(endpoint)
+func (m *MockVeeamClient) DeleteJSON(ctx context.Context, endpoint string) error {
+	args := m.Called(ctx, endpoint)
+	return args.Error(0)
+}
+
+func (m *MockVeeamClient) WaitForTask(ctx context.Context, sessionID string) error {
+	args := m.Called(ctx, sessionID)
 	return args.Error(0)
 }
 
@@ -40,7 +45,7 @@ func TestBackupJob_CreatePayload(t *testing.T) {
 	mockClient := new(MockVeeamClient)
 
 	// Mock successful API response
-	mockClient.On("PostJSON", "/backupJobs", mock.Anything, mock.Anything).Return(nil)
+	mockClient.On("PostJSON", mock.Anything, "/backupJobs", mock.Anything, mock.Anything).Return(nil)
 
 	// Create test data
 	data := BackupJobModel{
@@ -56,7 +61,7 @@ func TestBackupJob_CreatePayload(t *testing.T) {
 
 	// Execute mock API call
 	var result map[string]interface{}
-	err := mockClient.PostJSON("/backupJobs", payload, &result)
+	err := mockClient.PostJSON(context.Background(), "/backupJobs", payload, &result)
 
 	// Assert no errors
 	assert.NoError(t, err)
@@ -84,7 +89,7 @@ func TestBackupJob_UpdatePayload(t *testing.T) {
 	mockClient := new(MockVeeamClient)
 
 	// Mock successful API response
-	mockClient.On("PutJSON", "/backupJobs/test_backup", mock.Anything, mock.Anything).Return(nil)
+	mockClient.On("PutJSON", mock.Anything, "/backupJobs/test_backup", mock.Anything, mock.Anything).Return(nil)
 
 	// Create test data
 	data := BackupJobModel{
@@ -99,7 +104,7 @@ func TestBackupJob_UpdatePayload(t *testing.T) {
 	}
 
 	// Execute mock API call
-	err := mockClient.PutJSON("/backupJobs/test_backup", payload, nil)
+	err := mockClient.PutJSON(context.Background(), "/backupJobs/test_backup", payload, nil)
 
 	// Assert no errors
 	assert.NoError(t, err)
@@ -111,10 +116,10 @@ func TestBackupJob_DeletePayload(t *testing.T) {
 	mockClient := new(MockVeeamClient)
 
 	// Mock successful API response
-	mockClient.On("DeleteJSON", "/backupJobs/test_backup").Return(nil)
+	mockClient.On("DeleteJSON", mock.Anything, "/backupJobs/test_backup").Return(nil)
 
 	// Execute mock API call
-	err := mockClient.DeleteJSON("/backupJobs/test_backup")
+	err := mockClient.DeleteJSON(context.Background(), "/backupJobs/test_backup")
 
 	// Assert no errors
 	assert.NoError(t, err)
