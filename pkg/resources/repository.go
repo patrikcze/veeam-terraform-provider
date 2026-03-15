@@ -7,74 +7,92 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/patrikcze/terraform-provider-veeam/internal/client"
+	"github.com/patrikcze/terraform-provider-veeam/internal/models"
 )
 
-// Ensure the implementation satisfies the expected interfaces.
+// Compile-time interface checks.
 var (
 	_ resource.Resource                = &Repository{}
 	_ resource.ResourceWithConfigure   = &Repository{}
 	_ resource.ResourceWithImportState = &Repository{}
 )
 
-// Repository defines the resource implementation.
+// Repository implements the veeam_repository resource.
 type Repository struct {
 	client client.APIClient
 }
 
-// RepositoryModel describes the Terraform resource data model.
+// RepositoryModel is the Terraform state model for veeam_repository.
+// Supports WinLocal, LinuxLocal, Nfs, and Smb types.
 type RepositoryModel struct {
-	ID          types.String `tfsdk:"id"`
-	Name        types.String `tfsdk:"name"`
-	Description types.String `tfsdk:"description"`
-	Path        types.String `tfsdk:"path"`
-	Type        types.String `tfsdk:"type"`
-	Capacity    types.Int64  `tfsdk:"capacity"`
-	// Add additional fields as required
+	ID             types.String `tfsdk:"id"`
+	Name           types.String `tfsdk:"name"`
+	Description    types.String `tfsdk:"description"`
+	Type           types.String `tfsdk:"type"`
+	HostID         types.String `tfsdk:"host_id"`
+	Path           types.String `tfsdk:"path"`
+	MaxTaskCount   types.Int64  `tfsdk:"max_task_count"`
+	SharePath      types.String `tfsdk:"share_path"`
+	CredentialsID  types.String `tfsdk:"credentials_id"`
 }
 
-// Metadata returns the resource type name.
 func (r *Repository) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_repository"
 }
 
-// Schema defines the schema for the resource.
 func (r *Repository) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Veeam Repository resource",
+		MarkdownDescription: "Manages a Veeam backup repository (WinLocal, LinuxLocal, Nfs, Smb).",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
-				MarkdownDescription: "Repository identifier",
+				MarkdownDescription: "Repository identifier (assigned by the server).",
 				Computed:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
-				MarkdownDescription: "Name of the Repository.",
+				MarkdownDescription: "Repository name.",
 				Required:            true,
 			},
 			"description": schema.StringAttribute{
-				MarkdownDescription: "Description of the Repository.",
+				MarkdownDescription: "Optional description.",
+				Optional:            true,
+				Computed:            true,
+			},
+			"type": schema.StringAttribute{
+				MarkdownDescription: "Repository type: `WinLocal`, `LinuxLocal`, `Nfs`, or `Smb`.",
+				Required:            true,
+			},
+			"host_id": schema.StringAttribute{
+				MarkdownDescription: "Managed server host ID (WinLocal and LinuxLocal types).",
 				Optional:            true,
 			},
 			"path": schema.StringAttribute{
-				MarkdownDescription: "Path of the Repository.",
-				Required:            true,
-			},
-			"type": schema.StringAttribute{
-				MarkdownDescription: "Type of the Repository.",
-				Required:            true,
-			},
-			"capacity": schema.Int64Attribute{
-				MarkdownDescription: "Capacity of the Repository in bytes.",
+				MarkdownDescription: "Folder path on the host (WinLocal / LinuxLocal).",
 				Optional:            true,
 			},
-			// Additional attributes as needed
+			"max_task_count": schema.Int64Attribute{
+				MarkdownDescription: "Maximum concurrent tasks.",
+				Optional:            true,
+			},
+			"share_path": schema.StringAttribute{
+				MarkdownDescription: "Network share path (Nfs or Smb types).",
+				Optional:            true,
+			},
+			"credentials_id": schema.StringAttribute{
+				MarkdownDescription: "Credential ID for SMB share access.",
+				Optional:            true,
+			},
 		},
 	}
 }
 
-// Configure assigns the provider-configured client to the resource.
 func (r *Repository) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
 	if req.ProviderData == nil {
 		return
@@ -90,108 +108,68 @@ func (r *Repository) Configure(_ context.Context, req resource.ConfigureRequest,
 	r.client = c
 }
 
-// Create creates the resource and sets the initial Terraform state.
+// ---------------------------------------------------------------------------
+// CRUD
+// ---------------------------------------------------------------------------
+
 func (r *Repository) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var data RepositoryModel
-
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	payload := map[string]interface{}{
-		"name":        data.Name.ValueString(),
-		"description": data.Description.ValueString(),
-		"path":        data.Path.ValueString(),
-		"type":        data.Type.ValueString(),
-	}
+	payload := r.buildSpec(&data)
 
-	if !data.Capacity.IsNull() {
-		payload["capacity"] = data.Capacity.ValueInt64()
-	}
-
-	var result map[string]interface{}
-	err := r.client.PostJSON(ctx, "/repositories", payload, &result)
-	if err != nil {
+	var result models.RepositoryModel
+	if err := r.client.PostJSON(ctx, client.PathRepositories, payload, &result); err != nil {
 		resp.Diagnostics.AddError(
-			"Error creating repository",
-			fmt.Sprintf("Could not create repository: %s", err),
+			"Failed to create repository",
+			fmt.Sprintf("API error: %s", err),
 		)
 		return
 	}
 
-	// Set the ID from the API response
-	if id, ok := result["id"].(string); ok {
-		data.ID = types.StringValue(id)
-	}
-
+	data.ID = types.StringValue(result.ID)
+	r.syncFromAPI(&data, &result)
 	resp.Diagnostics.Append(resp.State.Set(ctx, data)...)
 }
 
-// Read refreshes the Terraform state with the latest data.
 func (r *Repository) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	var data RepositoryModel
-
 	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	var result map[string]interface{}
-	err := r.client.GetJSON(ctx, fmt.Sprintf("/repositories/%s", data.ID.ValueString()), &result)
-	if err != nil {
+	var result models.RepositoryModel
+	endpoint := fmt.Sprintf(client.PathRepositoryByID, data.ID.ValueString())
+	if err := r.client.GetJSON(ctx, endpoint, &result); err != nil {
 		resp.Diagnostics.AddError(
-			"Error reading repository",
-			fmt.Sprintf("Could not read repository: %s", err),
+			"Failed to read repository",
+			fmt.Sprintf("API error for repository %s: %s", data.ID.ValueString(), err),
 		)
 		return
 	}
 
-	// Update the data model with the API response
-	if name, ok := result["name"].(string); ok {
-		data.Name = types.StringValue(name)
-	}
-	if description, ok := result["description"].(string); ok {
-		data.Description = types.StringValue(description)
-	}
-	if path, ok := result["path"].(string); ok {
-		data.Path = types.StringValue(path)
-	}
-	if repoType, ok := result["type"].(string); ok {
-		data.Type = types.StringValue(repoType)
-	}
-	if capacity, ok := result["capacity"].(float64); ok {
-		data.Capacity = types.Int64Value(int64(capacity))
-	}
-
+	r.syncFromAPI(&data, &result)
 	resp.Diagnostics.Append(resp.State.Set(ctx, data)...)
 }
 
-// Update updates the resource and sets the updated Terraform state on success.
 func (r *Repository) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var data RepositoryModel
-
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	payload := map[string]interface{}{
-		"name":        data.Name.ValueString(),
-		"description": data.Description.ValueString(),
-		"path":        data.Path.ValueString(),
-		"type":        data.Type.ValueString(),
-	}
+	payload := r.buildSpec(&data)
 
-	if !data.Capacity.IsNull() {
-		payload["capacity"] = data.Capacity.ValueInt64()
-	}
-
-	err := r.client.PutJSON(ctx, fmt.Sprintf("/repositories/%s", data.ID.ValueString()), payload, nil)
-	if err != nil {
+	endpoint := fmt.Sprintf(client.PathRepositoryByID, data.ID.ValueString())
+	if err := r.client.PutJSON(ctx, endpoint, payload, nil); err != nil {
 		resp.Diagnostics.AddError(
-			"Error updating repository",
-			fmt.Sprintf("Could not update repository: %s", err),
+			"Failed to update repository",
+			fmt.Sprintf("API error for repository %s: %s", data.ID.ValueString(), err),
 		)
 		return
 	}
@@ -199,32 +177,105 @@ func (r *Repository) Update(ctx context.Context, req resource.UpdateRequest, res
 	resp.Diagnostics.Append(resp.State.Set(ctx, data)...)
 }
 
-// Delete deletes the resource and removes the Terraform state on success.
 func (r *Repository) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
 	var data RepositoryModel
-
 	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	err := r.client.DeleteJSON(ctx, fmt.Sprintf("/repositories/%s", data.ID.ValueString()))
-	if err != nil {
+	endpoint := fmt.Sprintf(client.PathRepositoryByID, data.ID.ValueString())
+	if err := r.client.DeleteJSON(ctx, endpoint); err != nil {
 		resp.Diagnostics.AddError(
-			"Error deleting repository",
-			fmt.Sprintf("Could not delete repository: %s", err),
+			"Failed to delete repository",
+			fmt.Sprintf("API error for repository %s: %s", data.ID.ValueString(), err),
 		)
 		return
 	}
 }
 
-// NewRepository is a helper function to simplify the provider implementation.
+func (r *Repository) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
+}
+
+// NewRepository returns a new veeam_repository resource instance.
 func NewRepository() resource.Resource {
 	return &Repository{}
 }
 
-// ImportState imports the resource state.
-func (r *Repository) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	// Set the ID from the import request
-	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), types.StringValue(req.ID))...)
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+func (r *Repository) buildSpec(data *RepositoryModel) interface{} {
+	repoType := models.ERepositoryType(data.Type.ValueString())
+
+	base := models.RepositorySpec{
+		Name:        data.Name.ValueString(),
+		Description: data.Description.ValueString(),
+		Type:        repoType,
+	}
+
+	maxTasks := 0
+	if !data.MaxTaskCount.IsNull() && !data.MaxTaskCount.IsUnknown() {
+		maxTasks = int(data.MaxTaskCount.ValueInt64())
+	}
+
+	switch repoType {
+	case models.RepositoryTypeWinLocal:
+		return &models.WindowsLocalStorageSpec{
+			RepositorySpec: base,
+			HostID:         data.HostID.ValueString(),
+			Repository: &models.WindowsLocalRepositorySettings{
+				Path:         data.Path.ValueString(),
+				MaxTaskCount: maxTasks,
+			},
+		}
+
+	case models.RepositoryTypeLinuxLocal:
+		return &models.LinuxLocalStorageSpec{
+			RepositorySpec: base,
+			HostID:         data.HostID.ValueString(),
+			Repository: &models.LinuxLocalRepositorySettings{
+				Path:         data.Path.ValueString(),
+				MaxTaskCount: maxTasks,
+			},
+		}
+
+	case models.RepositoryTypeNfs:
+		return &models.NfsStorageSpec{
+			RepositorySpec: base,
+			Share: &models.NfsShareSettings{
+				SharePath: data.SharePath.ValueString(),
+			},
+			Repository: &models.NetworkRepositorySettings{
+				MaxTaskCount: maxTasks,
+			},
+		}
+
+	case models.RepositoryTypeSmb:
+		spec := &models.SmbStorageSpec{
+			RepositorySpec: base,
+			Share: &models.SmbShareSettings{
+				SharePath: data.SharePath.ValueString(),
+			},
+			Repository: &models.NetworkRepositorySettings{
+				MaxTaskCount: maxTasks,
+			},
+		}
+		if !data.CredentialsID.IsNull() {
+			spec.Share.CredentialsID = data.CredentialsID.ValueString()
+		}
+		return spec
+
+	default:
+		// Fallback for unknown types — send base spec
+		return &base
+	}
+}
+
+func (r *Repository) syncFromAPI(data *RepositoryModel, api *models.RepositoryModel) {
+	data.Name = types.StringValue(api.Name)
+	data.Description = types.StringValue(api.Description)
+	data.Type = types.StringValue(string(api.Type))
 }

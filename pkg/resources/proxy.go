@@ -1,0 +1,239 @@
+package resources
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/hashicorp/terraform-plugin-framework/path"
+	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/types"
+
+	"github.com/patrikcze/terraform-provider-veeam/internal/client"
+	"github.com/patrikcze/terraform-provider-veeam/internal/models"
+)
+
+// Compile-time interface checks.
+var (
+	_ resource.Resource                = &Proxy{}
+	_ resource.ResourceWithConfigure   = &Proxy{}
+	_ resource.ResourceWithImportState = &Proxy{}
+)
+
+// Proxy implements the veeam_proxy resource.
+type Proxy struct {
+	client client.APIClient
+}
+
+// ProxyModel is the Terraform state model.
+type ProxyModel struct {
+	ID                    types.String `tfsdk:"id"`
+	Name                  types.String `tfsdk:"name"`
+	Description           types.String `tfsdk:"description"`
+	Type                  types.String `tfsdk:"type"`
+	HostID                types.String `tfsdk:"host_id"`
+	TransportMode         types.String `tfsdk:"transport_mode"`
+	FailoverToNetwork     types.Bool   `tfsdk:"failover_to_network"`
+	HostToProxyEncryption types.Bool   `tfsdk:"host_to_proxy_encryption"`
+	MaxTaskCount          types.Int64  `tfsdk:"max_task_count"`
+}
+
+func (r *Proxy) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_proxy"
+}
+
+func (r *Proxy) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		MarkdownDescription: "Manages a Veeam backup proxy (ViProxy).",
+		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
+				MarkdownDescription: "Proxy identifier (assigned by the server).",
+				Computed:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"name": schema.StringAttribute{
+				MarkdownDescription: "Proxy name (read-only, derived from host).",
+				Computed:            true,
+			},
+			"description": schema.StringAttribute{
+				MarkdownDescription: "Optional description.",
+				Optional:            true,
+				Computed:            true,
+			},
+			"type": schema.StringAttribute{
+				MarkdownDescription: "Proxy type: `ViProxy`, `HvProxy`, or `FileProxy`.",
+				Required:            true,
+			},
+			"host_id": schema.StringAttribute{
+				MarkdownDescription: "ID of the managed server used as the proxy.",
+				Required:            true,
+			},
+			"transport_mode": schema.StringAttribute{
+				MarkdownDescription: "Data transport mode: `auto`, `directAccess`, `virtualAppliance`, or `network`.",
+				Optional:            true,
+			},
+			"failover_to_network": schema.BoolAttribute{
+				MarkdownDescription: "Failover to network transport if primary mode fails.",
+				Optional:            true,
+			},
+			"host_to_proxy_encryption": schema.BoolAttribute{
+				MarkdownDescription: "Encrypt data between host and proxy.",
+				Optional:            true,
+			},
+			"max_task_count": schema.Int64Attribute{
+				MarkdownDescription: "Maximum concurrent tasks.",
+				Optional:            true,
+			},
+		},
+	}
+}
+
+func (r *Proxy) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
+	c, ok := req.ProviderData.(client.APIClient)
+	if !ok {
+		resp.Diagnostics.AddError(
+			"Unexpected Provider Data",
+			"Expected client.APIClient from provider, got unexpected type.",
+		)
+		return
+	}
+	r.client = c
+}
+
+// ---------------------------------------------------------------------------
+// CRUD
+// ---------------------------------------------------------------------------
+
+func (r *Proxy) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var data ProxyModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	payload := r.buildSpec(&data)
+
+	var result models.ProxyModel
+	if err := r.client.PostJSON(ctx, client.PathProxies, payload, &result); err != nil {
+		resp.Diagnostics.AddError(
+			"Failed to create proxy",
+			fmt.Sprintf("API error: %s", err),
+		)
+		return
+	}
+
+	data.ID = types.StringValue(result.ID)
+	r.syncFromAPI(&data, &result)
+	resp.Diagnostics.Append(resp.State.Set(ctx, data)...)
+}
+
+func (r *Proxy) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	var data ProxyModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	var result models.ProxyModel
+	endpoint := fmt.Sprintf(client.PathProxyByID, data.ID.ValueString())
+	if err := r.client.GetJSON(ctx, endpoint, &result); err != nil {
+		resp.Diagnostics.AddError(
+			"Failed to read proxy",
+			fmt.Sprintf("API error for proxy %s: %s", data.ID.ValueString(), err),
+		)
+		return
+	}
+
+	r.syncFromAPI(&data, &result)
+	resp.Diagnostics.Append(resp.State.Set(ctx, data)...)
+}
+
+func (r *Proxy) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	var data ProxyModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	payload := r.buildSpec(&data)
+
+	endpoint := fmt.Sprintf(client.PathProxyByID, data.ID.ValueString())
+	if err := r.client.PutJSON(ctx, endpoint, payload, nil); err != nil {
+		resp.Diagnostics.AddError(
+			"Failed to update proxy",
+			fmt.Sprintf("API error for proxy %s: %s", data.ID.ValueString(), err),
+		)
+		return
+	}
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, data)...)
+}
+
+func (r *Proxy) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var data ProxyModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	endpoint := fmt.Sprintf(client.PathProxyByID, data.ID.ValueString())
+	if err := r.client.DeleteJSON(ctx, endpoint); err != nil {
+		resp.Diagnostics.AddError(
+			"Failed to delete proxy",
+			fmt.Sprintf("API error for proxy %s: %s", data.ID.ValueString(), err),
+		)
+		return
+	}
+}
+
+func (r *Proxy) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
+}
+
+// NewProxy returns a new veeam_proxy resource instance.
+func NewProxy() resource.Resource {
+	return &Proxy{}
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+func (r *Proxy) buildSpec(data *ProxyModel) interface{} {
+	server := &models.ProxyServerSettings{
+		HostID: data.HostID.ValueString(),
+	}
+	if !data.TransportMode.IsNull() {
+		server.TransportMode = models.EBackupProxyTransportMode(data.TransportMode.ValueString())
+	}
+	if !data.FailoverToNetwork.IsNull() {
+		server.FailoverToNetwork = data.FailoverToNetwork.ValueBool()
+	}
+	if !data.HostToProxyEncryption.IsNull() {
+		server.HostToProxyEncryption = data.HostToProxyEncryption.ValueBool()
+	}
+	if !data.MaxTaskCount.IsNull() && !data.MaxTaskCount.IsUnknown() {
+		server.MaxTaskCount = int(data.MaxTaskCount.ValueInt64())
+	}
+
+	return &models.ViProxySpec{
+		ProxySpec: models.ProxySpec{
+			Description: data.Description.ValueString(),
+			Type:        models.EProxyType(data.Type.ValueString()),
+		},
+		Server: server,
+	}
+}
+
+func (r *Proxy) syncFromAPI(data *ProxyModel, api *models.ProxyModel) {
+	data.Name = types.StringValue(api.Name)
+	data.Description = types.StringValue(api.Description)
+	data.Type = types.StringValue(string(api.Type))
+}
