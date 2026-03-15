@@ -21,7 +21,7 @@ var (
 
 // Repository defines the resource implementation.
 type Repository struct {
-	client *client.VeeamClient
+	client client.APIClient
 }
 
 // RepositoryModel describes the Terraform resource data model.
@@ -75,10 +75,19 @@ func (r *Repository) Schema(_ context.Context, _ resource.SchemaRequest, resp *r
 }
 
 // Configure assigns the provider-configured client to the resource.
-func (r *Repository) Configure(_ context.Context, req resource.ConfigureRequest, _ *resource.ConfigureResponse) {
-	if req.ProviderData != nil {
-		r.client = req.ProviderData.(*client.VeeamClient)
+func (r *Repository) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
 	}
+	c, ok := req.ProviderData.(client.APIClient)
+	if !ok {
+		resp.Diagnostics.AddError(
+			"Unexpected Provider Data",
+			"Expected client.APIClient from provider, got unexpected type.",
+		)
+		return
+	}
+	r.client = c
 }
 
 // Create creates the resource and sets the initial Terraform state.

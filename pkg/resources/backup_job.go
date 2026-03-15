@@ -19,7 +19,7 @@ var (
 
 // BackupJob defines the resource implementation.
 type BackupJob struct {
-	client *client.VeeamClient
+	client client.APIClient
 }
 
 // BackupJobModel describes the Terraform resource data model.
@@ -52,10 +52,19 @@ func (r *BackupJob) Schema(_ context.Context, _ resource.SchemaRequest, resp *re
 }
 
 // Configure assigns the provider-configured client to the resource.
-func (r *BackupJob) Configure(_ context.Context, req resource.ConfigureRequest, _ *resource.ConfigureResponse) {
-	if req.ProviderData != nil {
-		r.client = req.ProviderData.(*client.VeeamClient)
+func (r *BackupJob) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
 	}
+	c, ok := req.ProviderData.(client.APIClient)
+	if !ok {
+		resp.Diagnostics.AddError(
+			"Unexpected Provider Data",
+			"Expected client.APIClient from provider, got unexpected type.",
+		)
+		return
+	}
+	r.client = c
 }
 
 // Create creates the resource and sets the initial Terraform state.

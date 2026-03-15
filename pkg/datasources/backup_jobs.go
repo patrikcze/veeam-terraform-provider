@@ -19,7 +19,7 @@ var (
 
 // BackupJobsDataSource defines the data source implementation.
 type BackupJobsDataSource struct {
-	client *client.VeeamClient
+	client client.APIClient
 }
 
 // BackupJobsDataSourceModel describes the data source data model.
@@ -119,10 +119,19 @@ func (d *BackupJobsDataSource) Schema(_ context.Context, _ datasource.SchemaRequ
 }
 
 // Configure adds the provider configured client to the data source.
-func (d *BackupJobsDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, _ *datasource.ConfigureResponse) {
-	if req.ProviderData != nil {
-		d.client = req.ProviderData.(*client.VeeamClient)
+func (d *BackupJobsDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
 	}
+	c, ok := req.ProviderData.(client.APIClient)
+	if !ok {
+		resp.Diagnostics.AddError(
+			"Unexpected Provider Data",
+			"Expected client.APIClient from provider, got unexpected type.",
+		)
+		return
+	}
+	d.client = c
 }
 
 // Read refreshes the Terraform state with the latest data.

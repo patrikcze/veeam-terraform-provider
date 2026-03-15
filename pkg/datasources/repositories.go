@@ -19,7 +19,7 @@ var (
 
 // RepositoriesDataSource defines the data source implementation.
 type RepositoriesDataSource struct {
-	client *client.VeeamClient
+	client client.APIClient
 }
 
 // RepositoriesDataSourceModel describes the data source data model.
@@ -129,10 +129,19 @@ func (d *RepositoriesDataSource) Schema(_ context.Context, _ datasource.SchemaRe
 }
 
 // Configure adds the provider configured client to the data source.
-func (d *RepositoriesDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, _ *datasource.ConfigureResponse) {
-	if req.ProviderData != nil {
-		d.client = req.ProviderData.(*client.VeeamClient)
+func (d *RepositoriesDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
 	}
+	c, ok := req.ProviderData.(client.APIClient)
+	if !ok {
+		resp.Diagnostics.AddError(
+			"Unexpected Provider Data",
+			"Expected client.APIClient from provider, got unexpected type.",
+		)
+		return
+	}
+	d.client = c
 }
 
 // Read refreshes the Terraform state with the latest data.

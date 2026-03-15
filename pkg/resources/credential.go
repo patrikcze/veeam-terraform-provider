@@ -7,192 +7,194 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/patrikcze/terraform-provider-veeam/internal/client"
+	"github.com/patrikcze/terraform-provider-veeam/internal/models"
 )
 
-// Ensure the implementation satisfies the expected interfaces.
+// Compile-time interface checks.
 var (
 	_ resource.Resource                = &Credential{}
 	_ resource.ResourceWithConfigure   = &Credential{}
 	_ resource.ResourceWithImportState = &Credential{}
 )
 
-// Credential defines the resource implementation.
+// Credential implements the veeam_credential resource.
 type Credential struct {
-	client *client.VeeamClient
+	client client.APIClient
 }
 
-// CredentialModel describes the Terraform resource data model.
+// CredentialModel is the Terraform state model for veeam_credential.
 type CredentialModel struct {
-	ID          types.String `tfsdk:"id"`
-	Name        types.String `tfsdk:"name"`
-	Description types.String `tfsdk:"description"`
-	Username    types.String `tfsdk:"username"`
-	Password    types.String `tfsdk:"password"`
-	Type        types.String `tfsdk:"type"`
-	Domain      types.String `tfsdk:"domain"`
-	// Add additional fields as required
+	ID                 types.String `tfsdk:"id"`
+	Username           types.String `tfsdk:"username"`
+	Password           types.String `tfsdk:"password"`
+	Description        types.String `tfsdk:"description"`
+	Type               types.String `tfsdk:"type"`
+	SSHPort            types.Int64  `tfsdk:"ssh_port"`
+	ElevateToRoot      types.Bool   `tfsdk:"elevate_to_root"`
+	AddToSudoers       types.Bool   `tfsdk:"add_to_sudoers"`
+	UseSu              types.Bool   `tfsdk:"use_su"`
+	AuthenticationType types.String `tfsdk:"authentication_type"`
+	PrivateKey         types.String `tfsdk:"private_key"`
+	Passphrase         types.String `tfsdk:"passphrase"`
+	RootPassword       types.String `tfsdk:"root_password"`
 }
 
-// Metadata returns the resource type name.
 func (r *Credential) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_credential"
 }
 
-// Schema defines the schema for the resource.
 func (r *Credential) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Veeam Credential resource",
+		MarkdownDescription: "Manages a Veeam credential (Standard or Linux).",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
-				MarkdownDescription: "Credential identifier",
+				MarkdownDescription: "Credential identifier (assigned by the server).",
 				Computed:            true,
-			},
-			"name": schema.StringAttribute{
-				MarkdownDescription: "Name of the Credential.",
-				Required:            true,
-			},
-			"description": schema.StringAttribute{
-				MarkdownDescription: "Description of the Credential.",
-				Optional:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"username": schema.StringAttribute{
-				MarkdownDescription: "Username for the Credential.",
+				MarkdownDescription: "Username. For domain accounts use `DOMAIN\\user` format.",
 				Required:            true,
 			},
 			"password": schema.StringAttribute{
-				MarkdownDescription: "Password for the Credential.",
+				MarkdownDescription: "Password for the credential.",
 				Required:            true,
 				Sensitive:           true,
 			},
+			"description": schema.StringAttribute{
+				MarkdownDescription: "Optional description.",
+				Optional:            true,
+				Computed:            true,
+			},
 			"type": schema.StringAttribute{
-				MarkdownDescription: "Type of the Credential (e.g., 'windows', 'linux', 'standard').",
+				MarkdownDescription: "Credential type: `Standard` or `Linux`.",
 				Required:            true,
 			},
-			"domain": schema.StringAttribute{
-				MarkdownDescription: "Domain for the Credential (if applicable).",
+			// --- Linux-specific (optional) ---
+			"ssh_port": schema.Int64Attribute{
+				MarkdownDescription: "SSH port (Linux credentials only, default 22).",
 				Optional:            true,
 			},
-			// Additional attributes as needed
+			"elevate_to_root": schema.BoolAttribute{
+				MarkdownDescription: "Elevate to root via sudo (Linux only).",
+				Optional:            true,
+			},
+			"add_to_sudoers": schema.BoolAttribute{
+				MarkdownDescription: "Automatically add to sudoers (Linux only).",
+				Optional:            true,
+			},
+			"use_su": schema.BoolAttribute{
+				MarkdownDescription: "Use su instead of sudo (Linux only).",
+				Optional:            true,
+			},
+			"authentication_type": schema.StringAttribute{
+				MarkdownDescription: "Authentication type for Linux: `Password` or `PrivateKey`.",
+				Optional:            true,
+			},
+			"private_key": schema.StringAttribute{
+				MarkdownDescription: "SSH private key (Linux only, PrivateKey auth).",
+				Optional:            true,
+				Sensitive:           true,
+			},
+			"passphrase": schema.StringAttribute{
+				MarkdownDescription: "Private key passphrase (Linux only).",
+				Optional:            true,
+				Sensitive:           true,
+			},
+			"root_password": schema.StringAttribute{
+				MarkdownDescription: "Root password for su elevation (Linux only).",
+				Optional:            true,
+				Sensitive:           true,
+			},
 		},
 	}
 }
 
-// Configure assigns the provider-configured client to the resource.
-func (r *Credential) Configure(_ context.Context, req resource.ConfigureRequest, _ *resource.ConfigureResponse) {
-	if req.ProviderData != nil {
-		r.client = req.ProviderData.(*client.VeeamClient)
+func (r *Credential) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
 	}
+	c, ok := req.ProviderData.(client.APIClient)
+	if !ok {
+		resp.Diagnostics.AddError(
+			"Unexpected Provider Data",
+			"Expected client.APIClient from provider, got unexpected type.",
+		)
+		return
+	}
+	r.client = c
 }
 
-// Create creates the resource and sets the initial Terraform state.
+// ---------------------------------------------------------------------------
+// CRUD
+// ---------------------------------------------------------------------------
+
 func (r *Credential) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var data CredentialModel
-
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	payload := map[string]interface{}{
-		"name":        data.Name.ValueString(),
-		"description": data.Description.ValueString(),
-		"username":    data.Username.ValueString(),
-		"password":    data.Password.ValueString(),
-		"type":        data.Type.ValueString(),
-	}
+	payload := r.buildSpec(&data)
 
-	if !data.Domain.IsNull() {
-		payload["domain"] = data.Domain.ValueString()
-	}
-
-	var result map[string]interface{}
-	err := r.client.PostJSON(ctx, "/credentials", payload, &result)
-	if err != nil {
+	var result models.CredentialsModel
+	if err := r.client.PostJSON(ctx, client.PathCredentials, payload, &result); err != nil {
 		resp.Diagnostics.AddError(
-			"Error creating credential",
-			fmt.Sprintf("Could not create credential: %s", err),
+			"Failed to create credential",
+			fmt.Sprintf("API error: %s", err),
 		)
 		return
 	}
 
-	// Set the ID from the API response
-	if id, ok := result["id"].(string); ok {
-		data.ID = types.StringValue(id)
-	}
-
+	data.ID = types.StringValue(result.ID)
+	r.syncModelFromAPI(&data, &result)
 	resp.Diagnostics.Append(resp.State.Set(ctx, data)...)
 }
 
-// Read refreshes the Terraform state with the latest data.
 func (r *Credential) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	var data CredentialModel
-
 	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	var result map[string]interface{}
-	err := r.client.GetJSON(ctx, fmt.Sprintf("/credentials/%s", data.ID.ValueString()), &result)
-	if err != nil {
+	var result models.CredentialsModel
+	endpoint := fmt.Sprintf(client.PathCredentialByID, data.ID.ValueString())
+	if err := r.client.GetJSON(ctx, endpoint, &result); err != nil {
 		resp.Diagnostics.AddError(
-			"Error reading credential",
-			fmt.Sprintf("Could not read credential: %s", err),
+			"Failed to read credential",
+			fmt.Sprintf("API error for credential %s: %s", data.ID.ValueString(), err),
 		)
 		return
 	}
 
-	// Update the data model with the API response
-	if name, ok := result["name"].(string); ok {
-		data.Name = types.StringValue(name)
-	}
-	if description, ok := result["description"].(string); ok {
-		data.Description = types.StringValue(description)
-	}
-	if username, ok := result["username"].(string); ok {
-		data.Username = types.StringValue(username)
-	}
-	// Note: Password is typically not returned from API for security reasons
-	// Keep the current password value in state
-	if credType, ok := result["type"].(string); ok {
-		data.Type = types.StringValue(credType)
-	}
-	if domain, ok := result["domain"].(string); ok {
-		data.Domain = types.StringValue(domain)
-	}
-
+	r.syncModelFromAPI(&data, &result)
+	// Password is never returned by the API — keep current state value.
 	resp.Diagnostics.Append(resp.State.Set(ctx, data)...)
 }
 
-// Update updates the resource and sets the updated Terraform state on success.
 func (r *Credential) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var data CredentialModel
-
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	payload := map[string]interface{}{
-		"name":        data.Name.ValueString(),
-		"description": data.Description.ValueString(),
-		"username":    data.Username.ValueString(),
-		"password":    data.Password.ValueString(),
-		"type":        data.Type.ValueString(),
-	}
+	payload := r.buildSpec(&data)
 
-	if !data.Domain.IsNull() {
-		payload["domain"] = data.Domain.ValueString()
-	}
-
-	err := r.client.PutJSON(ctx, fmt.Sprintf("/credentials/%s", data.ID.ValueString()), payload, nil)
-	if err != nil {
+	endpoint := fmt.Sprintf(client.PathCredentialByID, data.ID.ValueString())
+	if err := r.client.PutJSON(ctx, endpoint, payload, nil); err != nil {
 		resp.Diagnostics.AddError(
-			"Error updating credential",
-			fmt.Sprintf("Could not update credential: %s", err),
+			"Failed to update credential",
+			fmt.Sprintf("API error for credential %s: %s", data.ID.ValueString(), err),
 		)
 		return
 	}
@@ -200,32 +202,89 @@ func (r *Credential) Update(ctx context.Context, req resource.UpdateRequest, res
 	resp.Diagnostics.Append(resp.State.Set(ctx, data)...)
 }
 
-// Delete deletes the resource and removes the Terraform state on success.
 func (r *Credential) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
 	var data CredentialModel
-
 	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	err := r.client.DeleteJSON(ctx, fmt.Sprintf("/credentials/%s", data.ID.ValueString()))
-	if err != nil {
+	endpoint := fmt.Sprintf(client.PathCredentialByID, data.ID.ValueString())
+	if err := r.client.DeleteJSON(ctx, endpoint); err != nil {
 		resp.Diagnostics.AddError(
-			"Error deleting credential",
-			fmt.Sprintf("Could not delete credential: %s", err),
+			"Failed to delete credential",
+			fmt.Sprintf("API error for credential %s: %s", data.ID.ValueString(), err),
 		)
 		return
 	}
 }
 
-// NewCredential is a helper function to simplify the provider implementation.
+func (r *Credential) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
+}
+
+// NewCredential returns a new veeam_credential resource instance.
 func NewCredential() resource.Resource {
 	return &Credential{}
 }
 
-// ImportState imports the resource state.
-func (r *Credential) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	// Set the ID from the import request
-	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), types.StringValue(req.ID))...)
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+// buildSpec converts Terraform state to an API request body.
+func (r *Credential) buildSpec(data *CredentialModel) interface{} {
+	credType := models.ECredentialsType(data.Type.ValueString())
+
+	if credType == models.CredentialsTypeLinux {
+		spec := models.LinuxCredentialsSpec{
+			CredentialsSpec: models.CredentialsSpec{
+				Username:    data.Username.ValueString(),
+				Password:    data.Password.ValueString(),
+				Description: data.Description.ValueString(),
+				Type:        models.CredentialsTypeLinux,
+			},
+			AuthenticationType: models.EAuthenticationType(data.AuthenticationType.ValueString()),
+		}
+		if !data.SSHPort.IsNull() && !data.SSHPort.IsUnknown() {
+			spec.SSHPort = int(data.SSHPort.ValueInt64())
+		}
+		if !data.ElevateToRoot.IsNull() {
+			spec.ElevateToRoot = data.ElevateToRoot.ValueBool()
+		}
+		if !data.AddToSudoers.IsNull() {
+			spec.AddToSudoers = data.AddToSudoers.ValueBool()
+		}
+		if !data.UseSu.IsNull() {
+			spec.UseSu = data.UseSu.ValueBool()
+		}
+		if !data.PrivateKey.IsNull() {
+			spec.PrivateKey = data.PrivateKey.ValueString()
+		}
+		if !data.Passphrase.IsNull() {
+			spec.Passphrase = data.Passphrase.ValueString()
+		}
+		if !data.RootPassword.IsNull() {
+			spec.RootPassword = data.RootPassword.ValueString()
+		}
+		return &spec
+	}
+
+	// Default: Standard
+	return &models.StandardCredentialsSpec{
+		CredentialsSpec: models.CredentialsSpec{
+			Username:    data.Username.ValueString(),
+			Password:    data.Password.ValueString(),
+			Description: data.Description.ValueString(),
+			Type:        models.CredentialsTypeStandard,
+		},
+	}
+}
+
+// syncModelFromAPI updates Terraform state fields from an API response.
+// Password and other sensitive fields are NOT returned by the API.
+func (r *Credential) syncModelFromAPI(data *CredentialModel, api *models.CredentialsModel) {
+	data.Username = types.StringValue(api.Username)
+	data.Description = types.StringValue(api.Description)
+	data.Type = types.StringValue(string(api.Type))
 }

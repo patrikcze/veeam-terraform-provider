@@ -183,6 +183,8 @@ func (p *Provider) Resources(ctx context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		resources.NewBackupJob,
 		resources.NewCredential,
+		resources.NewEncryptionPassword,
+		resources.NewManagedServer,
 		resources.NewRepository,
 	}
 }
