@@ -147,7 +147,7 @@ func (d *BackupJobsDataSource) Read(ctx context.Context, req datasource.ReadRequ
 	// Check if we're looking for a specific job
 	if !data.JobID.IsNull() {
 		// Fetch single job by ID
-	var apiResult map[string]interface{}
+		var apiResult map[string]interface{}
 		err := d.client.GetJSON(ctx, fmt.Sprintf(client.PathJobByID, data.JobID.ValueString()), &apiResult)
 		if err != nil {
 			resp.Diagnostics.AddError(

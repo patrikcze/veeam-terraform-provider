@@ -43,8 +43,8 @@ type ManagedServerSpec struct {
 // ViHostSpec adds vSphere-specific fields.
 type ViHostSpec struct {
 	ManagedServerSpec
-	CredentialsID        string `json:"credentialsId,omitempty"`
-	Port                 int    `json:"port,omitempty"`
+	CredentialsID         string `json:"credentialsId,omitempty"`
+	Port                  int    `json:"port,omitempty"`
 	CertificateThumbprint string `json:"certificateThumbprint,omitempty"`
 }
 

@@ -157,7 +157,7 @@ func (d *RepositoriesDataSource) Read(ctx context.Context, req datasource.ReadRe
 	// Check if we're looking for a specific repository
 	if !data.RepositoryID.IsNull() {
 		// Fetch single repository by ID
-	var apiResult map[string]interface{}
+		var apiResult map[string]interface{}
 		err := d.client.GetJSON(ctx, fmt.Sprintf(client.PathRepositoryByID, data.RepositoryID.ValueString()), &apiResult)
 		if err != nil {
 			resp.Diagnostics.AddError(

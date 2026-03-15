@@ -58,8 +58,8 @@ type LinuxCredentialsSpec struct {
 	ElevateToRoot      bool                `json:"elevateToRoot,omitempty"`
 	AddToSudoers       bool                `json:"addToSudoers,omitempty"`
 	UseSu              bool                `json:"useSu,omitempty"`
-	PrivateKey         string              `json:"privateKey,omitempty"`  // sensitive
-	Passphrase         string              `json:"passphrase,omitempty"` // sensitive
+	PrivateKey         string              `json:"privateKey,omitempty"`   // sensitive
+	Passphrase         string              `json:"passphrase,omitempty"`   // sensitive
 	RootPassword       string              `json:"rootPassword,omitempty"` // sensitive
 	AuthenticationType EAuthenticationType `json:"authenticationType"`
 }

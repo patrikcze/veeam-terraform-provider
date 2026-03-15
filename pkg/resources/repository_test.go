@@ -15,13 +15,13 @@ import (
 func TestRepository_BuildSpec_WinLocal(t *testing.T) {
 	resource := &Repository{}
 	data := &RepositoryModel{
-		Name:         types.StringValue("WinRepo"),
-		Description:  types.StringValue("Windows local repo"),
-		Type:         types.StringValue("WinLocal"),
-		HostID:       types.StringValue("host-123"),
-		Path:         types.StringValue("C:\\Backups"),
-		MaxTaskCount: types.Int64Value(4),
-		SharePath:    types.StringNull(),
+		Name:          types.StringValue("WinRepo"),
+		Description:   types.StringValue("Windows local repo"),
+		Type:          types.StringValue("WinLocal"),
+		HostID:        types.StringValue("host-123"),
+		Path:          types.StringValue("C:\\Backups"),
+		MaxTaskCount:  types.Int64Value(4),
+		SharePath:     types.StringNull(),
 		CredentialsID: types.StringNull(),
 	}
 
@@ -38,13 +38,13 @@ func TestRepository_BuildSpec_WinLocal(t *testing.T) {
 func TestRepository_BuildSpec_LinuxLocal(t *testing.T) {
 	resource := &Repository{}
 	data := &RepositoryModel{
-		Name:         types.StringValue("LinuxRepo"),
-		Type:         types.StringValue("LinuxLocal"),
-		HostID:       types.StringValue("linux-host-1"),
-		Path:         types.StringValue("/mnt/backups"),
-		MaxTaskCount: types.Int64Value(2),
-		Description:  types.StringNull(),
-		SharePath:    types.StringNull(),
+		Name:          types.StringValue("LinuxRepo"),
+		Type:          types.StringValue("LinuxLocal"),
+		HostID:        types.StringValue("linux-host-1"),
+		Path:          types.StringValue("/mnt/backups"),
+		MaxTaskCount:  types.Int64Value(2),
+		Description:   types.StringNull(),
+		SharePath:     types.StringNull(),
 		CredentialsID: types.StringNull(),
 	}
 

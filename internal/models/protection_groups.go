@@ -16,16 +16,16 @@ type ProtectionGroupModel struct {
 // IndividualComputersProtectionGroupModel manages specific computers.
 type IndividualComputersProtectionGroupModel struct {
 	ProtectionGroupModel
-	Computers []ProtectionGroupComputer  `json:"computers,omitempty"`
-	Options   *ProtectionGroupOptions    `json:"options,omitempty"`
+	Computers []ProtectionGroupComputer `json:"computers,omitempty"`
+	Options   *ProtectionGroupOptions   `json:"options,omitempty"`
 }
 
 // CloudMachinesProtectionGroupModel manages cloud VM instances.
 type CloudMachinesProtectionGroupModel struct {
 	ProtectionGroupModel
-	CloudAccount   *CloudAccountRef             `json:"cloudAccount,omitempty"`
-	CloudMachines  []CloudMachineRef            `json:"cloudMachines,omitempty"`
-	Options        *ProtectionGroupOptions      `json:"options,omitempty"`
+	CloudAccount  *CloudAccountRef        `json:"cloudAccount,omitempty"`
+	CloudMachines []CloudMachineRef       `json:"cloudMachines,omitempty"`
+	Options       *ProtectionGroupOptions `json:"options,omitempty"`
 }
 
 // ---------------------------------------------------------------------------
@@ -43,16 +43,16 @@ type ProtectionGroupSpec struct {
 // IndividualComputersProtectionGroupSpec creates/updates individual computer groups.
 type IndividualComputersProtectionGroupSpec struct {
 	ProtectionGroupSpec
-	Computers []ProtectionGroupComputer  `json:"computers,omitempty"`
-	Options   *ProtectionGroupOptions    `json:"options,omitempty"`
+	Computers []ProtectionGroupComputer `json:"computers,omitempty"`
+	Options   *ProtectionGroupOptions   `json:"options,omitempty"`
 }
 
 // CloudMachinesProtectionGroupSpec creates/updates cloud machine groups.
 type CloudMachinesProtectionGroupSpec struct {
 	ProtectionGroupSpec
-	CloudAccount   *CloudAccountRef             `json:"cloudAccount,omitempty"`
-	CloudMachines  []CloudMachineRef            `json:"cloudMachines,omitempty"`
-	Options        *ProtectionGroupOptions      `json:"options,omitempty"`
+	CloudAccount  *CloudAccountRef        `json:"cloudAccount,omitempty"`
+	CloudMachines []CloudMachineRef       `json:"cloudMachines,omitempty"`
+	Options       *ProtectionGroupOptions `json:"options,omitempty"`
 }
 
 // ---------------------------------------------------------------------------

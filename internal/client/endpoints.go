@@ -77,8 +77,8 @@ const (
 // ---------------------------------------------------------------------------
 
 const (
-	PathScaleOutRepositories    = "/api/v1/backupInfrastructure/scaleOutRepositories"
-	PathScaleOutRepositoryByID  = "/api/v1/backupInfrastructure/scaleOutRepositories/%s"
+	PathScaleOutRepositories   = "/api/v1/backupInfrastructure/scaleOutRepositories"
+	PathScaleOutRepositoryByID = "/api/v1/backupInfrastructure/scaleOutRepositories/%s"
 )
 
 // ---------------------------------------------------------------------------
@@ -86,14 +86,14 @@ const (
 // ---------------------------------------------------------------------------
 
 const (
-	PathJobs        = "/api/v1/jobs"
-	PathJobByID     = "/api/v1/jobs/%s"
-	PathJobStart    = "/api/v1/jobs/%s/start"
-	PathJobStop     = "/api/v1/jobs/%s/stop"
-	PathJobEnable   = "/api/v1/jobs/%s/enable"
-	PathJobDisable  = "/api/v1/jobs/%s/disable"
-	PathJobRetry    = "/api/v1/jobs/%s/retry"
-	PathJobClone    = "/api/v1/jobs/%s/clone"
+	PathJobs       = "/api/v1/jobs"
+	PathJobByID    = "/api/v1/jobs/%s"
+	PathJobStart   = "/api/v1/jobs/%s/start"
+	PathJobStop    = "/api/v1/jobs/%s/stop"
+	PathJobEnable  = "/api/v1/jobs/%s/enable"
+	PathJobDisable = "/api/v1/jobs/%s/disable"
+	PathJobRetry   = "/api/v1/jobs/%s/retry"
+	PathJobClone   = "/api/v1/jobs/%s/clone"
 )
 
 // ---------------------------------------------------------------------------

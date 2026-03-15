@@ -16,12 +16,12 @@ type JobModel struct {
 // BackupJobModel is a vSphere backup job (extends JobModel).
 type BackupJobModel struct {
 	JobModel
-	Description     string                      `json:"description,omitempty"`
-	IsHighPriority  bool                        `json:"isHighPriority,omitempty"`
-	VirtualMachines *BackupJobVirtualMachines    `json:"virtualMachines,omitempty"`
-	Storage         *BackupJobStorage            `json:"storage,omitempty"`
-	GuestProcessing *BackupJobGuestProcessing    `json:"guestProcessing,omitempty"`
-	Schedule        *BackupSchedule              `json:"schedule,omitempty"`
+	Description     string                    `json:"description,omitempty"`
+	IsHighPriority  bool                      `json:"isHighPriority,omitempty"`
+	VirtualMachines *BackupJobVirtualMachines `json:"virtualMachines,omitempty"`
+	Storage         *BackupJobStorage         `json:"storage,omitempty"`
+	GuestProcessing *BackupJobGuestProcessing `json:"guestProcessing,omitempty"`
+	Schedule        *BackupSchedule           `json:"schedule,omitempty"`
 }
 
 // ---------------------------------------------------------------------------
@@ -37,12 +37,12 @@ type JobSpec struct {
 // BackupJobSpec creates/updates a vSphere backup job.
 type BackupJobSpec struct {
 	JobSpec
-	Description     string                      `json:"description,omitempty"`
-	IsHighPriority  bool                        `json:"isHighPriority,omitempty"`
+	Description     string                        `json:"description,omitempty"`
+	IsHighPriority  bool                          `json:"isHighPriority,omitempty"`
 	VirtualMachines *BackupJobVirtualMachinesSpec `json:"virtualMachines,omitempty"`
-	Storage         *BackupJobStorage            `json:"storage,omitempty"`
-	GuestProcessing *BackupJobGuestProcessing    `json:"guestProcessing,omitempty"`
-	Schedule        *BackupSchedule              `json:"schedule,omitempty"`
+	Storage         *BackupJobStorage             `json:"storage,omitempty"`
+	GuestProcessing *BackupJobGuestProcessing     `json:"guestProcessing,omitempty"`
+	Schedule        *BackupSchedule               `json:"schedule,omitempty"`
 }
 
 // ---------------------------------------------------------------------------
@@ -57,8 +57,8 @@ type BackupJobVirtualMachines struct {
 
 // BackupJobVirtualMachinesSpec defines which VMs are backed up (request).
 type BackupJobVirtualMachinesSpec struct {
-	Includes []VirtualMachineInclude    `json:"includes"`
-	Excludes *BackupJobExclusionsSpec   `json:"excludes,omitempty"`
+	Includes []VirtualMachineInclude  `json:"includes"`
+	Excludes *BackupJobExclusionsSpec `json:"excludes,omitempty"`
 }
 
 // VirtualMachineInclude is a VM/container reference in the backup scope.
@@ -76,16 +76,16 @@ type InventoryObjectRef struct {
 
 // BackupJobExclusions defines VM exclusions from the backup (response).
 type BackupJobExclusions struct {
-	VMs     []InventoryObjectRef `json:"vms,omitempty"`
-	Disks   []DiskExclusion      `json:"disks,omitempty"`
-	Templates bool               `json:"templates,omitempty"`
+	VMs       []InventoryObjectRef `json:"vms,omitempty"`
+	Disks     []DiskExclusion      `json:"disks,omitempty"`
+	Templates bool                 `json:"templates,omitempty"`
 }
 
 // BackupJobExclusionsSpec defines VM exclusions from the backup (request).
 type BackupJobExclusionsSpec struct {
-	VMs     []InventoryObjectRef `json:"vms,omitempty"`
-	Disks   []DiskExclusion      `json:"disks,omitempty"`
-	Templates bool               `json:"templates,omitempty"`
+	VMs       []InventoryObjectRef `json:"vms,omitempty"`
+	Disks     []DiskExclusion      `json:"disks,omitempty"`
+	Templates bool                 `json:"templates,omitempty"`
 }
 
 // DiskExclusion excludes specific disks from a VM backup.
@@ -121,10 +121,10 @@ type RetentionPolicySettings struct {
 
 // GFSPolicySettings configures Grandfather-Father-Son retention.
 type GFSPolicySettings struct {
-	IsEnabled bool                    `json:"isEnabled"`
-	Weekly    *GFSWeeklySettings      `json:"weekly,omitempty"`
-	Monthly   *GFSMonthlySettings     `json:"monthly,omitempty"`
-	Yearly    *GFSYearlySettings      `json:"yearly,omitempty"`
+	IsEnabled bool                `json:"isEnabled"`
+	Weekly    *GFSWeeklySettings  `json:"weekly,omitempty"`
+	Monthly   *GFSMonthlySettings `json:"monthly,omitempty"`
+	Yearly    *GFSYearlySettings  `json:"yearly,omitempty"`
 }
 
 // GFSWeeklySettings for GFS weekly retention.
@@ -143,40 +143,40 @@ type GFSMonthlySettings struct {
 
 // GFSYearlySettings for GFS yearly retention.
 type GFSYearlySettings struct {
-	IsEnabled      bool   `json:"isEnabled"`
-	KeepForYears   int    `json:"keepForNumberOfYears,omitempty"`
-	DesiredMonth   string `json:"desiredMonth,omitempty"`
+	IsEnabled    bool   `json:"isEnabled"`
+	KeepForYears int    `json:"keepForNumberOfYears,omitempty"`
+	DesiredMonth string `json:"desiredMonth,omitempty"`
 }
 
 // BackupAdvancedSettings for backup job advanced configuration.
 type BackupAdvancedSettings struct {
-	BackupModeType     EBackupModeType              `json:"backupModeType,omitempty"`
-	StorageData        *BackupStorageDataSettings   `json:"storageData,omitempty"`
-	Notifications      *NotificationSettings        `json:"notifications,omitempty"`
+	BackupModeType EBackupModeType            `json:"backupModeType,omitempty"`
+	StorageData    *BackupStorageDataSettings `json:"storageData,omitempty"`
+	Notifications  *NotificationSettings      `json:"notifications,omitempty"`
 }
 
 // BackupStorageDataSettings for storage-level settings.
 type BackupStorageDataSettings struct {
-	CompressionLevel       string `json:"compressionLevel,omitempty"`
-	StorageOptimization    string `json:"storageOptimization,omitempty"`
-	EnableInlineDedup      bool   `json:"enableInlineDedup,omitempty"`
-	EncryptionEnabled      bool   `json:"encryptionEnabled,omitempty"`
-	EncryptionPasswordID   string `json:"encryptionPasswordId,omitempty"`
+	CompressionLevel     string `json:"compressionLevel,omitempty"`
+	StorageOptimization  string `json:"storageOptimization,omitempty"`
+	EnableInlineDedup    bool   `json:"enableInlineDedup,omitempty"`
+	EncryptionEnabled    bool   `json:"encryptionEnabled,omitempty"`
+	EncryptionPasswordID string `json:"encryptionPasswordId,omitempty"`
 }
 
 // NotificationSettings for job notifications.
 type NotificationSettings struct {
-	SendSNMPNotification bool   `json:"sendSNMPNotification,omitempty"`
+	SendSNMPNotification bool                       `json:"sendSNMPNotification,omitempty"`
 	EmailNotification    *EmailNotificationSettings `json:"emailNotification,omitempty"`
 }
 
 // EmailNotificationSettings for email alerts.
 type EmailNotificationSettings struct {
-	IsEnabled    bool   `json:"isEnabled"`
-	Recipients   string `json:"recipients,omitempty"`
-	NotifyOnSuccess bool `json:"notifyOnSuccess,omitempty"`
-	NotifyOnWarning bool `json:"notifyOnWarning,omitempty"`
-	NotifyOnError   bool `json:"notifyOnError,omitempty"`
+	IsEnabled       bool   `json:"isEnabled"`
+	Recipients      string `json:"recipients,omitempty"`
+	NotifyOnSuccess bool   `json:"notifyOnSuccess,omitempty"`
+	NotifyOnWarning bool   `json:"notifyOnWarning,omitempty"`
+	NotifyOnError   bool   `json:"notifyOnError,omitempty"`
 }
 
 // ---------------------------------------------------------------------------
@@ -185,12 +185,12 @@ type EmailNotificationSettings struct {
 
 // BackupSchedule configures when a job runs.
 type BackupSchedule struct {
-	RunAutomatically bool                    `json:"runAutomatically"`
-	Daily            *ScheduleDaily          `json:"daily,omitempty"`
-	Monthly          *ScheduleMonthly        `json:"monthly,omitempty"`
-	Periodically     *SchedulePeriodically   `json:"periodically,omitempty"`
-	AfterThisJob     *ScheduleAfterJob       `json:"afterThisJob,omitempty"`
-	Retry            *ScheduleRetry          `json:"retry,omitempty"`
+	RunAutomatically bool                  `json:"runAutomatically"`
+	Daily            *ScheduleDaily        `json:"daily,omitempty"`
+	Monthly          *ScheduleMonthly      `json:"monthly,omitempty"`
+	Periodically     *SchedulePeriodically `json:"periodically,omitempty"`
+	AfterThisJob     *ScheduleAfterJob     `json:"afterThisJob,omitempty"`
+	Retry            *ScheduleRetry        `json:"retry,omitempty"`
 }
 
 // ScheduleDaily for daily schedule.
@@ -203,19 +203,19 @@ type ScheduleDaily struct {
 
 // ScheduleMonthly for monthly schedule.
 type ScheduleMonthly struct {
-	IsEnabled      bool   `json:"isEnabled"`
-	LocalTime      string `json:"localTime,omitempty"`
-	DayOfMonth     int    `json:"dayOfMonth,omitempty"`
-	DayNumberInMonth string `json:"dayNumberInMonth,omitempty"`
-	DayOfWeek      string `json:"dayOfWeek,omitempty"`
-	Months         []string `json:"months,omitempty"`
+	IsEnabled        bool     `json:"isEnabled"`
+	LocalTime        string   `json:"localTime,omitempty"`
+	DayOfMonth       int      `json:"dayOfMonth,omitempty"`
+	DayNumberInMonth string   `json:"dayNumberInMonth,omitempty"`
+	DayOfWeek        string   `json:"dayOfWeek,omitempty"`
+	Months           []string `json:"months,omitempty"`
 }
 
 // SchedulePeriodically for interval-based schedule.
 type SchedulePeriodically struct {
-	IsEnabled       bool   `json:"isEnabled"`
+	IsEnabled        bool   `json:"isEnabled"`
 	PeriodicallyKind string `json:"periodicallyKind,omitempty"`
-	Frequency       int    `json:"frequency,omitempty"`
+	Frequency        int    `json:"frequency,omitempty"`
 }
 
 // ScheduleAfterJob runs this job after another job completes.
@@ -237,7 +237,7 @@ type ScheduleRetry struct {
 
 // BackupJobGuestProcessing configures application-aware processing.
 type BackupJobGuestProcessing struct {
-	AppAwareEnabled      bool   `json:"appAwareEnabled,omitempty"`
+	AppAwareEnabled         bool   `json:"appAwareEnabled,omitempty"`
 	GuestInteractionProxyID string `json:"guestInteractionProxyId,omitempty"`
 }
 

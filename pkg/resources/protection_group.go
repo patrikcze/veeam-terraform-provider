@@ -35,11 +35,11 @@ type ProtectionGroupComputerModel struct {
 
 // ProtectionGroupModel is the Terraform state model.
 type ProtectionGroupModel struct {
-	ID          types.String                       `tfsdk:"id"`
-	Name        types.String                       `tfsdk:"name"`
-	Description types.String                       `tfsdk:"description"`
-	Type        types.String                       `tfsdk:"type"`
-	Computers   []ProtectionGroupComputerModel     `tfsdk:"computers"`
+	ID          types.String                   `tfsdk:"id"`
+	Name        types.String                   `tfsdk:"name"`
+	Description types.String                   `tfsdk:"description"`
+	Type        types.String                   `tfsdk:"type"`
+	Computers   []ProtectionGroupComputerModel `tfsdk:"computers"`
 }
 
 func (r *ProtectionGroup) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {

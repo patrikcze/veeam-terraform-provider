@@ -47,14 +47,14 @@ const (
 type EManagedServerType string
 
 const (
-	ManagedServerTypeWindowsHost      EManagedServerType = "WindowsHost"
-	ManagedServerTypeLinuxHost        EManagedServerType = "LinuxHost"
-	ManagedServerTypeViHost           EManagedServerType = "ViHost"
-	ManagedServerTypeCloudDirector    EManagedServerType = "CloudDirectorHost"
-	ManagedServerTypeHvServer         EManagedServerType = "HvServer"
-	ManagedServerTypeHvCluster        EManagedServerType = "HvCluster"
-	ManagedServerTypeSCVMM            EManagedServerType = "SCVMM"
-	ManagedServerTypeSmbV3Host        EManagedServerType = "SmbV3Host"
+	ManagedServerTypeWindowsHost   EManagedServerType = "WindowsHost"
+	ManagedServerTypeLinuxHost     EManagedServerType = "LinuxHost"
+	ManagedServerTypeViHost        EManagedServerType = "ViHost"
+	ManagedServerTypeCloudDirector EManagedServerType = "CloudDirectorHost"
+	ManagedServerTypeHvServer      EManagedServerType = "HvServer"
+	ManagedServerTypeHvCluster     EManagedServerType = "HvCluster"
+	ManagedServerTypeSCVMM         EManagedServerType = "SCVMM"
+	ManagedServerTypeSmbV3Host     EManagedServerType = "SmbV3Host"
 )
 
 // EManagedServersStatus represents the availability status.
@@ -81,15 +81,15 @@ const (
 type ERepositoryType string
 
 const (
-	RepositoryTypeWinLocal       ERepositoryType = "WinLocal"
-	RepositoryTypeLinuxLocal     ERepositoryType = "LinuxLocal"
-	RepositoryTypeSmb            ERepositoryType = "Smb"
-	RepositoryTypeNfs            ERepositoryType = "Nfs"
-	RepositoryTypeAzureBlob      ERepositoryType = "AzureBlob"
-	RepositoryTypeAmazonS3       ERepositoryType = "AmazonS3"
-	RepositoryTypeS3Compatible   ERepositoryType = "S3Compatible"
-	RepositoryTypeGoogleCloud    ERepositoryType = "GoogleCloud"
-	RepositoryTypeLinuxHardened   ERepositoryType = "LinuxHardened"
+	RepositoryTypeWinLocal      ERepositoryType = "WinLocal"
+	RepositoryTypeLinuxLocal    ERepositoryType = "LinuxLocal"
+	RepositoryTypeSmb           ERepositoryType = "Smb"
+	RepositoryTypeNfs           ERepositoryType = "Nfs"
+	RepositoryTypeAzureBlob     ERepositoryType = "AzureBlob"
+	RepositoryTypeAmazonS3      ERepositoryType = "AmazonS3"
+	RepositoryTypeS3Compatible  ERepositoryType = "S3Compatible"
+	RepositoryTypeGoogleCloud   ERepositoryType = "GoogleCloud"
+	RepositoryTypeLinuxHardened ERepositoryType = "LinuxHardened"
 )
 
 // ---------------------------------------------------------------------------
@@ -123,14 +123,14 @@ const (
 type EJobType string
 
 const (
-	JobTypeUnknown             EJobType = "Unknown"
-	JobTypeBackup              EJobType = "Backup"
-	JobTypeHyperVBackup        EJobType = "HyperVBackup"
-	JobTypeVSphereReplica      EJobType = "VSphereReplica"
-	JobTypeBackupCopy          EJobType = "BackupCopy"
-	JobTypeWindowsAgentBackup  EJobType = "WindowsAgentBackup"
-	JobTypeLinuxAgentBackup    EJobType = "LinuxAgentBackup"
-	JobTypeFileBackup          EJobType = "FileBackup"
+	JobTypeUnknown            EJobType = "Unknown"
+	JobTypeBackup             EJobType = "Backup"
+	JobTypeHyperVBackup       EJobType = "HyperVBackup"
+	JobTypeVSphereReplica     EJobType = "VSphereReplica"
+	JobTypeBackupCopy         EJobType = "BackupCopy"
+	JobTypeWindowsAgentBackup EJobType = "WindowsAgentBackup"
+	JobTypeLinuxAgentBackup   EJobType = "LinuxAgentBackup"
+	JobTypeFileBackup         EJobType = "FileBackup"
 )
 
 // ERetentionPolicyType determines how retention is calculated.
@@ -167,10 +167,10 @@ type EProtectionGroupType string
 
 const (
 	ProtectionGroupTypeIndividualComputers EProtectionGroupType = "IndividualComputers"
-	ProtectionGroupTypeADObjects          EProtectionGroupType = "ADObjects"
-	ProtectionGroupTypeCSVFile            EProtectionGroupType = "CSVFile"
-	ProtectionGroupTypePreInstalledAgents EProtectionGroupType = "PreInstalledAgents"
-	ProtectionGroupTypeCloudMachines      EProtectionGroupType = "CloudMachines"
+	ProtectionGroupTypeADObjects           EProtectionGroupType = "ADObjects"
+	ProtectionGroupTypeCSVFile             EProtectionGroupType = "CSVFile"
+	ProtectionGroupTypePreInstalledAgents  EProtectionGroupType = "PreInstalledAgents"
+	ProtectionGroupTypeCloudMachines       EProtectionGroupType = "CloudMachines"
 )
 
 // ---------------------------------------------------------------------------
@@ -181,13 +181,13 @@ const (
 type ESessionState string
 
 const (
-	SessionStateStopped_    ESessionState = "Stopped"
-	SessionStateStarting    ESessionState = "Starting"
-	SessionStateStopping    ESessionState = "Stopping"
-	SessionStateWorking_    ESessionState = "Working"
-	SessionStatePausing     ESessionState = "Pausing"
-	SessionStateResuming    ESessionState = "Resuming"
-	SessionStateIdle        ESessionState = "Idle"
+	SessionStateStopped_ ESessionState = "Stopped"
+	SessionStateStarting ESessionState = "Starting"
+	SessionStateStopping ESessionState = "Stopping"
+	SessionStateWorking_ ESessionState = "Working"
+	SessionStatePausing  ESessionState = "Pausing"
+	SessionStateResuming ESessionState = "Resuming"
+	SessionStateIdle     ESessionState = "Idle"
 )
 
 // ESessionResult represents the result of a completed session.

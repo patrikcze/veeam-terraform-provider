@@ -137,8 +137,8 @@ func TestViHostSpec_RoundTrip(t *testing.T) {
 			Description: "Main vCenter",
 			Type:        ManagedServerTypeViHost,
 		},
-		CredentialsID:        "cred-456",
-		Port:                 443,
+		CredentialsID:         "cred-456",
+		Port:                  443,
 		CertificateThumbprint: "AA:BB:CC:DD",
 	}
 

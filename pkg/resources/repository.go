@@ -30,15 +30,15 @@ type Repository struct {
 // RepositoryModel is the Terraform state model for veeam_repository.
 // Supports WinLocal, LinuxLocal, Nfs, and Smb types.
 type RepositoryModel struct {
-	ID             types.String `tfsdk:"id"`
-	Name           types.String `tfsdk:"name"`
-	Description    types.String `tfsdk:"description"`
-	Type           types.String `tfsdk:"type"`
-	HostID         types.String `tfsdk:"host_id"`
-	Path           types.String `tfsdk:"path"`
-	MaxTaskCount   types.Int64  `tfsdk:"max_task_count"`
-	SharePath      types.String `tfsdk:"share_path"`
-	CredentialsID  types.String `tfsdk:"credentials_id"`
+	ID            types.String `tfsdk:"id"`
+	Name          types.String `tfsdk:"name"`
+	Description   types.String `tfsdk:"description"`
+	Type          types.String `tfsdk:"type"`
+	HostID        types.String `tfsdk:"host_id"`
+	Path          types.String `tfsdk:"path"`
+	MaxTaskCount  types.Int64  `tfsdk:"max_task_count"`
+	SharePath     types.String `tfsdk:"share_path"`
+	CredentialsID types.String `tfsdk:"credentials_id"`
 }
 
 func (r *Repository) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {

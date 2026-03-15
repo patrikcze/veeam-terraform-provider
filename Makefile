@@ -76,7 +76,7 @@ fmt:
 .PHONY: fmt-check
 fmt-check:
 	@echo "Checking code formatting..."
-	@test -z $$(gofmt -l .)
+	@test -z "$$(gofmt -l .)"
 
 # Download and vendor dependencies
 .PHONY: vendor

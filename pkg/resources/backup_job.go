@@ -29,22 +29,22 @@ type BackupJob struct {
 
 // BackupJobModel is the Terraform state model for veeam_backup_job.
 type BackupJobModel struct {
-	ID                 types.String `tfsdk:"id"`
-	Name               types.String `tfsdk:"name"`
-	Description        types.String `tfsdk:"description"`
-	Type               types.String `tfsdk:"type"`
-	IsHighPriority     types.Bool   `tfsdk:"is_high_priority"`
-	RepositoryID       types.String `tfsdk:"repository_id"`
-	ProxyAutoSelect    types.Bool   `tfsdk:"proxy_auto_select"`
-	RetentionType      types.String `tfsdk:"retention_type"`
-	RetentionQuantity  types.Int64  `tfsdk:"retention_quantity"`
-	ScheduleEnabled    types.Bool   `tfsdk:"schedule_enabled"`
-	ScheduleTime       types.String `tfsdk:"schedule_time"`
-	ScheduleKind       types.String `tfsdk:"schedule_kind"`
-	RetryEnabled       types.Bool   `tfsdk:"retry_enabled"`
-	RetryCount         types.Int64  `tfsdk:"retry_count"`
-	RetryAwaitMinutes  types.Int64  `tfsdk:"retry_await_minutes"`
-	IsDisabled         types.Bool   `tfsdk:"is_disabled"`
+	ID                types.String `tfsdk:"id"`
+	Name              types.String `tfsdk:"name"`
+	Description       types.String `tfsdk:"description"`
+	Type              types.String `tfsdk:"type"`
+	IsHighPriority    types.Bool   `tfsdk:"is_high_priority"`
+	RepositoryID      types.String `tfsdk:"repository_id"`
+	ProxyAutoSelect   types.Bool   `tfsdk:"proxy_auto_select"`
+	RetentionType     types.String `tfsdk:"retention_type"`
+	RetentionQuantity types.Int64  `tfsdk:"retention_quantity"`
+	ScheduleEnabled   types.Bool   `tfsdk:"schedule_enabled"`
+	ScheduleTime      types.String `tfsdk:"schedule_time"`
+	ScheduleKind      types.String `tfsdk:"schedule_kind"`
+	RetryEnabled      types.Bool   `tfsdk:"retry_enabled"`
+	RetryCount        types.Int64  `tfsdk:"retry_count"`
+	RetryAwaitMinutes types.Int64  `tfsdk:"retry_await_minutes"`
+	IsDisabled        types.Bool   `tfsdk:"is_disabled"`
 }
 
 func (r *BackupJob) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
