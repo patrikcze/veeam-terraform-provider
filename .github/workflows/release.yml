@@ -9,36 +9,75 @@ permissions:
   contents: write
 
 jobs:
-  goreleaser:
+  # ── Gate: run tests before releasing ──────────────────────────
+  test:
+    name: Test
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-        
-    - name: Set up Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: '1.24.4'
-        
-    - name: Import GPG key
-      id: import_gpg
-      uses: crazy-max/ghaction-import-gpg@v6
-      with:
-        gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-        passphrase: ${{ secrets.GPG_PASSPHRASE }}
-        
-    - name: Run GoReleaser
-      uses: goreleaser/goreleaser-action@v6
-      with:
-        version: latest
-        args: release --clean
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
-        
-    - name: Upload assets
-      uses: actions/upload-artifact@v4
-      with:
-        name: release-assets
-        path: dist/*
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.4'
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run tests
+        run: go test -v ./...
+
+      - name: Vet
+        run: go vet ./...
+
+  # ── Release: build binaries & create GitHub release ───────────
+  release:
+    name: Release
+    needs: [test]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.4'
+
+      # GPG signing (optional — only runs if secrets are configured)
+      - name: Import GPG key
+        id: import_gpg
+        if: ${{ secrets.GPG_PRIVATE_KEY != '' }}
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+
+      # Release WITH GPG signing
+      - name: Run GoReleaser (signed)
+        if: ${{ steps.import_gpg.outcome == 'success' }}
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
+
+      # Release WITHOUT GPG signing (skips the signs: section)
+      - name: Run GoReleaser (unsigned)
+        if: ${{ steps.import_gpg.outcome != 'success' }}
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: latest
+          args: release --clean --skip=sign
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-assets
+          path: dist/*.zip
+          retention-days: 90

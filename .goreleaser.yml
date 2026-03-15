@@ -1,8 +1,5 @@
 version: 2
 
-env:
-  - GPG_FINGERPRINT={{ .Env.GPG_FINGERPRINT }}
-
 before:
   hooks:
     - go mod tidy
@@ -23,7 +20,11 @@ builds:
     goarch:
       - amd64
       - arm64
-    ignore: []
+    ignore:
+      - goos: darwin
+        goarch: amd64
+      - goos: windows
+        goarch: arm64
     main: ./cmd/veeam
     binary: '{{ .ProjectName }}_v{{ .Version }}'
 
@@ -53,26 +54,17 @@ release:
   prerelease: auto
   mode: replace
   header: |
-    ## What's Changed
-    
-    This release includes the following changes:
+    ## Veeam Terraform Provider {{ .Tag }}
   footer: |
-    ## Docker Images
-    
-    Docker images are available at:
-    
-    - `ghcr.io/patrikcze/terraform-provider-veeam:{{ .Tag }}`
-    - `ghcr.io/patrikcze/terraform-provider-veeam:latest`
-    
     ## Installation
     
-    ### Automatic Installation (Terraform 0.13+)
+    ### Terraform Registry (Terraform 0.13+)
     
     ```hcl
     terraform {
       required_providers {
         veeam = {
-          source = "patrikcze/veeam"
+          source  = "patrikcze/veeam"
           version = "~> {{ .Version }}"
         }
       }
@@ -81,40 +73,28 @@ release:
     
     ### Manual Installation
     
-    1. Download the appropriate binary for your operating system from the release assets
-    2. Extract the binary to your Terraform plugins directory
-    3. Run `terraform init` to initialize the provider
+    1. Download the archive for your platform from the release assets
+    2. Extract the binary to `~/.terraform.d/plugins/registry.terraform.io/patrikcze/veeam/{{ .Version }}/<os>_<arch>/`
+    3. Run `terraform init`
     
-    ## Verify the Release
-    
-    You can verify the release signature with:
+    ## Verify Checksums
     
     ```bash
-    # Download the checksum file and signature
-    curl -L https://github.com/patrikcze/terraform-provider-veeam/releases/download/{{ .Tag }}/{{ .ProjectName }}_{{ .Version }}_SHA256SUMS > checksums.txt
-    curl -L https://github.com/patrikcze/terraform-provider-veeam/releases/download/{{ .Tag }}/{{ .ProjectName }}_{{ .Version }}_SHA256SUMS.sig > checksums.sig
-    
-    # Import the public key (if not already imported)
-    curl -L https://github.com/patrikcze.gpg | gpg --import
-    
-    # Verify the signature
-    gpg --verify checksums.sig checksums.txt
-    
-    # Verify the binary checksum
-    sha256sum -c checksums.txt
+    curl -sLO https://github.com/patrikcze/terraform-provider-veeam/releases/download/{{ .Tag }}/{{ .ProjectName }}_{{ .Version }}_SHA256SUMS
+    sha256sum -c {{ .ProjectName }}_{{ .Version }}_SHA256SUMS --ignore-missing
     ```
+    
+    ## Supported Platforms
+    
+    - Linux amd64 / arm64
+    - macOS arm64 (Apple Silicon)
+    - Windows amd64
 
 changelog:
   disable: false
   sort: asc
   filters:
     exclude:
-      - '^docs:'
-      - '^test:'
-      - '^ci:'
-      - '^refactor:'
-      - '^style:'
-      - '^chore:'
       - Merge pull request
       - Merge branch
       - go mod tidy
