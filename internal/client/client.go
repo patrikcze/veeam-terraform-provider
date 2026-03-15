@@ -21,8 +21,8 @@ const (
 	// APIVersion is the Veeam V13 REST API version header value.
 	APIVersion = "1.3-rev0"
 
-	// tokenEndpoint is the V13 OAuth2 token endpoint.
-	tokenEndpoint = "/api/oauth2/token"
+	// tokenEndpoint references the centralized path from endpoints.go.
+	tokenEndpoint = PathOAuth2Token
 
 	// tokenRefreshBuffer is how far before expiry we proactively refresh.
 	tokenRefreshBuffer = 2 * time.Minute

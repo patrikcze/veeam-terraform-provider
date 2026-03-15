@@ -16,8 +16,8 @@ const (
 	// defaultTaskTimeout is the maximum time to wait for an async task.
 	defaultTaskTimeout = 30 * time.Minute
 
-	// sessionsEndpoint is the V13 sessions API path.
-	sessionsEndpoint = "/api/v1/sessions"
+	// sessionsEndpoint references the centralized path from endpoints.go.
+	sessionsEndpoint = PathSessions
 )
 
 // SessionState represents the state of a V13 async session.
