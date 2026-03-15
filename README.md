@@ -4,18 +4,23 @@ This Terraform provider allows you to manage Veeam Backup & Replication resource
 
 ## Features
 
-- **Backup Job Management**: Create, update, and delete backup jobs
-- **Repository Management**: Configure and manage backup repositories
-- **Credential Management**: Manage authentication credentials for various systems
-- **Data Sources**: Query existing backup jobs and repositories
-- **Import Support**: Import existing resources into Terraform state
+- **Backup Job Management**: Create, update, and delete backup jobs with full storage/schedule/retention configuration
+- **Repository Management**: Polymorphic repositories — WinLocal, LinuxLocal, Nfs, Smb
+- **Credential Management**: Standard (Windows/domain) and Linux SSH credentials
+- **Managed Server Management**: ViHost, WindowsHost, LinuxHost managed servers
+- **Proxy Management**: vSphere backup proxies with transport mode configuration
+- **Encryption Passwords**: Manage encryption keys for backup encryption
+- **Protection Groups**: Agent-based protection groups (IndividualComputers)
+- **Data Sources**: Query credentials, backup jobs, and repositories
+- **Import Support**: All resources support `terraform import`
+- **Version-Resilient Architecture**: All API paths centralized in `internal/client/endpoints.go` — update one file when Veeam releases a new API version
 
 ## Requirements
 
 - [Terraform](https://www.terraform.io/downloads.html) >= 1.0
-- [Go](https://golang.org/doc/install) >= 1.21 (for building from source)
-- Veeam Backup & Replication server (version 11.0 or later)
-- Network access to Veeam server REST API (typically port 9419)
+- [Go](https://golang.org/doc/install) >= 1.24 (for building from source)
+- Veeam Backup & Replication V13 server
+- Network access to Veeam server REST API (port 9419)
 
 ## Installation
 
@@ -117,22 +122,19 @@ The provider supports the following configuration options:
 
 ## Resources
 
-### Backup Jobs
-- `veeam_backup_job` - Manages backup jobs
-
-### Repositories
-- `veeam_repository` - Manages backup repositories
-
-### Credentials
-- `veeam_credential` - Manages authentication credentials
+- `veeam_backup_job` — Backup jobs with storage, schedule, retention, proxy settings
+- `veeam_credential` — Standard (Windows/domain) and Linux SSH credentials
+- `veeam_encryption_password` — Encryption passwords for backup encryption
+- `veeam_managed_server` — ViHost, WindowsHost, LinuxHost managed servers
+- `veeam_protection_group` — Agent protection groups (IndividualComputers)
+- `veeam_proxy` — vSphere backup proxies
+- `veeam_repository` — Backup repositories (WinLocal, LinuxLocal, Nfs, Smb)
 
 ## Data Sources
 
-### Backup Jobs
-- `veeam_backup_jobs` - Query backup jobs
-
-### Repositories
-- `veeam_repositories` - Query backup repositories
+- `veeam_backup_jobs` — Query backup jobs (all or by ID/name)
+- `veeam_credentials` — List all credentials
+- `veeam_repositories` — Query repositories (all or by ID/name)
 
 ## Documentation
 
