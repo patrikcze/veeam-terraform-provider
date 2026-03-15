@@ -7,6 +7,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+
+	"github.com/patrikcze/terraform-provider-veeam/internal/client"
+	"github.com/patrikcze/terraform-provider-veeam/internal/models"
 )
 
 // MockVeeamClient is a mock implementation of the APIClient interface for testing.
@@ -39,102 +42,75 @@ func (m *MockVeeamClient) WaitForTask(ctx context.Context, sessionID string) err
 	return args.Error(0)
 }
 
-// TestBackupJob_CreatePayload tests the creation of a backup job payload
+func TestBackupJob_BuildSpec(t *testing.T) {
+	resource := &BackupJob{}
+	data := &BackupJobModel{
+		Name:              types.StringValue("Daily-Backup"),
+		Type:              types.StringValue("Backup"),
+		Description:       types.StringValue("Daily VM backup"),
+		IsHighPriority:    types.BoolValue(true),
+		RepositoryID:      types.StringValue("repo-123"),
+		ProxyAutoSelect:   types.BoolValue(true),
+		RetentionType:     types.StringValue("RestorePoints"),
+		RetentionQuantity: types.Int64Value(14),
+		ScheduleEnabled:   types.BoolValue(true),
+		ScheduleTime:      types.StringValue("22:00"),
+		ScheduleKind:      types.StringValue("Weekdays"),
+		RetryEnabled:      types.BoolValue(true),
+		RetryCount:        types.Int64Value(3),
+		RetryAwaitMinutes: types.Int64Value(10),
+	}
+
+	spec := resource.buildSpec(data)
+
+	assert.Equal(t, "Daily-Backup", spec.Name)
+	assert.Equal(t, models.JobTypeBackup, spec.Type)
+	assert.True(t, spec.IsHighPriority)
+	assert.Equal(t, "repo-123", spec.Storage.BackupRepositoryID)
+	assert.True(t, spec.Storage.BackupProxies.AutoSelectEnabled)
+	assert.Equal(t, 14, spec.Storage.RetentionPolicy.Quantity)
+	assert.True(t, spec.Schedule.RunAutomatically)
+	assert.Equal(t, "22:00", spec.Schedule.Daily.LocalTime)
+	assert.Equal(t, models.DailyKindsWeekdays, spec.Schedule.Daily.DailyKind)
+	assert.Equal(t, 3, spec.Schedule.Retry.RetryCount)
+}
+
 func TestBackupJob_CreatePayload(t *testing.T) {
-	// Setup mock client
 	mockClient := new(MockVeeamClient)
 
-	// Mock successful API response
-	mockClient.On("PostJSON", mock.Anything, "/backupJobs", mock.Anything, mock.Anything).Return(nil)
+	mockClient.On("PostJSON", mock.Anything, client.PathJobs, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		result := args.Get(3).(*models.BackupJobModel)
+		result.ID = "job-123"
+		result.Name = "Daily-Backup"
+		result.Type = models.JobTypeBackup
+	}).Return(nil)
 
-	// Create test data
-	data := BackupJobModel{
-		Name:    types.StringValue("test_backup"),
-		Enabled: types.BoolValue(true),
-	}
+	var result models.BackupJobModel
+	err := mockClient.PostJSON(context.Background(), client.PathJobs, nil, &result)
 
-	// Test payload creation
-	payload := map[string]interface{}{
-		"name":    data.Name.ValueString(),
-		"enabled": data.Enabled.ValueBool(),
-	}
-
-	// Execute mock API call
-	var result map[string]interface{}
-	err := mockClient.PostJSON(context.Background(), "/backupJobs", payload, &result)
-
-	// Assert no errors
 	assert.NoError(t, err)
+	assert.Equal(t, "job-123", result.ID)
 	mockClient.AssertExpectations(t)
 }
 
-func TestBackupJob_ReadPayload(t *testing.T) {
-	// Setup mock client
-	mockClient := new(MockVeeamClient)
+func TestBackupJob_SyncFromAPI(t *testing.T) {
+	resource := &BackupJob{}
+	data := &BackupJobModel{}
 
-	// Mock successful API response
-	mockClient.On("GetJSON", mock.Anything, "/backupJobs/test_backup", mock.Anything).Return(nil)
-
-	// Execute mock API call
-	var result map[string]interface{}
-	err := mockClient.GetJSON(context.Background(), "/backupJobs/test_backup", &result)
-
-	// Assert no errors
-	assert.NoError(t, err)
-	mockClient.AssertExpectations(t)
-}
-
-func TestBackupJob_UpdatePayload(t *testing.T) {
-	// Setup mock client
-	mockClient := new(MockVeeamClient)
-
-	// Mock successful API response
-	mockClient.On("PutJSON", mock.Anything, "/backupJobs/test_backup", mock.Anything, mock.Anything).Return(nil)
-
-	// Create test data
-	data := BackupJobModel{
-		Name:    types.StringValue("test_backup"),
-		Enabled: types.BoolValue(false),
+	api := &models.BackupJobModel{
+		JobModel: models.JobModel{
+			ID:         "job-abc",
+			Name:       "Test-Job",
+			Type:       models.JobTypeBackup,
+			IsDisabled: false,
+		},
+		Description: "Test backup job",
 	}
 
-	// Test payload creation
-	payload := map[string]interface{}{
-		"name":    data.Name.ValueString(),
-		"enabled": data.Enabled.ValueBool(),
-	}
+	resource.syncFromAPI(data, api)
 
-	// Execute mock API call
-	err := mockClient.PutJSON(context.Background(), "/backupJobs/test_backup", payload, nil)
-
-	// Assert no errors
-	assert.NoError(t, err)
-	mockClient.AssertExpectations(t)
-}
-
-func TestBackupJob_DeletePayload(t *testing.T) {
-	// Setup mock client
-	mockClient := new(MockVeeamClient)
-
-	// Mock successful API response
-	mockClient.On("DeleteJSON", mock.Anything, "/backupJobs/test_backup").Return(nil)
-
-	// Execute mock API call
-	err := mockClient.DeleteJSON(context.Background(), "/backupJobs/test_backup")
-
-	// Assert no errors
-	assert.NoError(t, err)
-	mockClient.AssertExpectations(t)
-}
-
-// TestBackupJobModel tests the BackupJobModel structure
-func TestBackupJobModel(t *testing.T) {
-	// Create test data
-	data := BackupJobModel{
-		Name:    types.StringValue("test_backup"),
-		Enabled: types.BoolValue(true),
-	}
-
-	// Test the model
-	assert.Equal(t, "test_backup", data.Name.ValueString())
-	assert.Equal(t, true, data.Enabled.ValueBool())
+	assert.Equal(t, "Test-Job", data.Name.ValueString())
+	assert.Equal(t, "Test backup job", data.Description.ValueString())
+	assert.Equal(t, "Backup", data.Type.ValueString())
+	assert.False(t, data.IsDisabled.ValueBool())
 }
