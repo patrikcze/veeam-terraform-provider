@@ -12,28 +12,22 @@ Manages backup repositories used by Veeam jobs.
 ## Example Usage
 
 ```hcl
-# Basic Linux repository
+# Windows local repository on an existing managed server
+resource "veeam_repository" "windows_repo" {
+  name        = "Windows-Backup-Repository"
+  description = "Windows backup repository"
+  type        = "WinLocal"
+  host_id     = data.veeam_managed_servers.all.servers[0].id
+  path        = "D:\\TESTBACKUP"
+}
+
+# Linux local repository
 resource "veeam_repository" "linux_repo" {
   name        = "Linux-Backup-Repository"
   description = "Primary Linux backup repository"
+  type        = "LinuxLocal"
+  host_id     = data.veeam_managed_servers.all.servers[0].id
   path        = "/backup/linux"
-  type        = "linux"
-}
-
-# Windows repository with capacity limit
-resource "veeam_repository" "windows_repo" {
-  name        = "Windows-Backup-Repository"
-  description = "Windows backup repository with capacity limit"
-  path        = "C:\\Backup\\Windows"
-  type        = "windows"
-  capacity    = 1073741824000  # 1TB in bytes
-}
-
-# Repository with minimal configuration
-resource "veeam_repository" "minimal" {
-  name = "Minimal-Repository"
-  path = "/backup/minimal"
-  type = "linux"
 }
 ```
 
@@ -42,13 +36,16 @@ resource "veeam_repository" "minimal" {
 ### Required
 
 - `name` (String) Unique repository name.
-- `path` (String) Filesystem path used by the repository.
-- `type` (String) Repository type (`linux`, `windows`, `nfs`, `smb`).
+- `type` (String) Repository type (`WinLocal`, `LinuxLocal`, `Nfs`, or `Smb`).
 
 ### Optional
 
 - `description` (String) Optional repository description.
-- `capacity` (Number) Maximum repository capacity in bytes.
+- `host_id` (String) Managed server ID for local repository types.
+- `path` (String) Filesystem path for local repository types.
+- `max_task_count` (Number) Maximum concurrent tasks.
+- `share_path` (String) Network share path for NFS/SMB repository types.
+- `credentials_id` (String) Credential ID for SMB access.
 
 ### Read-Only
 
@@ -64,5 +61,5 @@ terraform import veeam_repository.example "repository-id-123"
 
 ## Notes
 
-- Repository paths must be accessible by the Veeam backup server.
-- Capacity is defined in bytes.
+- On VBR v13 rev1, local repositories require mount-server settings; the provider auto-populates this using `host_id` and `path`.
+- `path` and `host_id` are required in practice for `WinLocal` and `LinuxLocal` repositories.

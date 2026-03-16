@@ -94,7 +94,7 @@ resource "veeam_proxy" "vsphere_proxy" {
   description           = "vSphere backup proxy"
   type                  = "ViProxy"
   host_id               = veeam_managed_server.vcenter.id
-  transport_mode        = "auto"
+  transport_mode        = "Auto"
   failover_to_network   = true
   max_task_count        = 4
 }
@@ -106,7 +106,7 @@ resource "veeam_proxy" "vsphere_proxy" {
 resource "veeam_backup_job" "daily_backup" {
   name               = "Daily-VM-Backup"
   description        = "Daily backup of production VMs"
-  type               = "Backup"
+  type               = "VSphereBackup"
   is_high_priority   = true
   repository_id      = veeam_repository.linux_repo.id
   proxy_auto_select  = true

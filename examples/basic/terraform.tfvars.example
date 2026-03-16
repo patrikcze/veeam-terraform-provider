@@ -5,5 +5,4 @@ veeam_host        = "https://veeam.example.com"
 veeam_username    = "admin"
 veeam_password    = "your-veeam-password"
 veeam_insecure    = false
-backup_username   = "backup"
-backup_password   = "your-backup-password"
+repository_host_name = "your-managed-server-name"

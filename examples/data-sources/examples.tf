@@ -1,48 +1,21 @@
-# Example Terraform configuration showing how to use the Veeam data sources
+# Focused data source lookups
 
-# Fetch all backup jobs
-data "veeam_backup_jobs" "all_jobs" {
-  # No parameters needed to fetch all jobs
-}
-
-# Fetch a specific backup job by ID
-data "veeam_backup_jobs" "specific_job_by_id" {
-  job_id = "backup-job-123"
-}
-
-# Fetch a specific backup job by name
 data "veeam_backup_jobs" "specific_job_by_name" {
-  job_name = "Daily Backup"
+  job_name = "Daily-VM-Backup"
 }
 
-# Fetch all repositories
-data "veeam_repositories" "all_repos" {
-  # No parameters needed to fetch all repositories
-}
-
-# Fetch a specific repository by ID
-data "veeam_repositories" "specific_repo_by_id" {
-  repository_id = "repo-456"
-}
-
-# Fetch a specific repository by name
 data "veeam_repositories" "specific_repo_by_name" {
-  repository_name = "Primary Storage"
+  repository_name = "Default Backup Repository"
 }
 
-# Example outputs showing how to use the data
-output "all_backup_jobs" {
-  value = data.veeam_backup_jobs.all_jobs.backup_jobs
+data "veeam_proxies" "specific_proxy" {
+  proxy_id = "00000000-0000-0000-0000-000000000000"
 }
 
-output "specific_job_name" {
-  value = data.veeam_backup_jobs.specific_job_by_id.backup_jobs[0].name
-}
-
-output "repo_capacity" {
-  value = data.veeam_repositories.specific_repo_by_name.repositories[0].capacity
-}
-
-output "repo_free_space" {
-  value = data.veeam_repositories.specific_repo_by_name.repositories[0].free_space
+output "specific_lookup_results" {
+  value = {
+    matched_jobs         = length(data.veeam_backup_jobs.specific_job_by_name.backup_jobs)
+    matched_repositories = length(data.veeam_repositories.specific_repo_by_name.repositories)
+    matched_proxies      = length(data.veeam_proxies.specific_proxy.proxies)
+  }
 }

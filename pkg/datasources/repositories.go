@@ -188,8 +188,7 @@ func (d *RepositoriesDataSource) Read(ctx context.Context, req datasource.ReadRe
 		data.Repositories = repositories
 	} else {
 		// Fetch all repositories
-		var apiResult []map[string]interface{}
-		err := d.client.GetJSON(ctx, client.PathRepositories, &apiResult)
+		apiResult, err := fetchList(ctx, d.client.GetJSON, client.PathRepositories)
 		if err != nil {
 			resp.Diagnostics.AddError(
 				"Error fetching repositories",
