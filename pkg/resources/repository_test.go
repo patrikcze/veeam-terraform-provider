@@ -38,6 +38,7 @@ func TestRepository_BuildSpec_WinLocal(t *testing.T) {
 		if assert.NotNil(t, win.MountServer.Windows) {
 			assert.Equal(t, "host-123", win.MountServer.Windows.MountServerID)
 			assert.Equal(t, "C:\\Backups", win.MountServer.Windows.WriteCacheFolder)
+			assert.False(t, win.MountServer.Windows.VPowerNFSEnabled)
 		}
 	}
 }
@@ -66,6 +67,7 @@ func TestRepository_BuildSpec_LinuxLocal(t *testing.T) {
 		if assert.NotNil(t, linux.MountServer.Linux) {
 			assert.Equal(t, "linux-host-1", linux.MountServer.Linux.MountServerID)
 			assert.Equal(t, "/mnt/backups", linux.MountServer.Linux.WriteCacheFolder)
+			assert.False(t, linux.MountServer.Linux.VPowerNFSEnabled)
 		}
 	}
 }

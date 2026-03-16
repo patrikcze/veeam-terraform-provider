@@ -139,7 +139,7 @@ type MountServersSettings struct {
 type MountServerSettings struct {
 	MountServerID    string `json:"mountServerId,omitempty"`
 	WriteCacheFolder string `json:"writeCacheFolder,omitempty"`
-	VPowerNFSEnabled bool   `json:"vPowerNFSEnabled,omitempty"`
+	VPowerNFSEnabled bool   `json:"vPowerNFSEnabled"`
 }
 
 // NfsShareSettings configures NFS share access.

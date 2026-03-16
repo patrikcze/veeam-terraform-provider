@@ -86,6 +86,14 @@ func TestWindowsLocalStorageSpec_RoundTrip(t *testing.T) {
 			Path:         "C:\\Backups",
 			MaxTaskCount: 4,
 		},
+		MountServer: &MountServersSettings{
+			MountServerSettingsType: "Windows",
+			Windows: &MountServerSettings{
+				MountServerID:    "host-123",
+				WriteCacheFolder: "C:\\Backups",
+				VPowerNFSEnabled: false,
+			},
+		},
 	}
 
 	data, err := json.Marshal(original)
@@ -99,6 +107,18 @@ func TestWindowsLocalStorageSpec_RoundTrip(t *testing.T) {
 	assert.Equal(t, "host-123", decoded.HostID)
 	assert.Equal(t, "C:\\Backups", decoded.Repository.Path)
 	assert.Equal(t, 4, decoded.Repository.MaxTaskCount)
+	require.NotNil(t, decoded.MountServer)
+	require.NotNil(t, decoded.MountServer.Windows)
+	assert.False(t, decoded.MountServer.Windows.VPowerNFSEnabled)
+
+	var raw map[string]interface{}
+	require.NoError(t, json.Unmarshal(data, &raw))
+	mountServer, ok := raw["mountServer"].(map[string]interface{})
+	require.True(t, ok)
+	windows, ok := mountServer["windows"].(map[string]interface{})
+	require.True(t, ok)
+	_, exists := windows["vPowerNFSEnabled"]
+	assert.True(t, exists, "serialized payload must include vPowerNFSEnabled even when false")
 }
 
 func TestLinuxLocalStorageModel_RoundTrip(t *testing.T) {
