@@ -1,39 +1,38 @@
+---
+page_title: "Resources - terraform-provider-veeam"
+subcategory: ""
+description: |-
+  Index of Terraform resources supported by the Veeam provider.
+---
+
 # Resources
 
-This section contains documentation for all Veeam Terraform Provider resources.
+Reference for all Veeam Terraform Provider resources.
 
 ## Available Resources
 
 ### [veeam_backup_job](backup_job.md)
-Manages Veeam backup jobs. Use this resource to create, update, and delete backup jobs in your Veeam environment.
-
-**Key features:**
-- Create and manage backup jobs
-- Enable/disable backup jobs
-- Import existing backup jobs
+Manages backup jobs.
 
 ### [veeam_repository](repository.md)
-Manages Veeam backup repositories. Use this resource to create, update, and delete backup repositories for storing backup data.
-
-**Key features:**
-- Create Linux and Windows repositories
-- Configure repository capacity limits
-- Manage repository paths and types
-- Import existing repositories
+Manages backup repositories.
 
 ### [veeam_credential](credential.md)
-Manages Veeam credentials. Use this resource to create, update, and delete authentication credentials for various systems.
+Manages standard and Linux/Windows credentials.
 
-**Key features:**
-- Create Linux, Windows, and standard credentials
-- Manage domain credentials
-- Secure password handling
-- Import existing credentials
+### [veeam_cloud_credential](cloud_credential.md)
+Manages cloud credentials used by Veeam for AWS, Azure, and GCP integrations.
+
+### [veeam_scale_out_repository](scale_out_repository.md)
+Manages Veeam scale-out backup repositories.
+
+### [veeam_configuration_backup](configuration_backup.md)
+Manages configuration backup settings and can trigger configuration backup runs.
 
 ## Common Patterns
 
 ### Resource Dependencies
-Many resources work together. For example, backup jobs typically depend on repositories and credentials:
+Many resources work together. A typical pattern is repository + credential + backup job:
 
 ```hcl
 resource "veeam_repository" "main" {
@@ -61,7 +60,7 @@ resource "veeam_backup_job" "daily" {
 ```
 
 ### Import Existing Resources
-All resources support importing existing Veeam resources:
+All resources support importing existing Veeam objects:
 
 ```bash
 # Import by name for backup jobs
@@ -73,7 +72,7 @@ terraform import veeam_credential.existing "cred-id-456"
 ```
 
 ### Variable Usage
-Use variables for sensitive information and reusable values:
+Use variables for sensitive values and reusable inputs:
 
 ```hcl
 variable "repository_path" {
@@ -104,20 +103,10 @@ resource "veeam_credential" "admin" {
 
 ## Best Practices
 
-1. **Use descriptive names**: Make resource names clear and consistent
-2. **Set dependencies**: Use `depends_on` to ensure proper resource creation order
-3. **Use variables**: Store sensitive information in variables, not hardcoded values
-4. **Plan before apply**: Always run `terraform plan` before applying changes
-5. **Import existing resources**: Import existing Veeam resources to avoid conflicts
-
-## Error Handling
-
-Common errors and solutions:
-
-- **Resource already exists**: Import the existing resource or choose a different name
-- **Authentication failed**: Check your provider configuration and credentials
-- **Path not accessible**: Ensure the specified paths exist and are accessible
-- **Insufficient permissions**: Verify your Veeam user has the necessary permissions
+- Use descriptive names for long-term maintainability.
+- Keep secrets in variables or environment variables.
+- Run `terraform plan` before `terraform apply`.
+- Import existing infrastructure to avoid duplicate object errors.
 
 ## See Also
 

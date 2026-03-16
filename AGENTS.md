@@ -92,13 +92,18 @@ tests/                          — acceptance tests (require TF_ACC=1)
 ### Testing
 - **Framework:** `go test` + `testify` (assert/mock/require).
 - **Unit tests:** Alongside source (`*_test.go`). Mock the `APIClient` interface.
+- **Unit test minimum for new code:**
+  - Resource helper/builder tests for each new resource.
+  - Shared data source parsing/filter helper tests.
+  - Metadata/smoke tests for each new data source factory.
+  - Model JSON round-trip tests for new API model files.
 - **Acceptance tests:** In `tests/` directory. Require `TF_ACC=1` + env vars.
 - **Coverage target:** 80%+ for resources, 90%+ for client.
 - **httptest:** Use `httptest.NewTLSServer` for client tests, not real servers.
 - **No real credentials in tests** — ever.
 
 ### Commits
-- `Co-Authored-By: Oz <oz-agent@warp.dev>` on every commit.
+- `Co-Authored-By: AI` on every commit.
 - Conventional commit messages: `feat:`, `fix:`, `test:`, `docs:`, `refactor:`.
 
 ## Reference Files
