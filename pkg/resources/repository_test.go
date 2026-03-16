@@ -111,3 +111,35 @@ func TestRepository_CreatePayload(t *testing.T) {
 	assert.Equal(t, "repo-123", result.ID)
 	mockClient.AssertExpectations(t)
 }
+
+func TestRepository_SyncFromAPI_PreservesPlanOnEmptyAPIValues(t *testing.T) {
+	resource := &Repository{}
+	data := &RepositoryModel{
+		Name:        types.StringValue("Planned-Repo"),
+		Description: types.StringValue("Planned description"),
+		Type:        types.StringValue("WinLocal"),
+	}
+
+	api := &models.RepositoryModel{}
+	resource.syncFromAPI(data, api)
+
+	assert.Equal(t, "Planned-Repo", data.Name.ValueString())
+	assert.Equal(t, "Planned description", data.Description.ValueString())
+	assert.Equal(t, "WinLocal", data.Type.ValueString())
+}
+
+func TestRepository_SyncFromAPI_UsesAPIValuesWhenPresent(t *testing.T) {
+	resource := &Repository{}
+	data := &RepositoryModel{}
+
+	api := &models.RepositoryModel{
+		Name:        "API-Repo",
+		Description: "API description",
+		Type:        models.RepositoryTypeLinuxLocal,
+	}
+	resource.syncFromAPI(data, api)
+
+	assert.Equal(t, "API-Repo", data.Name.ValueString())
+	assert.Equal(t, "API description", data.Description.ValueString())
+	assert.Equal(t, "LinuxLocal", data.Type.ValueString())
+}
