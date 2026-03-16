@@ -41,10 +41,10 @@ const (
 // SessionModel represents a V13 session response for async task polling.
 // Matches GET /api/v1/sessions/{id} response.
 type SessionModel struct {
-	ID     string        `json:"id"`
-	Type   string        `json:"type"`
-	State  SessionState  `json:"state"`
-	Result SessionResult `json:"result"`
+	ID     string       `json:"id"`
+	Type   string       `json:"type"`
+	State  SessionState `json:"state"`
+	Result interface{}  `json:"result"`
 }
 
 // WaitForTask polls GET /api/v1/sessions/{id} until the session reaches
@@ -79,15 +79,17 @@ func (c *VeeamClient) WaitForTaskWithOptions(ctx context.Context, sessionID stri
 			return fmt.Errorf("failed to poll session %s: %w", sessionID, err)
 		}
 
+		sessionResult := normalizeSessionResult(session.Result)
+
 		tflog.Debug(ctx, "Task poll result", map[string]interface{}{
 			"session_id": sessionID,
 			"state":      string(session.State),
-			"result":     string(session.Result),
+			"result":     string(sessionResult),
 		})
 
 		switch session.State {
 		case SessionStateStopped:
-			switch session.Result {
+			switch sessionResult {
 			case SessionResultSuccess:
 				tflog.Info(ctx, "Async task completed successfully", map[string]interface{}{
 					"session_id": sessionID,
@@ -101,7 +103,7 @@ func (c *VeeamClient) WaitForTaskWithOptions(ctx context.Context, sessionID stri
 			case SessionResultFailed:
 				return fmt.Errorf("async task %s failed", sessionID)
 			default:
-				return fmt.Errorf("async task %s stopped with unexpected result: %s", sessionID, session.Result)
+				return fmt.Errorf("async task %s stopped with unexpected result: %s", sessionID, sessionResult)
 			}
 
 		case SessionStateWorking:
@@ -121,6 +123,26 @@ func (c *VeeamClient) WaitForTaskWithOptions(ctx context.Context, sessionID stri
 		case <-ticker.C:
 			// Continue to next poll
 		}
+	}
+}
+
+func normalizeSessionResult(raw interface{}) SessionResult {
+	switch value := raw.(type) {
+	case string:
+		if value == "" {
+			return SessionResultNone
+		}
+		return SessionResult(value)
+	case map[string]interface{}:
+		if nested, ok := value["result"].(string); ok {
+			if nested == "" {
+				return SessionResultNone
+			}
+			return SessionResult(nested)
+		}
+		return SessionResultNone
+	default:
+		return SessionResultNone
 	}
 }
 

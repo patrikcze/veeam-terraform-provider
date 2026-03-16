@@ -146,6 +146,36 @@ func TestWaitForTaskWithOptions_Warning(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestWaitForTaskWithOptions_ResultAsObject(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/oauth2/token" {
+			w.WriteHeader(http.StatusOK)
+			w.Write(newTestTokenResponse("test-token", "test-refresh", 900))
+			return
+		}
+
+		// Real-world VBR response can return result as an object with nested "result".
+		session := map[string]interface{}{
+			"id":    "session-obj",
+			"state": "Stopped",
+			"result": map[string]interface{}{
+				"result": "Success",
+			},
+		}
+
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(session)
+	}))
+	defer server.Close()
+
+	ctx := context.Background()
+	c, err := NewVeeamClientWithHTTPClient(ctx, server.URL, "admin", "secret", server.Client())
+	require.NoError(t, err)
+
+	err = c.WaitForTaskWithOptions(ctx, "session-obj", 50*time.Millisecond, 5*time.Second)
+	assert.NoError(t, err)
+}
+
 func TestParseSessionIDFromResponse(t *testing.T) {
 	tests := []struct {
 		name    string
