@@ -9,7 +9,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/patrikcze/terraform-provider-veeam/internal/client"
-	"github.com/patrikcze/terraform-provider-veeam/internal/models"
 )
 
 var (
@@ -64,16 +63,39 @@ func (d *ServerInfoDataSource) Read(ctx context.Context, req datasource.ReadRequ
 		return
 	}
 
-	var result models.ServerInfoModel
+	var result map[string]interface{}
 	if err := d.client.GetJSON(ctx, client.PathServerInfo, &result); err != nil {
 		resp.Diagnostics.AddError("Failed to read server info", fmt.Sprintf("API error: %s", err))
 		return
 	}
 
+	payload := unwrapObjectData(result)
+
 	data.ID = types.StringValue("server_info")
-	data.InstallationID = types.StringValue(result.InstallationID)
-	data.ServerName = types.StringValue(result.ServerName)
-	data.BuildNumber = types.StringValue(result.BuildNumber)
-	data.Version = types.StringValue(result.Version)
+	data.InstallationID = types.StringValue(getFirstStringValue(payload, "installationId", "installationID", "installation_id"))
+	data.ServerName = types.StringValue(getFirstStringValue(payload, "serverName", "server_name", "name"))
+	data.BuildNumber = types.StringValue(getFirstStringValue(payload, "buildNumber", "build_number", "build"))
+	data.Version = types.StringValue(getFirstStringValue(payload, "version", "productVersion", "apiVersion"))
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+}
+
+func unwrapObjectData(data map[string]interface{}) map[string]interface{} {
+	if raw, ok := data["data"]; ok {
+		if nested, ok := raw.(map[string]interface{}); ok {
+			return nested
+		}
+	}
+
+	return data
+}
+
+func getFirstStringValue(data map[string]interface{}, keys ...string) string {
+	for _, key := range keys {
+		value := getStringValue(data, key)
+		if value != "" {
+			return value
+		}
+	}
+
+	return ""
 }
