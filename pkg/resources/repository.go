@@ -2,7 +2,9 @@ package resources
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -186,6 +188,10 @@ func (r *Repository) Read(ctx context.Context, req resource.ReadRequest, resp *r
 	var result models.RepositoryModel
 	endpoint := fmt.Sprintf(client.PathRepositoryByID, data.ID.ValueString())
 	if err := r.client.GetJSON(ctx, endpoint, &result); err != nil {
+		if isRepositoryNotFound(err) {
+			resp.State.RemoveResource(ctx)
+			return
+		}
 		resp.Diagnostics.AddError(
 			"Failed to read repository",
 			fmt.Sprintf("API error for repository %s: %s", data.ID.ValueString(), err),
@@ -377,4 +383,16 @@ func getStringValue(data map[string]interface{}, key string) string {
 		return value
 	}
 	return ""
+}
+
+func isRepositoryNotFound(err error) bool {
+	var apiErr *models.APIError
+	if errors.As(err, &apiErr) {
+		if strings.EqualFold(apiErr.ErrorCode, "NotFound") {
+			return true
+		}
+	}
+
+	errText := strings.ToLower(err.Error())
+	return strings.Contains(errText, "http 404") || strings.Contains(errText, "notfound")
 }
