@@ -238,6 +238,16 @@ func (e *APIError) Error() string {
 
 ## 8. Testing Patterns
 
+### Tier 1 / Tier 2 implementation checklist
+
+For each newly added resource or data source, add non-placeholder unit tests:
+
+- Resource: at least builder/spec mapping and state sync tests.
+- Data source: at least metadata type-name smoke tests plus shared response parsing tests.
+- Models: JSON marshal/unmarshal round-trip tests for each new model file.
+
+Do not claim coverage without executable `_test.go` files in `internal/` or `pkg/`.
+
 ### Mock client for resource tests
 ```go
 type MockAPIClient struct {

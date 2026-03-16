@@ -1,6 +1,13 @@
-# veeam_backup_jobs
+---
+page_title: "veeam_backup_jobs Data Source - terraform-provider-veeam"
+subcategory: ""
+description: |-
+  Queries backup jobs from Veeam Backup & Replication.
+---
 
-Use this data source to query backup jobs from Veeam Backup & Replication. You can retrieve all backup jobs or filter by specific criteria.
+# veeam_backup_jobs (Data Source)
+
+Queries backup jobs from Veeam Backup & Replication.
 
 ## Example Usage
 
@@ -35,28 +42,17 @@ resource "veeam_repository" "job_repository" {
 }
 ```
 
-## Argument Reference
+## Schema
 
-The following arguments are supported:
+### Optional
 
-- `job_id` - (Optional) The ID of a specific backup job to retrieve. Conflicts with `job_name`.
-- `job_name` - (Optional) The name of a specific backup job to retrieve. Conflicts with `job_id`.
+- `job_id` (String) Filters to a single job by ID (conflicts with `job_name`).
+- `job_name` (String) Filters to a single job by name (conflicts with `job_id`).
 
-## Attributes Reference
+### Read-Only
 
-The following attributes are exported:
-
-- `id` - The identifier of the data source.
-- `backup_jobs` - A list of backup jobs. Each backup job has the following attributes:
-  - `id` - The unique identifier of the backup job.
-  - `name` - The name of the backup job.
-  - `enabled` - Whether the backup job is enabled.
-  - `description` - The description of the backup job.
-  - `repository` - The repository used by the backup job.
-  - `schedule` - The schedule configuration of the backup job.
-  - `job_type` - The type of the backup job.
-  - `created_at` - The timestamp when the backup job was created.
-  - `updated_at` - The timestamp when the backup job was last updated.
+- `id` (String) Data source state identifier.
+- `backup_jobs` (List of Object) Backup jobs with key metadata.
 
 ## Usage Examples
 
@@ -97,8 +93,5 @@ resource "veeam_repository" "conditional" {
 
 ## Notes
 
-- If no arguments are provided, all backup jobs will be returned
-- When using `job_id` or `job_name`, only one backup job will be returned in the list
-- The `backup_jobs` attribute is always a list, even when filtering by ID or name
-- If no backup jobs match the criteria, an empty list will be returned
-- The data source provides read-only access to backup job information
+- Without filters, all backup jobs are returned.
+- Results are always returned as a list, even when filtering to one item.

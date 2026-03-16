@@ -1,31 +1,59 @@
+---
+page_title: "Data Sources - terraform-provider-veeam"
+subcategory: ""
+description: |-
+  Index of Terraform data sources supported by the Veeam provider.
+---
+
 # Data Sources
 
-This section contains documentation for all Veeam Terraform Provider data sources.
+Reference for all Veeam Terraform Provider data sources.
 
 ## Available Data Sources
 
 ### [veeam_backup_jobs](backup_jobs.md)
-Query backup jobs from your Veeam environment. Use this data source to retrieve information about existing backup jobs.
-
-**Key features:**
-- Query all backup jobs
-- Filter by job name or ID
-- Access job details like status, schedule, and repository
-- Use in conditional resource creation
+Queries backup jobs.
 
 ### [veeam_repositories](repositories.md)
-Query repositories from your Veeam environment. Use this data source to retrieve information about existing backup repositories.
+Queries repositories.
 
-**Key features:**
-- Query all repositories
-- Filter by repository name or ID
-- Access repository details like capacity, usage, and status
-- Monitor repository utilization
+### [veeam_server_info](server_info.md)
+Get backup server version and installation details.
+
+### [veeam_sessions](sessions.md)
+Get session history and status data.
+
+### [veeam_backups](backups.md)
+Query backups and optional backup files.
+
+### [veeam_restore_points](restore_points.md)
+List restore points globally or per backup object.
+
+### [veeam_proxies](proxies.md)
+Query backup proxies.
+
+### [veeam_managed_servers](managed_servers.md)
+Query managed servers.
+
+### [veeam_protection_groups](protection_groups.md)
+Query protection groups.
+
+### [veeam_wan_accelerators](wan_accelerators.md)
+Query WAN accelerators.
+
+### [veeam_repository_states](repository_states.md)
+Get repository capacity and health state.
+
+### [veeam_license](license.md)
+Get installed license and usage summary.
+
+### [veeam_job_states](job_states.md)
+Get aggregated job state overview.
 
 ## Common Patterns
 
 ### Query All Resources
-Get comprehensive information about all resources of a specific type:
+Read inventory data for backup jobs and repositories:
 
 ```hcl
 data "veeam_backup_jobs" "all" {}
@@ -44,7 +72,7 @@ output "total_capacity" {
 ```
 
 ### Filter Specific Resources
-Query specific resources by name or ID:
+Filter by ID or name when you need one object:
 
 ```hcl
 data "veeam_backup_jobs" "critical" {
@@ -63,7 +91,7 @@ resource "veeam_backup_job" "secondary" {
 ```
 
 ### Conditional Resource Creation
-Create resources only if certain conditions are met:
+Use data source outputs in resource `count` expressions:
 
 ```hcl
 data "veeam_repositories" "check_repo" {
@@ -79,7 +107,7 @@ resource "veeam_backup_job" "conditional" {
 ```
 
 ### Data Processing with Locals
-Use locals for complex data manipulation:
+Use locals to shape data for outputs or policy checks:
 
 ```hcl
 data "veeam_backup_jobs" "all" {}
@@ -119,7 +147,7 @@ output "environment_summary" {
 ```
 
 ### Monitoring and Reporting
-Generate comprehensive reports about your Veeam environment:
+Create summary outputs for operational visibility:
 
 ```hcl
 data "veeam_backup_jobs" "all" {}
@@ -157,42 +185,9 @@ output "repository_report" {
 
 ## Best Practices
 
-1. **Use specific filters**: When you know the resource name or ID, use filters for better performance
-2. **Handle empty results**: Always check if the data source returned any results before using them
-3. **Use locals for processing**: Complex data manipulation is easier with locals
-4. **Combine data sources**: Use multiple data sources together for comprehensive analysis
-5. **Cache results**: Data sources are read during plan, so results are cached for the apply phase
-
-## Use Cases
-
-### Environment Discovery
-- Inventory existing backup jobs and repositories
-- Understand current backup strategy and coverage
-- Identify unused or misconfigured resources
-
-### Monitoring and Alerting
-- Track repository capacity utilization
-- Monitor backup job status and schedules
-- Identify performance issues or failures
-
-### Conditional Infrastructure
-- Create resources based on existing infrastructure
-- Implement backup policies based on current state
-- Scale resources based on usage patterns
-
-### Reporting and Compliance
-- Generate compliance reports
-- Track backup coverage and retention
-- Document backup infrastructure
-
-## Error Handling
-
-Common issues and solutions:
-
-- **Resource not found**: Check if the resource exists in Veeam
-- **Authentication failed**: Verify provider configuration and credentials
-- **API timeout**: Large environments may require increased timeout values
-- **Permission denied**: Ensure proper read permissions for your Veeam user
+- Filter by ID/name when possible for predictable plans.
+- Handle empty lists before indexing into results.
+- Use locals to keep Terraform expressions readable.
 
 ## See Also
 

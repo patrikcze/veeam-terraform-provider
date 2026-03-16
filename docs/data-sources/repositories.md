@@ -1,6 +1,13 @@
-# veeam_repositories
+---
+page_title: "veeam_repositories Data Source - terraform-provider-veeam"
+subcategory: ""
+description: |-
+  Queries repositories from Veeam Backup & Replication.
+---
 
-Use this data source to query repositories from Veeam Backup & Replication. You can retrieve all repositories or filter by specific criteria.
+# veeam_repositories (Data Source)
+
+Queries repositories from Veeam Backup & Replication.
 
 ## Example Usage
 
@@ -34,30 +41,17 @@ resource "veeam_backup_job" "repo_job" {
 }
 ```
 
-## Argument Reference
+## Schema
 
-The following arguments are supported:
+### Optional
 
-- `repository_id` - (Optional) The ID of a specific repository to retrieve. Conflicts with `repository_name`.
-- `repository_name` - (Optional) The name of a specific repository to retrieve. Conflicts with `repository_id`.
+- `repository_id` (String) Filters to a single repository by ID (conflicts with `repository_name`).
+- `repository_name` (String) Filters to a single repository by name (conflicts with `repository_id`).
 
-## Attributes Reference
+### Read-Only
 
-The following attributes are exported:
-
-- `id` - The identifier of the data source.
-- `repositories` - A list of repositories. Each repository has the following attributes:
-  - `id` - The unique identifier of the repository.
-  - `name` - The name of the repository.
-  - `description` - The description of the repository.
-  - `path` - The file system path of the repository.
-  - `type` - The type of the repository (e.g., `linux`, `windows`).
-  - `capacity` - The total capacity of the repository in bytes.
-  - `free_space` - The free space in the repository in bytes.
-  - `used_space` - The used space in the repository in bytes.
-  - `status` - The current status of the repository.
-  - `created_at` - The timestamp when the repository was created.
-  - `updated_at` - The timestamp when the repository was last updated.
+- `id` (String) Data source state identifier.
+- `repositories` (List of Object) Repository objects with capacity and status fields.
 
 ## Usage Examples
 
@@ -97,8 +91,5 @@ resource "veeam_backup_job" "conditional" {
 
 ## Notes
 
-- If no arguments are provided, all repositories will be returned
-- When using `repository_id` or `repository_name`, only one repository will be returned in the list
-- The `repositories` attribute is always a list, even when filtering by ID or name
-- If no repositories match the criteria, an empty list will be returned
-- The data source provides read-only access to repository information
+- Without filters, all repositories are returned.
+- Results are always returned as a list, even for a single match.

@@ -182,20 +182,34 @@ func (p *Provider) Configure(ctx context.Context, req provider.ConfigureRequest,
 func (p *Provider) Resources(ctx context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		resources.NewBackupJob,
+		resources.NewCloudCredential,
+		resources.NewConfigurationBackup,
 		resources.NewCredential,
 		resources.NewEncryptionPassword,
 		resources.NewManagedServer,
 		resources.NewProtectionGroup,
 		resources.NewProxy,
 		resources.NewRepository,
+		resources.NewScaleOutRepository,
 	}
 }
 
 // DataSources defines the data sources implemented in the provider.
 func (p *Provider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
+		datasources.NewBackupsDataSource,
 		datasources.NewBackupJobsDataSource,
 		datasources.NewCredentialsDataSource,
+		datasources.NewJobStatesDataSource,
+		datasources.NewLicenseDataSource,
+		datasources.NewManagedServersDataSource,
+		datasources.NewProtectionGroupsDataSource,
+		datasources.NewProxiesDataSource,
+		datasources.NewRepositoryStatesDataSource,
 		datasources.NewRepositoriesDataSource,
+		datasources.NewRestorePointsDataSource,
+		datasources.NewServerInfoDataSource,
+		datasources.NewSessionsDataSource,
+		datasources.NewWanAcceleratorsDataSource,
 	}
 }

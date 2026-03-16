@@ -1,6 +1,13 @@
-# veeam_credential
+---
+page_title: "veeam_credential Resource - terraform-provider-veeam"
+subcategory: ""
+description: |-
+  Manages a Veeam credential.
+---
 
-Manages a Veeam Credential. This resource allows you to create, update, and delete authentication credentials in Veeam Backup & Replication.
+# veeam_credential (Resource)
+
+Manages authentication credentials used by Veeam components.
 
 ## Example Usage
 
@@ -33,22 +40,23 @@ resource "veeam_credential" "standard" {
 }
 ```
 
-## Argument Reference
+## Schema
 
-The following arguments are supported:
+### Required
 
-- `name` - (Required) The name of the credential. Must be unique within the Veeam environment.
-- `username` - (Required) The username for the credential.
-- `password` - (Required) The password for the credential. This value is sensitive and will not be displayed in logs.
-- `type` - (Required) The type of credential. Valid values are `windows`, `linux`, `standard`.
-- `description` - (Optional) A description for the credential.
-- `domain` - (Optional) The domain for the credential. Required for Windows domain credentials.
+- `name` (String) Unique credential name.
+- `username` (String) Username used for authentication.
+- `password` (String, Sensitive) Secret password value.
+- `type` (String) Credential type: `windows`, `linux`, or `standard`.
 
-## Attributes Reference
+### Optional
 
-In addition to all arguments above, the following attributes are exported:
+- `description` (String) Optional description.
+- `domain` (String) Domain for Windows-style credentials.
 
-- `id` - The unique identifier of the credential.
+### Read-Only
+
+- `id` (String) Credential identifier assigned by Veeam.
 
 ## Import
 
@@ -60,9 +68,5 @@ terraform import veeam_credential.example "credential-id-123"
 
 ## Notes
 
-- Credential names must be unique within the Veeam environment
-- The password is stored securely in Veeam and is not returned by the API
-- For Windows domain credentials, include the domain in the username (e.g., `DOMAIN\\username`) or use the `domain` field
-- The `type` field determines how the credential is used within Veeam
-- Updating the password will change the stored credential in Veeam
-- Deleting a credential will remove it from Veeam, but may affect backup jobs that use it
+- Password values are never returned by the Veeam API.
+- Deleting a credential can impact jobs or infrastructure objects that reference it.

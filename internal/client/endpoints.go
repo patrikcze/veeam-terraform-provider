@@ -79,6 +79,22 @@ const (
 const (
 	PathScaleOutRepositories   = "/api/v1/backupInfrastructure/scaleOutRepositories"
 	PathScaleOutRepositoryByID = "/api/v1/backupInfrastructure/scaleOutRepositories/%s"
+	PathScaleOutEnableSealed   = "/api/v1/backupInfrastructure/scaleOutRepositories/%s/enableSealedMode"
+	PathScaleOutDisableSealed  = "/api/v1/backupInfrastructure/scaleOutRepositories/%s/disableSealedMode"
+	PathScaleOutEnableMaint    = "/api/v1/backupInfrastructure/scaleOutRepositories/%s/enableMaintenanceMode"
+	PathScaleOutDisableMaint   = "/api/v1/backupInfrastructure/scaleOutRepositories/%s/disableMaintenanceMode"
+)
+
+// ---------------------------------------------------------------------------
+// Cloud Credentials
+// ---------------------------------------------------------------------------
+
+const (
+	PathCloudCredentials             = "/api/v1/cloudCredentials"
+	PathCloudCredentialByID          = "/api/v1/cloudCredentials/%s"
+	PathCloudCredentialChangeSecret  = "/api/v1/cloudCredentials/%s/changeSecretKey"
+	PathCloudCredentialChangeAccount = "/api/v1/cloudCredentials/%s/changeAccount"
+	PathCloudCredentialChangeCert    = "/api/v1/cloudCredentials/%s/changeCertificate"
 )
 
 // ---------------------------------------------------------------------------
@@ -103,6 +119,14 @@ const (
 const (
 	PathSessions    = "/api/v1/sessions"
 	PathSessionByID = "/api/v1/sessions/%s"
+)
+
+// ---------------------------------------------------------------------------
+// Configuration Backup
+// ---------------------------------------------------------------------------
+
+const (
+	PathConfigurationBackup = "/api/v1/configBackup"
 )
 
 // ---------------------------------------------------------------------------
@@ -137,6 +161,39 @@ const (
 // ---------------------------------------------------------------------------
 
 const (
-	PathBackups    = "/api/v1/backups"
-	PathBackupByID = "/api/v1/backups/%s"
+	PathBackups     = "/api/v1/backups"
+	PathBackupByID  = "/api/v1/backups/%s"
+	PathBackupFiles = "/api/v1/backups/%s/backupFiles"
+)
+
+// ---------------------------------------------------------------------------
+// Restore Points
+// ---------------------------------------------------------------------------
+
+const (
+	PathRestorePoints             = "/api/v1/restorePoints"
+	PathRestorePointByID          = "/api/v1/restorePoints/%s"
+	PathBackupObjectRestorePoints = "/api/v1/backupObjects/%s/restorePoints"
+)
+
+// ---------------------------------------------------------------------------
+// WAN Accelerators
+// ---------------------------------------------------------------------------
+
+const (
+	PathWanAccelerators    = "/api/v1/backupInfrastructure/wanAccelerators"
+	PathWanAcceleratorByID = "/api/v1/backupInfrastructure/wanAccelerators/%s"
+)
+
+// ---------------------------------------------------------------------------
+// Server / License / Job States
+// ---------------------------------------------------------------------------
+
+const (
+	PathServerInfo       = "/api/v1/serverInfo"
+	PathLicense          = "/api/v1/license"
+	PathLicenseSockets   = "/api/v1/license/sockets"
+	PathLicenseInstances = "/api/v1/license/instances"
+	PathLicenseCapacity  = "/api/v1/license/capacity"
+	PathJobStates        = "/api/v1/jobs/states"
 )

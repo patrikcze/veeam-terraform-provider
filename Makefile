@@ -1,30 +1,54 @@
 # Makefile for Veeam Terraform Provider
 
 # Variables
+GO ?= go
+GOPATH ?= $(shell $(GO) env GOPATH)
+GOBIN ?= $(GOPATH)/bin
 BINARY_NAME=terraform-provider-veeam
 VERSION?=dev
 LDFLAGS=-ldflags "-X main.version=$(VERSION)"
-GOOS?=$(shell go env GOOS)
-GOARCH?=$(shell go env GOARCH)
+GOOS?=$(shell $(GO) env GOOS)
+GOARCH?=$(shell $(GO) env GOARCH)
+
+UNIT_PACKAGES=./internal/... ./pkg/...
+ALL_PACKAGES=./...
+ACC_TEST_PACKAGES=./tests
+
+GOLANGCI_LINT_VERSION?=v1.64.8
+GOLANGCI_LINT=$(GOBIN)/golangci-lint
+TFPLUGINDOCS_VERSION?=v0.23.1
+TFPLUGINDOCS=$(GOBIN)/tfplugindocs
 
 # Default target
 .DEFAULT_GOAL := build
 
+# Validate Go toolchain consistency (prevents go/go tool version mismatch issues)
+.PHONY: toolchain-check
+toolchain-check:
+	@echo "Checking Go toolchain consistency..."
+	@go_ver="$$( $(GO) version | awk '{print $$3}' )"; \
+	tool_ver="$$( $(GO) tool compile -V | awk '{print $$3}' )"; \
+	if [ "$$go_ver" != "$$tool_ver" ]; then \
+		echo "Go toolchain mismatch detected: go=$$go_ver, compile=$$tool_ver"; \
+		echo "Fix GOROOT/Go installation and retry."; \
+		exit 1; \
+	fi
+
 # Build the provider
 .PHONY: build
-build:
+build: toolchain-check
 	@echo "Building $(BINARY_NAME) for $(GOOS)/$(GOARCH)..."
-	@go build $(LDFLAGS) -o bin/$(BINARY_NAME) ./cmd/veeam
+	@$(GO) build $(LDFLAGS) -o bin/$(BINARY_NAME) ./cmd/veeam
 
 # Build for all supported platforms
 .PHONY: build-all
-build-all:
+build-all: toolchain-check
 	@echo "Building for all platforms..."
-	@GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o bin/$(BINARY_NAME)_linux_amd64 ./cmd/veeam
-	@GOOS=linux GOARCH=arm64 go build $(LDFLAGS) -o bin/$(BINARY_NAME)_linux_arm64 ./cmd/veeam
-	@GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -o bin/$(BINARY_NAME)_darwin_amd64 ./cmd/veeam
-	@GOOS=darwin GOARCH=arm64 go build $(LDFLAGS) -o bin/$(BINARY_NAME)_darwin_arm64 ./cmd/veeam
-	@GOOS=windows GOARCH=amd64 go build $(LDFLAGS) -o bin/$(BINARY_NAME)_windows_amd64.exe ./cmd/veeam
+	@GOOS=linux GOARCH=amd64 $(GO) build $(LDFLAGS) -o bin/$(BINARY_NAME)_linux_amd64 ./cmd/veeam
+	@GOOS=linux GOARCH=arm64 $(GO) build $(LDFLAGS) -o bin/$(BINARY_NAME)_linux_arm64 ./cmd/veeam
+	@GOOS=darwin GOARCH=amd64 $(GO) build $(LDFLAGS) -o bin/$(BINARY_NAME)_darwin_amd64 ./cmd/veeam
+	@GOOS=darwin GOARCH=arm64 $(GO) build $(LDFLAGS) -o bin/$(BINARY_NAME)_darwin_arm64 ./cmd/veeam
+	@GOOS=windows GOARCH=amd64 $(GO) build $(LDFLAGS) -o bin/$(BINARY_NAME)_windows_amd64.exe ./cmd/veeam
 
 # Install the provider locally
 .PHONY: install
@@ -35,55 +59,76 @@ install: build
 
 # Run tests
 .PHONY: test
-test:
+test: test-unit
+
+# Run unit tests only (internal + pkg)
+.PHONY: test-unit
+test-unit: toolchain-check
+	@echo "Running unit tests..."
+	@$(GO) test -v $(UNIT_PACKAGES)
+
+# Run all tests including tests/ package (acceptance tests still require TF_ACC=1)
+.PHONY: test-all
+test-all: toolchain-check
 	@echo "Running tests..."
-	@go test -v ./...
+	@$(GO) test -v $(ALL_PACKAGES)
 
 # Run tests with coverage
 .PHONY: test-coverage
-test-coverage:
+test-coverage: toolchain-check
 	@echo "Running tests with coverage..."
-	@go test -v -coverprofile=coverage.txt -covermode=atomic ./...
-	@go tool cover -html=coverage.txt -o coverage.html
+	@$(GO) test -v -coverprofile=coverage.txt -covermode=atomic $(UNIT_PACKAGES)
+	@$(GO) tool cover -html=coverage.txt -o coverage.html
 
 # Run acceptance tests
 .PHONY: testacc
-testacc:
+testacc: toolchain-check
 	@echo "Running acceptance tests..."
-	@TF_ACC=1 VEEAM_HOST=$(VEEAM_HOST) VEEAM_USERNAME=$(VEEAM_USERNAME) VEEAM_PASSWORD=$(VEEAM_PASSWORD) VEEAM_INSECURE=$(VEEAM_INSECURE) go test -v ./tests -timeout 120m
+	@TF_ACC=1 VEEAM_HOST=$(VEEAM_HOST) VEEAM_USERNAME=$(VEEAM_USERNAME) VEEAM_PASSWORD=$(VEEAM_PASSWORD) VEEAM_INSECURE=$(VEEAM_INSECURE) $(GO) test -v $(ACC_TEST_PACKAGES) -timeout 120m
 
 # Run all tests
 .PHONY: testall
-testall:
-	@echo "Running all tests..."
-	@VEEAM_HOST=$(VEEAM_HOST) VEEAM_USERNAME=$(VEEAM_USERNAME) VEEAM_PASSWORD=$(VEEAM_PASSWORD) VEEAM_INSECURE=$(VEEAM_INSECURE) go test -v ./... -timeout 120m
+testall: test-all
 
 # Lint the code
 .PHONY: lint
-lint:
+lint: toolchain-check
 	@echo "Running linter..."
-	@which $(HOME)/go/bin/golangci-lint > /dev/null || (echo "golangci-lint not found, installing..." && go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest)
-	@$(HOME)/go/bin/golangci-lint run ./...
+	@if [ ! -x "$(GOLANGCI_LINT)" ]; then \
+		echo "golangci-lint not found, installing $(GOLANGCI_LINT_VERSION)..."; \
+		GOBIN="$(GOBIN)" $(GO) install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION); \
+	fi
+	@if ! "$(GOLANGCI_LINT)" --version | grep -q "$(GOLANGCI_LINT_VERSION)"; then \
+		echo "Updating golangci-lint to $(GOLANGCI_LINT_VERSION)..."; \
+		GOBIN="$(GOBIN)" $(GO) install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION); \
+	fi
+	@$(GOLANGCI_LINT) run $(UNIT_PACKAGES)
+
+# Run go vet on provider implementation packages
+.PHONY: vet
+vet: toolchain-check
+	@echo "Running go vet..."
+	@$(GO) vet $(UNIT_PACKAGES)
 
 # Format the code
 .PHONY: fmt
 fmt:
 	@echo "Formatting code..."
-	@go fmt ./...
+	@$(GO) fmt ./...
 	@gofmt -s -w .
 
 # Check code formatting
 .PHONY: fmt-check
 fmt-check:
 	@echo "Checking code formatting..."
-	@test -z "$$(gofmt -l .)"
+	@test -z "$$(find . -type f -name '*.go' -not -path './vendor/*' -exec gofmt -l {} +)"
 
 # Download and vendor dependencies
 .PHONY: vendor
-vendor:
+vendor: toolchain-check
 	@echo "Vendoring dependencies..."
-	@go mod tidy
-	@go mod vendor
+	@$(GO) mod tidy
+	@$(GO) mod vendor
 
 # Clean build artifacts
 .PHONY: clean
@@ -96,35 +141,38 @@ clean:
 
 # Generate documentation
 .PHONY: docs
-docs:
+docs: toolchain-check
 	@echo "Generating documentation..."
-	@which tfplugindocs > /dev/null || (echo "tfplugindocs not found, installing..." && go install github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@latest)
-	@tfplugindocs
+	@if [ ! -x "$(TFPLUGINDOCS)" ]; then \
+		echo "tfplugindocs not found, installing $(TFPLUGINDOCS_VERSION)..."; \
+		GOBIN="$(GOBIN)" $(GO) install github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@$(TFPLUGINDOCS_VERSION); \
+	fi
+	@$(TFPLUGINDOCS)
 
 # Run all checks (lint, fmt-check, test)
 .PHONY: check
-check: lint fmt-check test
+check: fmt-check vet lint test-unit
 
 # Run acceptance tests for specific resource
 .PHONY: testacc-credential
-testacc-credential:
+testacc-credential: toolchain-check
 	@echo "Running credential acceptance tests..."
-	@TF_ACC=1 VEEAM_HOST=$(VEEAM_HOST) VEEAM_USERNAME=$(VEEAM_USERNAME) VEEAM_PASSWORD=$(VEEAM_PASSWORD) VEEAM_INSECURE=$(VEEAM_INSECURE) go test -v ./tests -run TestAccCredential -timeout 60m
+	@TF_ACC=1 VEEAM_HOST=$(VEEAM_HOST) VEEAM_USERNAME=$(VEEAM_USERNAME) VEEAM_PASSWORD=$(VEEAM_PASSWORD) VEEAM_INSECURE=$(VEEAM_INSECURE) $(GO) test -v $(ACC_TEST_PACKAGES) -run TestAccCredential -timeout 60m
 
 .PHONY: testacc-repository
-testacc-repository:
+testacc-repository: toolchain-check
 	@echo "Running repository acceptance tests..."
-	@TF_ACC=1 VEEAM_HOST=$(VEEAM_HOST) VEEAM_USERNAME=$(VEEAM_USERNAME) VEEAM_PASSWORD=$(VEEAM_PASSWORD) VEEAM_INSECURE=$(VEEAM_INSECURE) go test -v ./tests -run TestAccRepository -timeout 60m
+	@TF_ACC=1 VEEAM_HOST=$(VEEAM_HOST) VEEAM_USERNAME=$(VEEAM_USERNAME) VEEAM_PASSWORD=$(VEEAM_PASSWORD) VEEAM_INSECURE=$(VEEAM_INSECURE) $(GO) test -v $(ACC_TEST_PACKAGES) -run TestAccRepository -timeout 60m
 
 .PHONY: testacc-backup-job
-testacc-backup-job:
+testacc-backup-job: toolchain-check
 	@echo "Running backup job acceptance tests..."
-	@TF_ACC=1 VEEAM_HOST=$(VEEAM_HOST) VEEAM_USERNAME=$(VEEAM_USERNAME) VEEAM_PASSWORD=$(VEEAM_PASSWORD) VEEAM_INSECURE=$(VEEAM_INSECURE) go test -v ./tests -run TestAccBackupJob -timeout 60m
+	@TF_ACC=1 VEEAM_HOST=$(VEEAM_HOST) VEEAM_USERNAME=$(VEEAM_USERNAME) VEEAM_PASSWORD=$(VEEAM_PASSWORD) VEEAM_INSECURE=$(VEEAM_INSECURE) $(GO) test -v $(ACC_TEST_PACKAGES) -run TestAccBackupJob -timeout 60m
 
 .PHONY: testacc-workflow
-testacc-workflow:
+testacc-workflow: toolchain-check
 	@echo "Running workflow acceptance tests..."
-	@TF_ACC=1 VEEAM_HOST=$(VEEAM_HOST) VEEAM_USERNAME=$(VEEAM_USERNAME) VEEAM_PASSWORD=$(VEEAM_PASSWORD) VEEAM_INSECURE=$(VEEAM_INSECURE) go test -v ./tests -run TestAccWorkflow -timeout 60m
+	@TF_ACC=1 VEEAM_HOST=$(VEEAM_HOST) VEEAM_USERNAME=$(VEEAM_USERNAME) VEEAM_PASSWORD=$(VEEAM_PASSWORD) VEEAM_INSECURE=$(VEEAM_INSECURE) $(GO) test -v $(ACC_TEST_PACKAGES) -run TestAccWorkflow -timeout 60m
 
 # Set up test environment
 .PHONY: setup-test-env
@@ -142,7 +190,10 @@ help:
 	@echo "  build               - Build the provider binary"
 	@echo "  build-all           - Build for all supported platforms"
 	@echo "  install             - Install the provider locally"
-	@echo "  test                - Run unit tests"
+	@echo "  toolchain-check     - Validate go and compile tool versions match"
+	@echo "  test                - Run unit tests (alias for test-unit)"
+	@echo "  test-unit           - Run unit tests for internal/ and pkg/"
+	@echo "  test-all            - Run all go tests (including tests/)"
 	@echo "  test-coverage       - Run tests with coverage report"
 	@echo "  testacc             - Run acceptance tests"
 	@echo "  testacc-credential  - Run credential acceptance tests"
@@ -152,10 +203,11 @@ help:
 	@echo "  testall             - Run all tests"
 	@echo "  setup-test-env      - Set up test environment"
 	@echo "  lint                - Run linter"
+	@echo "  vet                 - Run go vet"
 	@echo "  fmt                 - Format code"
 	@echo "  fmt-check           - Check code formatting"
 	@echo "  vendor              - Download and vendor dependencies"
 	@echo "  clean               - Clean build artifacts"
 	@echo "  docs                - Generate documentation"
-	@echo "  check               - Run all checks (lint, fmt-check, test)"
+	@echo "  check               - Run all checks (fmt-check, vet, lint, test-unit)"
 	@echo "  help                - Show this help message"

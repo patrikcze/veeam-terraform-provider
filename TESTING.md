@@ -20,8 +20,14 @@ The tests are organized following Go testing conventions with `_test.go` suffix 
 │   │   └── repositories_test.go   # Repositories data source tests
 │   └── resources/
 │       ├── backup_job_test.go     # Backup job resource tests
+│       ├── cloud_credential_test.go # Cloud credential resource tests
+│       ├── configuration_backup_test.go # Configuration backup resource tests
 │       ├── credential_test.go     # Credential resource tests
-│       └── repository_test.go     # Repository resource tests
+│       ├── repository_test.go      # Repository resource tests
+│       └── scale_out_repository_test.go # Scale-out repository tests
+│   └── datasources/
+│       ├── helpers_test.go        # Shared datasource parsing/filter tests
+│       └── new_datasources_smoke_test.go # Tier 2 datasource metadata smoke tests
 ```
 
 ## Testing Approach
@@ -112,6 +118,11 @@ go test -cover ./...
 go test ./pkg/resources
 go test ./pkg/datasources
 go test ./internal/client
+```
+
+### Run Unit Tests Only (No Acceptance)
+```bash
+go test ./internal/... ./pkg/...
 ```
 
 ### Run Specific Test Function

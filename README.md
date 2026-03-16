@@ -123,25 +123,39 @@ The provider supports the following configuration options:
 ## Resources
 
 - `veeam_backup_job` — Backup jobs with storage, schedule, retention, proxy settings
+- `veeam_cloud_credential` — Cloud credentials for AWS/Azure/GCP integrations
+- `veeam_configuration_backup` — Configuration backup settings and trigger
 - `veeam_credential` — Standard (Windows/domain) and Linux SSH credentials
 - `veeam_encryption_password` — Encryption passwords for backup encryption
 - `veeam_managed_server` — ViHost, WindowsHost, LinuxHost managed servers
 - `veeam_protection_group` — Agent protection groups (IndividualComputers)
 - `veeam_proxy` — vSphere backup proxies
 - `veeam_repository` — Backup repositories (WinLocal, LinuxLocal, Nfs, Smb)
+- `veeam_scale_out_repository` — Scale-out backup repositories (SOBR)
 
 ## Data Sources
 
+- `veeam_backups` — Query backups and optional backup files
 - `veeam_backup_jobs` — Query backup jobs (all or by ID/name)
 - `veeam_credentials` — List all credentials
+- `veeam_job_states` — Aggregated job state overview
+- `veeam_license` — Installed license and consumption summary
+- `veeam_managed_servers` — Query managed servers
+- `veeam_protection_groups` — Query protection groups
+- `veeam_proxies` — Query backup proxies
+- `veeam_repository_states` — Repository capacity and status
 - `veeam_repositories` — Query repositories (all or by ID/name)
+- `veeam_restore_points` — Query restore points
+- `veeam_server_info` — Query backup server info
+- `veeam_sessions` — Query session history and status
+- `veeam_wan_accelerators` — Query WAN accelerators
 
 ## Documentation
 
 Detailed documentation for each resource and data source is available in the `/docs` directory:
 
-- [Resources Documentation](docs/resources/)
-- [Data Sources Documentation](docs/data-sources/)
+- [Resources Documentation](docs/resources/index.md)
+- [Data Sources Documentation](docs/data-sources/index.md)
 - [Examples](examples/)
 
 ## Examples
