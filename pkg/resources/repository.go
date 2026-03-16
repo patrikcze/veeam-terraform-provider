@@ -223,6 +223,14 @@ func (r *Repository) buildSpec(data *RepositoryModel) interface{} {
 
 	switch repoType {
 	case models.RepositoryTypeWinLocal:
+		mountServer := &models.MountServersSettings{
+			MountServerSettingsType: "Windows",
+			Windows: &models.MountServerSettings{
+				MountServerID:    data.HostID.ValueString(),
+				WriteCacheFolder: data.Path.ValueString(),
+				VPowerNFSEnabled: false,
+			},
+		}
 		return &models.WindowsLocalStorageSpec{
 			RepositorySpec: base,
 			HostID:         data.HostID.ValueString(),
@@ -230,9 +238,18 @@ func (r *Repository) buildSpec(data *RepositoryModel) interface{} {
 				Path:         data.Path.ValueString(),
 				MaxTaskCount: maxTasks,
 			},
+			MountServer: mountServer,
 		}
 
 	case models.RepositoryTypeLinuxLocal:
+		mountServer := &models.MountServersSettings{
+			MountServerSettingsType: "Linux",
+			Linux: &models.MountServerSettings{
+				MountServerID:    data.HostID.ValueString(),
+				WriteCacheFolder: data.Path.ValueString(),
+				VPowerNFSEnabled: false,
+			},
+		}
 		return &models.LinuxLocalStorageSpec{
 			RepositorySpec: base,
 			HostID:         data.HostID.ValueString(),
@@ -240,6 +257,7 @@ func (r *Repository) buildSpec(data *RepositoryModel) interface{} {
 				Path:         data.Path.ValueString(),
 				MaxTaskCount: maxTasks,
 			},
+			MountServer: mountServer,
 		}
 
 	case models.RepositoryTypeNfs:

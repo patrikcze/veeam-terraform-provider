@@ -33,6 +33,13 @@ func TestRepository_BuildSpec_WinLocal(t *testing.T) {
 	assert.Equal(t, "host-123", win.HostID)
 	assert.Equal(t, "C:\\Backups", win.Repository.Path)
 	assert.Equal(t, 4, win.Repository.MaxTaskCount)
+	if assert.NotNil(t, win.MountServer) {
+		assert.Equal(t, "Windows", win.MountServer.MountServerSettingsType)
+		if assert.NotNil(t, win.MountServer.Windows) {
+			assert.Equal(t, "host-123", win.MountServer.Windows.MountServerID)
+			assert.Equal(t, "C:\\Backups", win.MountServer.Windows.WriteCacheFolder)
+		}
+	}
 }
 
 func TestRepository_BuildSpec_LinuxLocal(t *testing.T) {
@@ -54,6 +61,13 @@ func TestRepository_BuildSpec_LinuxLocal(t *testing.T) {
 	assert.True(t, ok, "expected *LinuxLocalStorageSpec")
 	assert.Equal(t, models.RepositoryTypeLinuxLocal, linux.Type)
 	assert.Equal(t, "/mnt/backups", linux.Repository.Path)
+	if assert.NotNil(t, linux.MountServer) {
+		assert.Equal(t, "Linux", linux.MountServer.MountServerSettingsType)
+		if assert.NotNil(t, linux.MountServer.Linux) {
+			assert.Equal(t, "linux-host-1", linux.MountServer.Linux.MountServerID)
+			assert.Equal(t, "/mnt/backups", linux.MountServer.Linux.WriteCacheFolder)
+		}
+	}
 }
 
 func TestRepository_BuildSpec_Smb(t *testing.T) {

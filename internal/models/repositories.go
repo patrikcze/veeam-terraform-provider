@@ -19,7 +19,7 @@ type WindowsLocalStorageModel struct {
 	RepositoryModel
 	HostID      string                          `json:"hostId,omitempty"`
 	Repository  *WindowsLocalRepositorySettings `json:"repository,omitempty"`
-	MountServer *MountServerSettings            `json:"mountServer,omitempty"`
+	MountServer *MountServersSettings           `json:"mountServer,omitempty"`
 }
 
 // LinuxLocalStorageModel is a Linux local repository.
@@ -27,7 +27,7 @@ type LinuxLocalStorageModel struct {
 	RepositoryModel
 	HostID      string                        `json:"hostId,omitempty"`
 	Repository  *LinuxLocalRepositorySettings `json:"repository,omitempty"`
-	MountServer *MountServerSettings          `json:"mountServer,omitempty"`
+	MountServer *MountServersSettings         `json:"mountServer,omitempty"`
 }
 
 // NfsStorageModel is an NFS share repository.
@@ -35,7 +35,7 @@ type NfsStorageModel struct {
 	RepositoryModel
 	Share       *NfsShareSettings          `json:"share,omitempty"`
 	Repository  *NetworkRepositorySettings `json:"repository,omitempty"`
-	MountServer *MountServerSettings       `json:"mountServer,omitempty"`
+	MountServer *MountServersSettings      `json:"mountServer,omitempty"`
 }
 
 // SmbStorageModel is an SMB share repository.
@@ -43,7 +43,7 @@ type SmbStorageModel struct {
 	RepositoryModel
 	Share       *SmbShareSettings          `json:"share,omitempty"`
 	Repository  *NetworkRepositorySettings `json:"repository,omitempty"`
-	MountServer *MountServerSettings       `json:"mountServer,omitempty"`
+	MountServer *MountServersSettings      `json:"mountServer,omitempty"`
 }
 
 // ---------------------------------------------------------------------------
@@ -65,7 +65,7 @@ type WindowsLocalStorageSpec struct {
 	RepositorySpec
 	HostID      string                          `json:"hostId,omitempty"`
 	Repository  *WindowsLocalRepositorySettings `json:"repository,omitempty"`
-	MountServer *MountServerSettings            `json:"mountServer,omitempty"`
+	MountServer *MountServersSettings           `json:"mountServer,omitempty"`
 }
 
 // LinuxLocalStorageSpec creates/updates a Linux local repository.
@@ -73,7 +73,7 @@ type LinuxLocalStorageSpec struct {
 	RepositorySpec
 	HostID      string                        `json:"hostId,omitempty"`
 	Repository  *LinuxLocalRepositorySettings `json:"repository,omitempty"`
-	MountServer *MountServerSettings          `json:"mountServer,omitempty"`
+	MountServer *MountServersSettings         `json:"mountServer,omitempty"`
 }
 
 // NfsStorageSpec creates/updates an NFS repository.
@@ -81,7 +81,7 @@ type NfsStorageSpec struct {
 	RepositorySpec
 	Share       *NfsShareSettings          `json:"share,omitempty"`
 	Repository  *NetworkRepositorySettings `json:"repository,omitempty"`
-	MountServer *MountServerSettings       `json:"mountServer,omitempty"`
+	MountServer *MountServersSettings      `json:"mountServer,omitempty"`
 }
 
 // SmbStorageSpec creates/updates an SMB repository.
@@ -89,7 +89,7 @@ type SmbStorageSpec struct {
 	RepositorySpec
 	Share       *SmbShareSettings          `json:"share,omitempty"`
 	Repository  *NetworkRepositorySettings `json:"repository,omitempty"`
-	MountServer *MountServerSettings       `json:"mountServer,omitempty"`
+	MountServer *MountServersSettings      `json:"mountServer,omitempty"`
 }
 
 // ---------------------------------------------------------------------------
@@ -126,6 +126,13 @@ type RepositoryAdvancedSettings struct {
 	DecompressBeforeStore bool `json:"decompressBeforeStore,omitempty"`
 	RotatedDrives         bool `json:"rotatedDrives,omitempty"`
 	PerVMBackup           bool `json:"perVMBackup,omitempty"`
+}
+
+// MountServersSettings wraps mount server settings for Windows/Linux/Both contexts.
+type MountServersSettings struct {
+	MountServerSettingsType string               `json:"mountServerSettingsType"`
+	Windows                 *MountServerSettings `json:"windows,omitempty"`
+	Linux                   *MountServerSettings `json:"linux,omitempty"`
 }
 
 // MountServerSettings configures the mount server for a repository.
