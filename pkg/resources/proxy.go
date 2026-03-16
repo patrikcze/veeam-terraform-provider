@@ -73,7 +73,7 @@ func (r *Proxy) Schema(_ context.Context, _ resource.SchemaRequest, resp *resour
 				Required:            true,
 			},
 			"transport_mode": schema.StringAttribute{
-				MarkdownDescription: "Data transport mode: `auto`, `directAccess`, `virtualAppliance`, or `network`.",
+				MarkdownDescription: "Data transport mode: `Auto`, `DirectAccess`, `VirtualAppliance`, or `Network`.",
 				Optional:            true,
 			},
 			"failover_to_network": schema.BoolAttribute{

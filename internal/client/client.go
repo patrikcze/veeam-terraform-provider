@@ -19,7 +19,7 @@ import (
 
 const (
 	// APIVersion is the Veeam V13 REST API version header value.
-	APIVersion = "1.3-rev0"
+	APIVersion = "1.3-rev1"
 
 	// tokenEndpoint references the centralized path from endpoints.go.
 	tokenEndpoint = PathOAuth2Token

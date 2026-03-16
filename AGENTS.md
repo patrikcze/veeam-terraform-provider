@@ -1,7 +1,7 @@
 # Agent Instructions — Veeam Terraform Provider
 
 ## Project Overview
-Terraform provider for Veeam Backup & Replication V13 REST API (OpenAPI 3.0, version 1.3-rev0).
+Terraform provider for Veeam Backup & Replication V13 REST API (OpenAPI 3.0, version 1.3-rev1).
 Written in Go, using the HashiCorp Terraform Plugin Framework (`terraform-plugin-framework`).
 
 ## Security — Non-Negotiable Rules
@@ -54,7 +54,7 @@ tests/                          — acceptance tests (require TF_ACC=1)
 - **Token lifetime:** 15 minutes. Refresh token: 14 days.
 
 ### API Versioning
-- All requests MUST include header: `x-api-version: 1.3-rev0`
+- All requests MUST include header: `x-api-version: 1.3-rev1`
 - Base URL pattern: `https://host:9419`
 
 ### Async Operations

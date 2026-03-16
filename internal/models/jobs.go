@@ -2,7 +2,7 @@ package models
 
 // ---------------------------------------------------------------------------
 // Jobs — V13 API: /api/v1/jobs
-// Polymorphic: discriminator "type" → Backup | BackupCopy | VSphereReplica | ...
+// Polymorphic: discriminator "type" → VSphereBackup | BackupCopy | VSphereReplica | ...
 // ---------------------------------------------------------------------------
 
 // JobModel is the base response model for all job types.

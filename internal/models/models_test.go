@@ -240,7 +240,7 @@ func TestBackupJobModel_RoundTrip(t *testing.T) {
 	jsonData := `{
 		"id": "job-abc",
 		"name": "Test-Job",
-		"type": "Backup",
+		"type": "VSphereBackup",
 		"isDisabled": false,
 		"description": "Test backup job",
 		"virtualMachines": {
