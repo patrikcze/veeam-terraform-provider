@@ -71,8 +71,9 @@ const (
 type ECredentialsStorageType string
 
 const (
-	CredentialsStorageTypeSaved     ECredentialsStorageType = "Saved"
+	CredentialsStorageTypePermanent ECredentialsStorageType = "Permanent"
 	CredentialsStorageTypeSingleUse ECredentialsStorageType = "SingleUse"
+	CredentialsStorageTypeSaved     ECredentialsStorageType = CredentialsStorageTypePermanent
 )
 
 // ---------------------------------------------------------------------------
