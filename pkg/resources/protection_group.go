@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -280,12 +281,32 @@ func (r *ProtectionGroup) Update(ctx context.Context, req resource.UpdateRequest
 	payload := r.buildUpdateModel(&plan)
 
 	endpoint := fmt.Sprintf(client.PathProtectionGroupByID, plan.ID.ValueString())
-	if err := r.client.PutJSON(ctx, endpoint, payload, nil); err != nil {
+	var updateResult map[string]interface{}
+	if err := r.client.PutJSON(ctx, endpoint, payload, &updateResult); err != nil {
 		resp.Diagnostics.AddError(
 			"Failed to update protection group",
 			fmt.Sprintf("API error for group %s: %s", plan.ID.ValueString(), err),
 		)
 		return
+	}
+
+	if isAsyncProtectionGroupOperationResult(updateResult) {
+		sessionID := getStringValue(updateResult, "id")
+		if sessionID == "" {
+			resp.Diagnostics.AddError(
+				"Failed to update protection group",
+				"API response did not include async session ID for update operation.",
+			)
+			return
+		}
+
+		if err := r.client.WaitForTask(ctx, sessionID); err != nil {
+			resp.Diagnostics.AddError(
+				"Failed to update protection group",
+				fmt.Sprintf("Async protection group update task %s failed: %s", sessionID, err),
+			)
+			return
+		}
 	}
 
 	if !plan.IsDisabled.IsNull() && !state.IsDisabled.IsNull() && plan.IsDisabled.ValueBool() != state.IsDisabled.ValueBool() {
@@ -328,6 +349,14 @@ func (r *ProtectionGroup) Delete(ctx context.Context, req resource.DeleteRequest
 		resp.Diagnostics.AddError(
 			"Failed to delete protection group",
 			fmt.Sprintf("API error for group %s: %s", data.ID.ValueString(), err),
+		)
+		return
+	}
+
+	if err := r.waitForProtectionGroupDeleted(ctx, data.ID.ValueString()); err != nil {
+		resp.Diagnostics.AddError(
+			"Failed to confirm protection group deletion",
+			fmt.Sprintf("Protection group %s delete request was accepted but resource still appears present: %s", data.ID.ValueString(), err),
 		)
 		return
 	}
@@ -607,4 +636,55 @@ func isProtectionGroupNotFound(err error) bool {
 
 	errText := strings.ToLower(err.Error())
 	return strings.Contains(errText, "http 404") || strings.Contains(errText, "notfound")
+}
+
+func isAsyncProtectionGroupOperationResult(result map[string]interface{}) bool {
+	if len(result) == 0 {
+		return false
+	}
+
+	if _, ok := result["state"]; ok {
+		return true
+	}
+
+	resultType := strings.ToLower(getStringValue(result, "type"))
+	if strings.Contains(resultType, "session") || strings.Contains(resultType, "infrastructure") {
+		return true
+	}
+
+	if resultType == "" && getStringValue(result, "id") != "" {
+		return true
+	}
+
+	return false
+}
+
+func (r *ProtectionGroup) waitForProtectionGroupDeleted(ctx context.Context, protectionGroupID string) error {
+	const pollInterval = 3 * time.Second
+	const timeout = 2 * time.Minute
+
+	pollCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	endpoint := fmt.Sprintf(client.PathProtectionGroupByID, protectionGroupID)
+
+	ticker := time.NewTicker(pollInterval)
+	defer ticker.Stop()
+
+	for {
+		var result models.IndividualComputersProtectionGroupModel
+		err := r.client.GetJSON(pollCtx, endpoint, &result)
+		if err != nil {
+			if isProtectionGroupNotFound(err) {
+				return nil
+			}
+			return err
+		}
+
+		select {
+		case <-pollCtx.Done():
+			return fmt.Errorf("timed out after %s", timeout)
+		case <-ticker.C:
+		}
+	}
 }

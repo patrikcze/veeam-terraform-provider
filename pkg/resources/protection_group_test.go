@@ -100,3 +100,10 @@ func TestValidateProtectionGroupPlanInstallBackupAgentDependency(t *testing.T) {
 	err := validateProtectionGroupPlan(data)
 	assert.Error(t, err)
 }
+
+func TestIsAsyncProtectionGroupOperationResult(t *testing.T) {
+	assert.True(t, isAsyncProtectionGroupOperationResult(map[string]interface{}{"id": "session-1", "state": "Working"}))
+	assert.True(t, isAsyncProtectionGroupOperationResult(map[string]interface{}{"id": "session-2", "type": "Infrastructure"}))
+	assert.True(t, isAsyncProtectionGroupOperationResult(map[string]interface{}{"id": "session-3"}))
+	assert.False(t, isAsyncProtectionGroupOperationResult(map[string]interface{}{}))
+}
