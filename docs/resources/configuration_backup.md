@@ -61,3 +61,4 @@ terraform import veeam_configuration_backup.example "config-backup"
 - Deleting this resource disables configuration backup in Veeam.
 - The provider reads the current server configuration and updates only Terraform-managed fields to satisfy the V13 `ConfigBackupModel` full-object validation.
 - Triggered sessions are best-effort and depend on API response timing.
+- When Configuration Backup encryption uses a specific `veeam_encryption_password`, Veeam can temporarily keep that password locked as "in use by Backup Configuration Job" during destroy. This is expected Veeam behavior; retrying destroy shortly after usually succeeds.

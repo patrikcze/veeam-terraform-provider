@@ -42,3 +42,14 @@ terraform import veeam_encryption_password.example "encryption-password-id-123"
 - The password is stored securely in Veeam and is not returned by the API.
 - The hint is visible to Veeam administrators.
 - Deleting an encryption password may affect backup jobs that reference it.
+
+## Known Veeam Behavior
+
+- If an encryption password is currently (or very recently) referenced by Configuration Backup, Veeam may reject deletion with:
+
+```text
+Unable to delete selected password because it is in use by: Backup Configuration Job
+```
+
+- This is expected Veeam behavior. The provider surfaces this API error and recommends retrying destroy after Configuration Backup fully releases the password (or after switching Configuration Backup to another password in VBR).
+- In practice, a second `terraform destroy` shortly after the first one often succeeds.
