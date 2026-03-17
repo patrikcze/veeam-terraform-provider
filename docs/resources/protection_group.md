@@ -18,24 +18,27 @@ resource "veeam_protection_group" "servers" {
   type        = "IndividualComputers"
   is_disabled = false
 
-  computers {
-    hostname       = "web01.example.com"
-    connection_type = "PermanentCredentials"
-    credentials_id = veeam_credential.linux_user.id
-  }
+  computers = [
+    {
+      hostname        = "web01.example.com"
+      connection_type = "PermanentCredentials"
+      credentials_id  = veeam_credential.linux_user.id
+    },
+    {
+      hostname        = "db01.example.com"
+      connection_type = "PermanentCredentials"
+      credentials_id  = veeam_credential.linux_user.id
+    }
+  ]
 
-  computers {
-    hostname       = "db01.example.com"
-    connection_type = "PermanentCredentials"
-    credentials_id = veeam_credential.linux_user.id
-  }
-
-  options {
-    install_backup_agent   = true
-    distribution_server_id = veeam_managed_server.windows.id
-    update_automatically   = true
-    reboot_if_required     = false
-  }
+  options = [
+    {
+      install_backup_agent   = true
+      distribution_server_id = veeam_managed_server.windows.id
+      update_automatically   = true
+      reboot_if_required     = false
+    }
+  ]
 }
 ```
 
@@ -45,7 +48,7 @@ resource "veeam_protection_group" "servers" {
 
 - `name` (String) Protection group name.
 - `type` (String) Protection group type. Currently this resource supports `IndividualComputers`.
-- `computers` (Block List) List of computers in the protection group. Each block supports:
+- `computers` (List of Objects) List of computers in the protection group. Each object supports:
   - `hostname` (String, Required) FQDN or IP address of the computer.
   - `connection_type` (String, Required) Connection type: `PermanentCredentials`, `SingleUseCredentials`, `Certificate`.
   - `credentials_id` (String, Optional) Credential ID. Required with `PermanentCredentials`; must be omitted with `Certificate`.
@@ -54,7 +57,7 @@ resource "veeam_protection_group" "servers" {
 
 - `description` (String) Optional description.
 - `is_disabled` (Boolean) Whether the protection group is disabled.
-- `options` (Block List, max 1) Deployment options for Veeam backup agents. Supports:
+- `options` (List of Objects, max 1) Deployment options for Veeam backup agents. Supports:
   - `distribution_server_id` (String) ID of Windows distribution server for package deployment.
   - `distribution_repository_id` (String) ID of distribution object storage repository.
   - `install_backup_agent` (Boolean) Deploy backup agent from distribution source.
