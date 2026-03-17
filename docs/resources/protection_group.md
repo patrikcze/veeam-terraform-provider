@@ -70,6 +70,46 @@ resource "veeam_protection_group" "cloud_azure" {
 }
 ```
 
+### CloudMachines (Azure, complete with cloud credential)
+
+```hcl
+resource "veeam_cloud_credential" "azure_compute" {
+  name            = "azure-compute-prod"
+  type            = "AzureCompute"
+  connection_name = "Azure Compute Connection"
+  creation_mode   = "ExistingAccount"
+  deployment_type = "MicrosoftAzure"
+
+  tenant_id       = var.azure_tenant_id
+  application_id  = var.azure_application_id
+  application_key = var.azure_application_secret
+}
+
+resource "veeam_protection_group" "cloud_azure_complete" {
+  name = "Azure-VMs-Complete"
+  type = "CloudMachines"
+
+  cloud_account = [
+    {
+      account_type    = "Azure"
+      subscription_id = var.azure_subscription_id
+      region_type     = "Global"
+      region_id       = "westeurope"
+    }
+  ]
+
+  cloud_machines = [
+    {
+      type  = "Tag"
+      name  = "Environment"
+      value = "prod"
+    }
+  ]
+
+  depends_on = [veeam_cloud_credential.azure_compute]
+}
+```
+
 ### CloudMachines (AWS)
 
 ```hcl
@@ -155,6 +195,7 @@ terraform import veeam_protection_group.example "group-id-123"
 - The `IndividualComputers` type allows specifying computers by hostname.
 - The `CloudMachines` type requires one `cloud_account` block and at least one `cloud_machines` selector block.
 - `CloudMachines` workflows depend on valid cloud compute credentials (for example `AzureCompute` or `Amazon`) created in advance.
+- For Azure CloudMachines, create a `veeam_cloud_credential` with `type = "AzureCompute"` before creating the protection group.
 - If package deployment is used, options can depend on distribution infrastructure (`distribution_server_id` or `distribution_repository_id`) and related storage settings.
 - When `options.install_backup_agent = true`, set either `options.distribution_server_id` or `options.distribution_repository_id`.
 - `SingleUseCredentials` connection type is defined by API but not yet exposed in Terraform schema for this resource.
