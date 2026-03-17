@@ -82,8 +82,8 @@ func (d *CredentialsDataSource) Read(ctx context.Context, req datasource.ReadReq
 		return
 	}
 
-	var apiResult []map[string]interface{}
-	if err := d.client.GetJSON(ctx, client.PathCredentials, &apiResult); err != nil {
+	apiResult, err := fetchList(ctx, d.client.GetJSON, client.PathCredentials)
+	if err != nil {
 		resp.Diagnostics.AddError(
 			"Failed to list credentials",
 			fmt.Sprintf("API error: %s", err),

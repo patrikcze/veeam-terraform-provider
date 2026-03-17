@@ -33,6 +33,14 @@ func TestRepository_BuildSpec_WinLocal(t *testing.T) {
 	assert.Equal(t, "host-123", win.HostID)
 	assert.Equal(t, "C:\\Backups", win.Repository.Path)
 	assert.Equal(t, 4, win.Repository.MaxTaskCount)
+	if assert.NotNil(t, win.MountServer) {
+		assert.Equal(t, "Windows", win.MountServer.MountServerSettingsType)
+		if assert.NotNil(t, win.MountServer.Windows) {
+			assert.Equal(t, "host-123", win.MountServer.Windows.MountServerID)
+			assert.Equal(t, "C:\\Backups", win.MountServer.Windows.WriteCacheFolder)
+			assert.False(t, win.MountServer.Windows.VPowerNFSEnabled)
+		}
+	}
 }
 
 func TestRepository_BuildSpec_LinuxLocal(t *testing.T) {
@@ -54,6 +62,14 @@ func TestRepository_BuildSpec_LinuxLocal(t *testing.T) {
 	assert.True(t, ok, "expected *LinuxLocalStorageSpec")
 	assert.Equal(t, models.RepositoryTypeLinuxLocal, linux.Type)
 	assert.Equal(t, "/mnt/backups", linux.Repository.Path)
+	if assert.NotNil(t, linux.MountServer) {
+		assert.Equal(t, "Linux", linux.MountServer.MountServerSettingsType)
+		if assert.NotNil(t, linux.MountServer.Linux) {
+			assert.Equal(t, "linux-host-1", linux.MountServer.Linux.MountServerID)
+			assert.Equal(t, "/mnt/backups", linux.MountServer.Linux.WriteCacheFolder)
+			assert.False(t, linux.MountServer.Linux.VPowerNFSEnabled)
+		}
+	}
 }
 
 func TestRepository_BuildSpec_Smb(t *testing.T) {
@@ -94,4 +110,36 @@ func TestRepository_CreatePayload(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "repo-123", result.ID)
 	mockClient.AssertExpectations(t)
+}
+
+func TestRepository_SyncFromAPI_PreservesPlanOnEmptyAPIValues(t *testing.T) {
+	resource := &Repository{}
+	data := &RepositoryModel{
+		Name:        types.StringValue("Planned-Repo"),
+		Description: types.StringValue("Planned description"),
+		Type:        types.StringValue("WinLocal"),
+	}
+
+	api := &models.RepositoryModel{}
+	resource.syncFromAPI(data, api)
+
+	assert.Equal(t, "Planned-Repo", data.Name.ValueString())
+	assert.Equal(t, "Planned description", data.Description.ValueString())
+	assert.Equal(t, "WinLocal", data.Type.ValueString())
+}
+
+func TestRepository_SyncFromAPI_UsesAPIValuesWhenPresent(t *testing.T) {
+	resource := &Repository{}
+	data := &RepositoryModel{}
+
+	api := &models.RepositoryModel{
+		Name:        "API-Repo",
+		Description: "API description",
+		Type:        models.RepositoryTypeLinuxLocal,
+	}
+	resource.syncFromAPI(data, api)
+
+	assert.Equal(t, "API-Repo", data.Name.ValueString())
+	assert.Equal(t, "API description", data.Description.ValueString())
+	assert.Equal(t, "LinuxLocal", data.Type.ValueString())
 }

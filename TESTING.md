@@ -204,3 +204,43 @@ Error: context deadline exceeded
 **Solution**: Check for goroutine leaks or increase test timeout
 
 For more information, see the [Go testing documentation](https://golang.org/pkg/testing/).
+
+## Live Acceptance Coverage (Real VBR)
+
+The following scenarios were validated against a real Veeam Backup & Replication server (v13, API 1.3-rev1):
+
+### Resources — create/destroy verified
+
+- `veeam_credential` (Linux)
+- `veeam_repository` (WinLocal)
+- `veeam_proxy` (ViProxy)
+- `veeam_configuration_backup`
+- `veeam_encryption_password`
+- `veeam_cloud_credential` (`AzureStorage` shared key flow)
+- `veeam_managed_server` (`LinuxHost`, saved Linux credentials)
+
+### Data sources — read verified
+
+- `veeam_server_info`
+- `veeam_license`
+- `veeam_credentials`
+- `veeam_managed_servers`
+- `veeam_proxies`
+- `veeam_repositories`
+- `veeam_repository_states`
+- `veeam_backup_jobs`
+- `veeam_job_states`
+- `veeam_backups`
+- `veeam_restore_points`
+- `veeam_sessions`
+- `veeam_protection_groups`
+- `veeam_wan_accelerators`
+
+### Known real-world behaviors to account for
+
+- `configBackup` updates require full-object semantics (GET + merge + PUT behavior).
+- `ConfigBackupEncryptionModel` requires both `isEnabled` and `passwordId`.
+- Deleting an encryption password can transiently fail with "in use by: Backup Configuration Job" even after disabling configuration backup; retrying destroy shortly after typically succeeds.
+- Cloud credentials use discriminator type values exactly as defined by API (`Amazon`, `AzureStorage`, `AzureCompute`, `Google`, `GoogleService`).
+- For Linux managed servers, VBR expects SSH fingerprint in OpenSSH-style value (`ssh-rsa ...`). If user input is empty or `SHA256:...`, provider should resolve fingerprint from `POST /api/v1/connectionCertificate`.
+- Managed server delete is eventually consistent in VBR; provider should wait for GET-by-ID to return NotFound before deleting dependent Linux credential.

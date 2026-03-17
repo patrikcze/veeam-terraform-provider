@@ -1,14 +1,12 @@
 # Data Sources Example
 
-This example demonstrates how to use Veeam data sources to query existing resources and use them in your Terraform configuration.
+This example demonstrates a health-check style configuration that queries all implemented Veeam data sources and prints summary outputs.
 
 ## Features Demonstrated
 
-- Querying all backup jobs and repositories
-- Filtering specific resources by name or ID
-- Using data sources to create conditional resources
-- Complex data processing with locals
-- Comprehensive output generation
+- Querying all implemented data sources from the provider
+- Printing counts and basic server/license details
+- Running a quick connectivity/contract validation against VBR
 
 ## Prerequisites
 
@@ -21,12 +19,10 @@ This example demonstrates how to use Veeam data sources to query existing resour
 1. **Set up variables**:
 
 ```hcl
-veeam_host        = "your-veeam-server.com"
-veeam_username    = "admin"
-veeam_password    = "your-password"
-veeam_insecure    = false
-backup_job_id     = "optional-job-id"
-repository_id     = "optional-repo-id"
+veeam_host     = "your-veeam-server.com"
+veeam_username = "admin"
+veeam_password = "your-password"
+veeam_insecure = false
 ```
 
 2. **Initialize and apply**:
@@ -45,36 +41,38 @@ terraform output
 
 ## Data Sources Used
 
-### Backup Jobs
-- `veeam_backup_jobs` - Query all backup jobs
-- `veeam_backup_jobs` with `job_name` - Query specific job by name
-- `veeam_backup_jobs` with `job_id` - Query specific job by ID
+The script in `main.tf` reads all currently implemented data sources:
 
-### Repositories
-- `veeam_repositories` - Query all repositories
-- `veeam_repositories` with `repository_name` - Query specific repository by name
-- `veeam_repositories` with `repository_id` - Query specific repository by ID
+- `veeam_server_info`
+- `veeam_license`
+- `veeam_credentials`
+- `veeam_managed_servers`
+- `veeam_proxies`
+- `veeam_repositories`
+- `veeam_repository_states`
+- `veeam_backup_jobs`
+- `veeam_job_states`
+- `veeam_backups`
+- `veeam_restore_points`
+- `veeam_sessions`
+- `veeam_protection_groups`
+- `veeam_wan_accelerators`
 
 ## Example Outputs
 
-The configuration provides several useful outputs:
+The configuration provides these outputs:
 
-- **backup_jobs_summary**: Statistics about all backup jobs
-- **repositories_summary**: Statistics about all repositories including capacity utilization
-- **specific_resources**: Information about specific resources queried by name
-- **repository_details**: Detailed information about each repository
-- **backup_job_details**: Detailed information about each backup job
+- `datasource_counts`: per-data-source item counts
+- `server_info`: server name/version/build
+- `license_summary`: key license fields
 
 ## Use Cases
 
-1. **Monitoring**: Check repository utilization and identify repositories with low free space
-2. **Conditional Resources**: Create resources only if certain conditions are met
-3. **Resource Discovery**: Find existing resources and use their properties
-4. **Reporting**: Generate comprehensive reports about your Veeam environment
+1. Connectivity check against VBR API.
+2. Quick validation of provider/data-source compatibility.
+3. Inventory snapshot for troubleshooting.
 
 ## Notes
 
-- Data sources are read-only and don't modify existing resources
-- Use filters to query specific resources when you know their names or IDs
-- Combine multiple data sources for comprehensive environment analysis
-- Use locals for complex data processing and calculations
+- Data sources are read-only and don't modify existing resources.
+- If one data source fails, it indicates contract drift for that specific endpoint/parser.

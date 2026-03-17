@@ -13,6 +13,13 @@ Acceptance tests in `tests/` are intentionally excluded when no Veeam server is 
 - `pkg/resources/configuration_backup_test.go`
   - `TestConfigurationBackup_PutConfig`
   - `TestConfigurationBackup_TriggerBackup`
+- `pkg/resources/credential_test.go`
+  - `TestCredential_BuildSpec_Linux`
+  - `TestIsCredentialInUseError`
+- `pkg/resources/managed_server_test.go`
+  - `TestManagedServerBuildSpecLinuxHost`
+  - `TestShouldResolveLinuxFingerprint`
+  - `TestIsManagedServerNotFound`
 - `pkg/resources/scale_out_repository_test.go`
   - `TestScaleOutRepository_SyncFromAPI`
   - `TestScaleOutRepository_ModelValues`
@@ -26,10 +33,10 @@ Acceptance tests in `tests/` are intentionally excluded when no Veeam server is 
   - `TestNewTier2DataSources_MetadataTypeNames`
 
 ### New Model Round-Trip Tests
-- `internal/models/additional_models_test.go`
+- `internal/models/models_test.go`
   - `TestCloudCredentialSpec_RoundTrip`
   - `TestConfigurationBackupModel_RoundTrip`
-  - `TestScaleOutRepositoryModel_RoundTrip`
+  - `TestManagedServerModel_RoundTrip`
 
 ## Execution Result (Unit Tests Only)
 Command equivalent: `go test ./internal/... ./pkg/...`

@@ -46,7 +46,7 @@ func TestBackupJob_BuildSpec(t *testing.T) {
 	resource := &BackupJob{}
 	data := &BackupJobModel{
 		Name:              types.StringValue("Daily-Backup"),
-		Type:              types.StringValue("Backup"),
+		Type:              types.StringValue("VSphereBackup"),
 		Description:       types.StringValue("Daily VM backup"),
 		IsHighPriority:    types.BoolValue(true),
 		RepositoryID:      types.StringValue("repo-123"),
@@ -111,6 +111,6 @@ func TestBackupJob_SyncFromAPI(t *testing.T) {
 
 	assert.Equal(t, "Test-Job", data.Name.ValueString())
 	assert.Equal(t, "Test backup job", data.Description.ValueString())
-	assert.Equal(t, "Backup", data.Type.ValueString())
+	assert.Equal(t, "VSphereBackup", data.Type.ValueString())
 	assert.False(t, data.IsDisabled.ValueBool())
 }

@@ -12,31 +12,22 @@ Manages authentication credentials used by Veeam components.
 ## Example Usage
 
 ```hcl
-# Windows domain credential
-resource "veeam_credential" "windows_domain" {
-  name        = "Windows-Domain-Admin"
-  description = "Domain administrator credentials"
+# Standard (Windows/domain style) credential
+resource "veeam_credential" "standard" {
   username    = "DOMAIN\\administrator"
   password    = var.windows_admin_password
-  type        = "windows"
-  domain      = "DOMAIN"
+  description = "Domain administrator credentials"
+  type        = "Standard"
 }
 
-# Linux credential
+# Linux credential with password authentication
 resource "veeam_credential" "linux_user" {
-  name        = "Linux-Backup-User"
-  description = "Linux backup user credentials"
-  username    = "backup"
-  password    = var.linux_backup_password
-  type        = "linux"
-}
-
-# Standard credential without domain
-resource "veeam_credential" "standard" {
-  name     = "Standard-Credential"
-  username = "admin"
-  password = var.admin_password
-  type     = "standard"
+  username            = "backup"
+  password            = var.linux_backup_password
+  description         = "Linux backup user credentials"
+  type                = "Linux"
+  authentication_type = "Password"
+  ssh_port            = 22
 }
 ```
 
@@ -44,15 +35,21 @@ resource "veeam_credential" "standard" {
 
 ### Required
 
-- `name` (String) Unique credential name.
 - `username` (String) Username used for authentication.
 - `password` (String, Sensitive) Secret password value.
-- `type` (String) Credential type: `windows`, `linux`, or `standard`.
+- `type` (String) Credential type: `Standard` or `Linux`.
 
 ### Optional
 
 - `description` (String) Optional description.
-- `domain` (String) Domain for Windows-style credentials.
+- `ssh_port` (Number) SSH port (Linux only).
+- `elevate_to_root` (Boolean) Elevate to root via sudo (Linux only).
+- `add_to_sudoers` (Boolean) Automatically add to sudoers (Linux only).
+- `use_su` (Boolean) Use `su` instead of `sudo` (Linux only).
+- `authentication_type` (String) Linux authentication type: `Password` or `PrivateKey`.
+- `private_key` (String, Sensitive) SSH private key (Linux + PrivateKey auth).
+- `passphrase` (String, Sensitive) Private key passphrase.
+- `root_password` (String, Sensitive) Root password for `su` elevation.
 
 ### Read-Only
 
@@ -69,4 +66,5 @@ terraform import veeam_credential.example "credential-id-123"
 ## Notes
 
 - Password values are never returned by the Veeam API.
+- For Linux credentials on VBR v13 rev1, set `authentication_type` explicitly (for example `Password`).
 - Deleting a credential can impact jobs or infrastructure objects that reference it.

@@ -12,12 +12,17 @@ Manages backup server configuration backup settings and can trigger a backup run
 ## Example Usage
 
 ```hcl
+resource "veeam_encryption_password" "config_key" {
+  password = var.encryption_password
+  hint     = "Configuration backup key"
+}
+
 resource "veeam_configuration_backup" "config" {
   enabled                = true
-  repository_id          = var.repository_id
+  repository_id          = veeam_repository.main.id
   restore_points_to_keep = 14
   encryption_enabled     = true
-  encryption_password_id = var.encryption_password_id
+  encryption_password_id = veeam_encryption_password.config_key.id
   trigger_on_apply       = false
 }
 ```
@@ -33,7 +38,7 @@ resource "veeam_configuration_backup" "config" {
 - `repository_id` (String) Repository used to store configuration backups.
 - `restore_points_to_keep` (Number) Number of restore points to retain.
 - `encryption_enabled` (Boolean) Enables encryption for configuration backups.
-- `encryption_password_id` (String) Encryption password resource ID.
+- `encryption_password_id` (String) Encryption password ID (from `veeam_encryption_password.<name>.id`, not a credential password string).
 - `trigger_on_apply` (Boolean) Triggers an immediate backup run on create/update.
 
 ### Read-Only
@@ -54,4 +59,6 @@ terraform import veeam_configuration_backup.example "config-backup"
 ## Notes
 
 - Deleting this resource disables configuration backup in Veeam.
+- The provider reads the current server configuration and updates only Terraform-managed fields to satisfy the V13 `ConfigBackupModel` full-object validation.
 - Triggered sessions are best-effort and depend on API response timing.
+- When Configuration Backup encryption uses a specific `veeam_encryption_password`, Veeam can temporarily keep that password locked as "in use by Backup Configuration Job" during destroy. This is expected Veeam behavior; retrying destroy shortly after usually succeeds.

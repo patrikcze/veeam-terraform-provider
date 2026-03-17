@@ -12,7 +12,7 @@ package client
 // APIVersionHeader is the HTTP header name required by all V13+ API requests.
 const APIVersionHeader = "x-api-version"
 
-// NOTE: APIVersion constant is defined in client.go as "1.3-rev0".
+// NOTE: APIVersion constant is defined in client.go as "1.3-rev1".
 // It is referenced here for documentation but kept in client.go to avoid
 // a circular dependency during authentication (client.go uses it directly).
 
@@ -122,11 +122,20 @@ const (
 )
 
 // ---------------------------------------------------------------------------
+// Connection
+// ---------------------------------------------------------------------------
+
+const (
+	PathConnectionCertificate = "/api/v1/connectionCertificate"
+)
+
+// ---------------------------------------------------------------------------
 // Configuration Backup
 // ---------------------------------------------------------------------------
 
 const (
-	PathConfigurationBackup = "/api/v1/configBackup"
+	PathConfigurationBackup      = "/api/v1/configBackup"
+	PathConfigurationBackupStart = "/api/v1/configBackup/backup"
 )
 
 // ---------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 # Agent Instructions — Veeam Terraform Provider
 
 ## Project Overview
-Terraform provider for Veeam Backup & Replication V13 REST API (OpenAPI 3.0, version 1.3-rev0).
+Terraform provider for Veeam Backup & Replication V13 REST API (OpenAPI 3.0, version 1.3-rev1).
 Written in Go, using the HashiCorp Terraform Plugin Framework (`terraform-plugin-framework`).
 
 ## Security — Non-Negotiable Rules
@@ -54,7 +54,7 @@ tests/                          — acceptance tests (require TF_ACC=1)
 - **Token lifetime:** 15 minutes. Refresh token: 14 days.
 
 ### API Versioning
-- All requests MUST include header: `x-api-version: 1.3-rev0`
+- All requests MUST include header: `x-api-version: 1.3-rev1`
 - Base URL pattern: `https://host:9419`
 
 ### Async Operations
@@ -108,7 +108,20 @@ tests/                          — acceptance tests (require TF_ACC=1)
 
 ## Reference Files
 - `Veeam13_swagger.json` — Full V13 API spec. The source of truth for endpoints, models, and enums.
+- `~/Downloads/veeam13_swagger_1.3-rev1.json` — Workspace-local rev1 swagger used for compatibility verification during implementation and debugging.
 - `SKILL.md` — Detailed implementation patterns and code examples.
+
+## Real Acceptance Notes (VBR)
+
+- Provider behavior has been validated with real VBR apply/destroy runs for: `credential`, `repository`, `proxy`, `configuration_backup`, `encryption_password`, and `cloud_credential` (`AzureStorage`).
+- Provider behavior has also been validated with real VBR apply/destroy for `managed_server` (`LinuxHost`) using saved Linux credentials.
+- Data source health-check validated all currently implemented data sources in `internal/provider.go`.
+- For `configBackup`, follow full-object update semantics and retain required nested fields from API payloads.
+- For `cloudCredentials`, use discriminator values and subtype-required fields from swagger; do not rely on generic legacy field names only.
+- Encryption password deletion can be transiently blocked by VBR when referenced by Configuration Backup job; retry behavior is expected.
+- For Linux managed servers, use VBR/OpenSSH fingerprint format (`ssh-rsa ...` style). If user input is empty or `SHA256:...`, resolve fingerprint via `POST /api/v1/connectionCertificate` before create.
+- Keep Terraform state stable for `ssh_fingerprint` (do not overwrite configured value with internally resolved value), otherwise Terraform may report inconsistent apply results.
+- Managed server delete must be treated as eventually consistent: poll GET-by-ID until NotFound before allowing dependent credential deletion.
 
 ## What NOT to Do
 - Do not guess API schemas. Always verify against the swagger.

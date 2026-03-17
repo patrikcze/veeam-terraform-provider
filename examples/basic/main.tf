@@ -6,11 +6,11 @@
 terraform {
   required_providers {
     veeam = {
-      source  = "registry.terraform.io/patrikcze/veeam"
-      version = "1.0.0"
+      source  = "patrikcze/veeam"
+      version = "0.1.0"
     }
   }
-  required_version = ">= 1.0"
+  required_version = ">= 1.6.0"
 }
 
 # Configure the Veeam Provider
@@ -25,23 +25,26 @@ provider "veeam" {
 resource "veeam_repository" "basic_repo" {
   name        = "Basic-Backup-Repository"
   description = "Basic backup repository for demonstration"
-  path        = "/backup/basic"
-  type        = "linux"
+  type        = "WinLocal"
+  host_id     = local.repository_host_id
+  path        = "D:\\TESTBACKUP"
 }
 
 # Create a basic backup job
 resource "veeam_backup_job" "basic_job" {
-  name    = "Basic-Backup-Job"
-  enabled = true
+  name          = "Basic-Backup-Job"
+  type          = "VSphereBackup"
+  repository_id = veeam_repository.basic_repo.id
 }
 
-# Create a basic credential
-resource "veeam_credential" "basic_cred" {
-  name        = "Basic-Credential"
-  description = "Basic credential for demonstration"
-  username    = var.backup_username
-  password    = var.backup_password
-  type        = "linux"
+# Read managed servers and pick one by name
+data "veeam_managed_servers" "all" {}
+
+locals {
+  repository_host_id = one([
+    for s in data.veeam_managed_servers.all.servers : s.id
+    if lower(s.name) == lower(var.repository_host_name)
+  ])
 }
 
 # Output the created resources
@@ -55,7 +58,3 @@ output "backup_job_name" {
   value       = veeam_backup_job.basic_job.name
 }
 
-output "credential_id" {
-  description = "The ID of the created credential"
-  value       = veeam_credential.basic_cred.id
-}

@@ -47,14 +47,16 @@ const (
 type EManagedServerType string
 
 const (
-	ManagedServerTypeWindowsHost   EManagedServerType = "WindowsHost"
-	ManagedServerTypeLinuxHost     EManagedServerType = "LinuxHost"
-	ManagedServerTypeViHost        EManagedServerType = "ViHost"
-	ManagedServerTypeCloudDirector EManagedServerType = "CloudDirectorHost"
-	ManagedServerTypeHvServer      EManagedServerType = "HvServer"
-	ManagedServerTypeHvCluster     EManagedServerType = "HvCluster"
-	ManagedServerTypeSCVMM         EManagedServerType = "SCVMM"
-	ManagedServerTypeSmbV3Host     EManagedServerType = "SmbV3Host"
+	ManagedServerTypeWindowsHost         EManagedServerType = "WindowsHost"
+	ManagedServerTypeLinuxHost           EManagedServerType = "LinuxHost"
+	ManagedServerTypeViHost              EManagedServerType = "ViHost"
+	ManagedServerTypeCloudDirector       EManagedServerType = "CloudDirectorHost"
+	ManagedServerTypeHvServer            EManagedServerType = "HvServer"
+	ManagedServerTypeHvCluster           EManagedServerType = "HvCluster"
+	ManagedServerTypeSCVMM               EManagedServerType = "SCVMM"
+	ManagedServerTypeSmbV3Cluster        EManagedServerType = "SmbV3Cluster"
+	ManagedServerTypeSmbV3StandaloneHost EManagedServerType = "SmbV3StandaloneHost"
+	ManagedServerTypeSmbV3Host           EManagedServerType = ManagedServerTypeSmbV3StandaloneHost
 )
 
 // EManagedServersStatus represents the availability status.
@@ -69,8 +71,9 @@ const (
 type ECredentialsStorageType string
 
 const (
-	CredentialsStorageTypeSaved     ECredentialsStorageType = "Saved"
+	CredentialsStorageTypePermanent ECredentialsStorageType = "Permanent"
 	CredentialsStorageTypeSingleUse ECredentialsStorageType = "SingleUse"
+	CredentialsStorageTypeSaved     ECredentialsStorageType = CredentialsStorageTypePermanent
 )
 
 // ---------------------------------------------------------------------------
@@ -109,10 +112,10 @@ const (
 type EBackupProxyTransportMode string
 
 const (
-	TransportModeAuto             EBackupProxyTransportMode = "auto"
-	TransportModeDirectAccess     EBackupProxyTransportMode = "directAccess"
-	TransportModeVirtualAppliance EBackupProxyTransportMode = "virtualAppliance"
-	TransportModeNetwork          EBackupProxyTransportMode = "network"
+	TransportModeAuto             EBackupProxyTransportMode = "Auto"
+	TransportModeDirectAccess     EBackupProxyTransportMode = "DirectAccess"
+	TransportModeVirtualAppliance EBackupProxyTransportMode = "VirtualAppliance"
+	TransportModeNetwork          EBackupProxyTransportMode = "Network"
 )
 
 // ---------------------------------------------------------------------------
@@ -124,7 +127,8 @@ type EJobType string
 
 const (
 	JobTypeUnknown            EJobType = "Unknown"
-	JobTypeBackup             EJobType = "Backup"
+	JobTypeVSphereBackup      EJobType = "VSphereBackup"
+	JobTypeBackup             EJobType = JobTypeVSphereBackup
 	JobTypeHyperVBackup       EJobType = "HyperVBackup"
 	JobTypeVSphereReplica     EJobType = "VSphereReplica"
 	JobTypeBackupCopy         EJobType = "BackupCopy"

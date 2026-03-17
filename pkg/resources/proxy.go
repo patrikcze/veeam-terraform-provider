@@ -73,7 +73,7 @@ func (r *Proxy) Schema(_ context.Context, _ resource.SchemaRequest, resp *resour
 				Required:            true,
 			},
 			"transport_mode": schema.StringAttribute{
-				MarkdownDescription: "Data transport mode: `auto`, `directAccess`, `virtualAppliance`, or `network`.",
+				MarkdownDescription: "Data transport mode: `Auto`, `DirectAccess`, `VirtualAppliance`, or `Network`.",
 				Optional:            true,
 			},
 			"failover_to_network": schema.BoolAttribute{
@@ -120,7 +120,7 @@ func (r *Proxy) Create(ctx context.Context, req resource.CreateRequest, resp *re
 
 	payload := r.buildSpec(&data)
 
-	var result models.ProxyModel
+	var result map[string]interface{}
 	if err := r.client.PostJSON(ctx, client.PathProxies, payload, &result); err != nil {
 		resp.Diagnostics.AddError(
 			"Failed to create proxy",
@@ -129,8 +129,49 @@ func (r *Proxy) Create(ctx context.Context, req resource.CreateRequest, resp *re
 		return
 	}
 
-	data.ID = types.StringValue(result.ID)
-	r.syncFromAPI(&data, &result)
+	resultID := getStringValue(result, "id")
+	resultType := getStringValue(result, "type")
+
+	// Some Veeam operations return async session objects. In that case,
+	// wait for completion and then resolve proxy ID from inventory.
+	if resultType == "" {
+		if resultID == "" {
+			resp.Diagnostics.AddError(
+				"Failed to create proxy",
+				"API response did not include proxy type or async session ID.",
+			)
+			return
+		}
+
+		if err := r.client.WaitForTask(ctx, resultID); err != nil {
+			resp.Diagnostics.AddError(
+				"Failed to create proxy",
+				fmt.Sprintf("Async proxy creation task %s failed: %s", resultID, err),
+			)
+			return
+		}
+
+		resolvedID, err := r.findProxyID(ctx, &data)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Failed to resolve created proxy",
+				err.Error(),
+			)
+			return
+		}
+		data.ID = types.StringValue(resolvedID)
+	} else {
+		data.ID = types.StringValue(resultID)
+	}
+
+	// Read created proxy to sync computed fields while preserving planned values.
+	if !data.ID.IsNull() && data.ID.ValueString() != "" {
+		var created models.ProxyModel
+		endpoint := fmt.Sprintf(client.PathProxyByID, data.ID.ValueString())
+		if err := r.client.GetJSON(ctx, endpoint, &created); err == nil {
+			r.syncFromAPI(&data, &created)
+		}
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, data)...)
 }
 
@@ -233,7 +274,61 @@ func (r *Proxy) buildSpec(data *ProxyModel) interface{} {
 }
 
 func (r *Proxy) syncFromAPI(data *ProxyModel, api *models.ProxyModel) {
-	data.Name = types.StringValue(api.Name)
-	data.Description = types.StringValue(api.Description)
-	data.Type = types.StringValue(string(api.Type))
+	if api.Name != "" {
+		data.Name = types.StringValue(api.Name)
+	}
+	if api.Description != "" {
+		data.Description = types.StringValue(api.Description)
+	}
+	if string(api.Type) != "" {
+		data.Type = types.StringValue(string(api.Type))
+	}
+}
+
+func (r *Proxy) findProxyID(ctx context.Context, data *ProxyModel) (string, error) {
+	var payload map[string]interface{}
+	if err := r.client.GetJSON(ctx, client.PathProxies, &payload); err != nil {
+		return "", fmt.Errorf("failed to list proxies after create: %w", err)
+	}
+
+	rawData, ok := payload["data"].([]interface{})
+	if !ok {
+		return "", fmt.Errorf("unexpected proxies list response shape: missing data array")
+	}
+
+	for _, item := range rawData {
+		entry, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		entryType := getStringValue(entry, "type")
+		if !data.Type.IsNull() && entryType != "" && entryType != data.Type.ValueString() {
+			continue
+		}
+
+		if !data.Description.IsNull() {
+			entryDescription := getStringValue(entry, "description")
+			if entryDescription != data.Description.ValueString() {
+				continue
+			}
+		}
+
+		if !data.HostID.IsNull() {
+			server, ok := entry["server"].(map[string]interface{})
+			if ok {
+				entryHostID := getStringValue(server, "hostId")
+				if entryHostID != "" && entryHostID != data.HostID.ValueString() {
+					continue
+				}
+			}
+		}
+
+		id := getStringValue(entry, "id")
+		if id != "" {
+			return id, nil
+		}
+	}
+
+	return "", fmt.Errorf("proxy could not be located in proxy list after create")
 }

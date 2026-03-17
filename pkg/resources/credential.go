@@ -3,6 +3,8 @@ package resources
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -210,7 +212,7 @@ func (r *Credential) Delete(ctx context.Context, req resource.DeleteRequest, res
 	}
 
 	endpoint := fmt.Sprintf(client.PathCredentialByID, data.ID.ValueString())
-	if err := r.client.DeleteJSON(ctx, endpoint); err != nil {
+	if err := r.deleteCredentialWithRetries(ctx, endpoint); err != nil {
 		resp.Diagnostics.AddError(
 			"Failed to delete credential",
 			fmt.Sprintf("API error for credential %s: %s", data.ID.ValueString(), err),
@@ -287,4 +289,37 @@ func (r *Credential) syncModelFromAPI(data *CredentialModel, api *models.Credent
 	data.Username = types.StringValue(api.Username)
 	data.Description = types.StringValue(api.Description)
 	data.Type = types.StringValue(string(api.Type))
+}
+
+func (r *Credential) deleteCredentialWithRetries(ctx context.Context, endpoint string) error {
+	const maxAttempts = 5
+
+	var lastErr error
+	for attempt := 0; attempt < maxAttempts; attempt++ {
+		lastErr = r.client.DeleteJSON(ctx, endpoint)
+		if lastErr == nil {
+			return nil
+		}
+
+		if !isCredentialInUseError(lastErr) || attempt == maxAttempts-1 {
+			return lastErr
+		}
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(3 * time.Second):
+		}
+	}
+
+	return lastErr
+}
+
+func isCredentialInUseError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "unable to delete selected credentials") && strings.Contains(message, "currently in use")
 }

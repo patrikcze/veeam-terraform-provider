@@ -2,7 +2,9 @@ package resources
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -121,7 +123,7 @@ func (r *Repository) Create(ctx context.Context, req resource.CreateRequest, res
 
 	payload := r.buildSpec(&data)
 
-	var result models.RepositoryModel
+	var result map[string]interface{}
 	if err := r.client.PostJSON(ctx, client.PathRepositories, payload, &result); err != nil {
 		resp.Diagnostics.AddError(
 			"Failed to create repository",
@@ -130,8 +132,49 @@ func (r *Repository) Create(ctx context.Context, req resource.CreateRequest, res
 		return
 	}
 
-	data.ID = types.StringValue(result.ID)
-	r.syncFromAPI(&data, &result)
+	resultID := getStringValue(result, "id")
+	resultType := getStringValue(result, "type")
+
+	// Some Veeam operations return async session objects. In that case,
+	// wait for completion and then resolve repository ID by name.
+	if resultType == "" {
+		if resultID == "" {
+			resp.Diagnostics.AddError(
+				"Failed to create repository",
+				"API response did not include repository type or async session ID.",
+			)
+			return
+		}
+
+		if err := r.client.WaitForTask(ctx, resultID); err != nil {
+			resp.Diagnostics.AddError(
+				"Failed to create repository",
+				fmt.Sprintf("Async repository creation task %s failed: %s", resultID, err),
+			)
+			return
+		}
+
+		resolvedID, err := r.findRepositoryIDByName(ctx, data.Name.ValueString())
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Failed to resolve created repository",
+				err.Error(),
+			)
+			return
+		}
+		data.ID = types.StringValue(resolvedID)
+	} else {
+		data.ID = types.StringValue(resultID)
+	}
+
+	// Read the created repository to sync computed fields while preserving plan values.
+	if !data.ID.IsNull() && data.ID.ValueString() != "" {
+		var created models.RepositoryModel
+		endpoint := fmt.Sprintf(client.PathRepositoryByID, data.ID.ValueString())
+		if err := r.client.GetJSON(ctx, endpoint, &created); err == nil {
+			r.syncFromAPI(&data, &created)
+		}
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, data)...)
 }
 
@@ -145,6 +188,10 @@ func (r *Repository) Read(ctx context.Context, req resource.ReadRequest, resp *r
 	var result models.RepositoryModel
 	endpoint := fmt.Sprintf(client.PathRepositoryByID, data.ID.ValueString())
 	if err := r.client.GetJSON(ctx, endpoint, &result); err != nil {
+		if isRepositoryNotFound(err) {
+			resp.State.RemoveResource(ctx)
+			return
+		}
 		resp.Diagnostics.AddError(
 			"Failed to read repository",
 			fmt.Sprintf("API error for repository %s: %s", data.ID.ValueString(), err),
@@ -223,6 +270,14 @@ func (r *Repository) buildSpec(data *RepositoryModel) interface{} {
 
 	switch repoType {
 	case models.RepositoryTypeWinLocal:
+		mountServer := &models.MountServersSettings{
+			MountServerSettingsType: "Windows",
+			Windows: &models.MountServerSettings{
+				MountServerID:    data.HostID.ValueString(),
+				WriteCacheFolder: data.Path.ValueString(),
+				VPowerNFSEnabled: false,
+			},
+		}
 		return &models.WindowsLocalStorageSpec{
 			RepositorySpec: base,
 			HostID:         data.HostID.ValueString(),
@@ -230,9 +285,18 @@ func (r *Repository) buildSpec(data *RepositoryModel) interface{} {
 				Path:         data.Path.ValueString(),
 				MaxTaskCount: maxTasks,
 			},
+			MountServer: mountServer,
 		}
 
 	case models.RepositoryTypeLinuxLocal:
+		mountServer := &models.MountServersSettings{
+			MountServerSettingsType: "Linux",
+			Linux: &models.MountServerSettings{
+				MountServerID:    data.HostID.ValueString(),
+				WriteCacheFolder: data.Path.ValueString(),
+				VPowerNFSEnabled: false,
+			},
+		}
 		return &models.LinuxLocalStorageSpec{
 			RepositorySpec: base,
 			HostID:         data.HostID.ValueString(),
@@ -240,6 +304,7 @@ func (r *Repository) buildSpec(data *RepositoryModel) interface{} {
 				Path:         data.Path.ValueString(),
 				MaxTaskCount: maxTasks,
 			},
+			MountServer: mountServer,
 		}
 
 	case models.RepositoryTypeNfs:
@@ -275,7 +340,59 @@ func (r *Repository) buildSpec(data *RepositoryModel) interface{} {
 }
 
 func (r *Repository) syncFromAPI(data *RepositoryModel, api *models.RepositoryModel) {
-	data.Name = types.StringValue(api.Name)
-	data.Description = types.StringValue(api.Description)
-	data.Type = types.StringValue(string(api.Type))
+	if api.Name != "" {
+		data.Name = types.StringValue(api.Name)
+	}
+	if api.Description != "" {
+		data.Description = types.StringValue(api.Description)
+	}
+	if string(api.Type) != "" {
+		data.Type = types.StringValue(string(api.Type))
+	}
+}
+
+func (r *Repository) findRepositoryIDByName(ctx context.Context, name string) (string, error) {
+	var payload map[string]interface{}
+	if err := r.client.GetJSON(ctx, client.PathRepositories, &payload); err != nil {
+		return "", fmt.Errorf("failed to list repositories after create: %w", err)
+	}
+
+	rawData, ok := payload["data"].([]interface{})
+	if !ok {
+		return "", fmt.Errorf("unexpected repositories list response shape: missing data array")
+	}
+
+	for _, item := range rawData {
+		entry, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if getStringValue(entry, "name") == name {
+			id := getStringValue(entry, "id")
+			if id != "" {
+				return id, nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("repository %q was created but could not be located in repository list", name)
+}
+
+func getStringValue(data map[string]interface{}, key string) string {
+	if value, ok := data[key].(string); ok {
+		return value
+	}
+	return ""
+}
+
+func isRepositoryNotFound(err error) bool {
+	var apiErr *models.APIError
+	if errors.As(err, &apiErr) {
+		if strings.EqualFold(apiErr.ErrorCode, "NotFound") {
+			return true
+		}
+	}
+
+	errText := strings.ToLower(err.Error())
+	return strings.Contains(errText, "http 404") || strings.Contains(errText, "notfound")
 }

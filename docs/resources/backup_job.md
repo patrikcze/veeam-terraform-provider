@@ -13,8 +13,9 @@ Creates, updates, reads, and deletes backup jobs in Veeam Backup & Replication.
 
 ```hcl
 resource "veeam_backup_job" "daily" {
-  name    = "Daily-VM-Backup"
-  enabled = true
+  name          = "Daily-VM-Backup"
+  type          = "VSphereBackup"
+  repository_id = veeam_repository.primary.id
 }
 ```
 
@@ -23,24 +24,37 @@ resource "veeam_backup_job" "daily" {
 ### Required
 
 - `name` (String) Unique backup job name.
+- `type` (String) Job type: `VSphereBackup`, `BackupCopy`, `VSphereReplica`, etc.
+- `repository_id` (String) Target backup repository ID.
 
 ### Optional
 
-- `enabled` (Boolean) Whether the job is enabled. Defaults to `true`.
+- `description` (String) Optional description.
+- `is_high_priority` (Boolean) Process this job before lower-priority jobs.
+- `proxy_auto_select` (Boolean) Automatically select backup proxy.
+- `retention_type` (String) Retention type: `RestorePoints` or `Days`.
+- `retention_quantity` (Number) Number of restore points or days to keep.
+- `schedule_enabled` (Boolean) Run the job automatically on schedule.
+- `schedule_time` (String) Daily schedule time (e.g. `22:00`).
+- `schedule_kind` (String) Daily schedule kind: `Everyday`, `Weekdays`, or `SelectedDays`.
+- `retry_enabled` (Boolean) Retry on failure.
+- `retry_count` (Number) Number of retry attempts.
+- `retry_await_minutes` (Number) Minutes to wait between retries.
 
 ### Read-Only
 
 - `id` (String) Backup job identifier assigned by Veeam.
+- `is_disabled` (Boolean) Whether the job is currently disabled.
 
 ## Import
 
 Import by job name:
 
 ```bash
-terraform import veeam_backup_job.example "Daily-VM-Backup"
+terraform import veeam_backup_job.example "job-id-123"
 ```
 
 ## Notes
 
 - Job names must be unique in the Veeam environment.
-- Disabling a job keeps it configured but prevents scheduled runs.
+- The `type` value should match Veeam REST API enum values for your workload.

@@ -72,7 +72,7 @@ func (r *BackupJob) Schema(_ context.Context, _ resource.SchemaRequest, resp *re
 				Computed:            true,
 			},
 			"type": schema.StringAttribute{
-				MarkdownDescription: "Job type: `Backup`, `BackupCopy`, `VSphereReplica`, etc.",
+				MarkdownDescription: "Job type: `VSphereBackup`, `BackupCopy`, `VSphereReplica`, etc.",
 				Required:            true,
 			},
 			"is_high_priority": schema.BoolAttribute{

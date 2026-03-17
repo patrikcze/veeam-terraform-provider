@@ -46,7 +46,7 @@ is `/api/oauth2/token` and accepts `application/x-www-form-urlencoded`.
 - Refresh token lifetime: 14 days (default), single-use
 - After refresh, you get a NEW refresh token
 - All API requests need `Authorization: Bearer <access_token>`
-- All API requests need `x-api-version: 1.3-rev0`
+- All API requests need `x-api-version: 1.3-rev1`
 
 ---
 
@@ -145,6 +145,20 @@ func (c *VeeamClient) WaitForTask(ctx context.Context, sessionID string) error {
     }
 }
 ```
+
+### Managed Server (LinuxHost) Practical Pattern
+
+For `veeam_managed_server` (`LinuxHost`) in real VBR runs:
+
+- Create may be effectively async; support session-style responses and poll completion.
+- Linux `sshFingerprint` should use VBR/OpenSSH format (`ssh-rsa ...`), not `SHA256:...`.
+- If fingerprint is missing/empty/`SHA256:...`, resolve it through:
+    - `POST /api/v1/connectionCertificate`
+    - request body: `serverName`, `credentialsStorageType=Permanent`, `credentialsId`, `type=LinuxHost`
+    - use response `fingerprint` for create payload.
+- Keep Terraform state consistent: do not replace configured `ssh_fingerprint` with an internally resolved value.
+- Delete is eventually consistent: after DELETE, poll `GET /api/v1/backupInfrastructure/managedServers/{id}` until `404/NotFound` before considering destroy complete.
+- Credential delete may transiently fail as in-use immediately after managed server deletion; short retry loop is expected.
 
 ---
 
@@ -306,5 +320,63 @@ func TestAuthenticate(t *testing.T) {
 - **ERepositoryType:** `WinLocal`, `LinuxLocal`, `Smb`, `Nfs`, `AzureBlob`, `AmazonS3`, `S3Compatible`, `GoogleCloud`, `LinuxHardened`, ...
 - **EProxyType:** `ViProxy`, `HvProxy`, `FileProxy`
 - **EManagedServerType:** `WindowsHost`, `LinuxHost`, `ViHost`, `CloudDirectorHost`, `HvServer`, ...
-- **EJobType:** `Backup`, `BackupCopy`, `HyperVBackup`, `VSphereReplica`, `WindowsAgentBackup`, `LinuxAgentBackup`, ...
+- **EJobType:** `VSphereBackup`, `BackupCopy`, `HyperVBackup`, `VSphereReplica`, `WindowsAgentBackup`, `LinuxAgentBackup`, ...
 - **EProtectionGroupType:** `IndividualComputers`, `ADObjects`, `CSVFile`, `PreInstalledAgents`, `CloudMachines`, ...
+
+---
+
+## 10. Cloud Credentials (Rev1) — Implementation Pattern
+
+Cloud credentials are discriminator-based (`oneOf`) and must use exact type values:
+
+- `Amazon`
+- `AzureStorage`
+- `AzureCompute`
+- `Google`
+- `GoogleService`
+
+### Azure Storage (priority path)
+
+For `type = "AzureStorage"`, API-required fields are:
+
+- `account`
+- `sharedKey`
+
+Terraform aliases may exist (`account_name`, `secret_key`), but outgoing API payload must map to `account` and `sharedKey`.
+
+### Azure Compute (ExistingAccount)
+
+For `type = "AzureCompute"` with existing app registration:
+
+- `creationMode = "ExistingAccount"`
+- `connectionName`
+- `existingAccount.deployment.deploymentType`
+- `existingAccount.subscription.tenantId`
+- `existingAccount.subscription.applicationId`
+- `existingAccount.subscription.secret`
+
+### State consistency rule
+
+Cloud credential API readbacks can be sparse. Do not overwrite planned state with empty API fields during Create/Read sync.
+
+---
+
+## 11. Configuration Backup + Encryption Password Behavior
+
+### Config backup update contract
+
+- `PUT /api/v1/configBackup` follows full-model validation.
+- Required nested objects must be preserved (`notifications`, `schedule`, `lastSuccessfulBackup`, `encryption`).
+- Use GET + merge + PUT flow.
+
+### Config backup encryption schema requirement
+
+- `ConfigBackupEncryptionModel` requires both:
+    - `isEnabled`
+    - `passwordId`
+
+### Real VBR behavior (destroy)
+
+- Encryption password deletion may temporarily fail with:
+    - `Unable to delete selected password because it is in use by: Backup Configuration Job`
+- This is expected VBR behavior in some runs; retry shortly after.

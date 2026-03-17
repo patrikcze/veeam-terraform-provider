@@ -24,14 +24,3 @@ variable "veeam_insecure" {
   default     = false
 }
 
-variable "backup_job_id" {
-  description = "ID of a specific backup job to query"
-  type        = string
-  default     = ""
-}
-
-variable "repository_id" {
-  description = "ID of a specific repository to query"
-  type        = string
-  default     = ""
-}

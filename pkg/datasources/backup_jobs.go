@@ -176,8 +176,7 @@ func (d *BackupJobsDataSource) Read(ctx context.Context, req datasource.ReadRequ
 		data.BackupJobs = backupJobs
 	} else {
 		// Fetch all backup jobs
-		var apiResult []map[string]interface{}
-		err := d.client.GetJSON(ctx, client.PathJobs, &apiResult)
+		apiResult, err := fetchList(ctx, d.client.GetJSON, client.PathJobs)
 		if err != nil {
 			resp.Diagnostics.AddError(
 				"Error fetching backup jobs",
@@ -200,10 +199,14 @@ func (d *BackupJobsDataSource) Read(ctx context.Context, req datasource.ReadRequ
 		// Map API response to the data model
 		backupJobs := make([]BackupJobDataModel, len(apiResult))
 		for i, job := range apiResult {
+			enabled := getBoolValue(job, "enabled")
+			if _, hasEnabled := job["enabled"]; !hasEnabled {
+				enabled = !getBoolValue(job, "isDisabled")
+			}
 			backupJobs[i] = BackupJobDataModel{
 				ID:          types.StringValue(getStringValue(job, "id")),
 				Name:        types.StringValue(getStringValue(job, "name")),
-				Enabled:     types.BoolValue(getBoolValue(job, "enabled")),
+				Enabled:     types.BoolValue(enabled),
 				Description: types.StringValue(getStringValue(job, "description")),
 				Repository:  types.StringValue(getStringValue(job, "repository")),
 				Schedule:    types.StringValue(getStringValue(job, "schedule")),

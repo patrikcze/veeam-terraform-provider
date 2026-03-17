@@ -3,7 +3,7 @@
 variable "veeam_host" {
   description = "Veeam Backup & Replication server hostname or IP address"
   type        = string
-  default     = "https://veeam.example.com"
+  default     = "veeam.example.com"
 }
 
 variable "veeam_username" {
@@ -24,14 +24,7 @@ variable "veeam_insecure" {
   default     = false
 }
 
-variable "backup_username" {
-  description = "Username for backup operations"
+variable "repository_host_name" {
+  description = "Managed server name in VBR used as repository host"
   type        = string
-  default     = "backup"
-}
-
-variable "backup_password" {
-  description = "Password for backup operations"
-  type        = string
-  sensitive   = true
 }
