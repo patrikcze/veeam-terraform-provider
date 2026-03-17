@@ -3,6 +3,8 @@ package resources
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -121,8 +123,8 @@ func (r *ManagedServer) Create(ctx context.Context, req resource.CreateRequest, 
 
 	payload := r.buildSpec(&data)
 
-	var result models.ManagedServerModel
-	if err := r.client.PostJSON(ctx, client.PathManagedServers, payload, &result); err != nil {
+	result, err := r.createManagedServer(ctx, &data, payload)
+	if err != nil {
 		resp.Diagnostics.AddError(
 			"Failed to create managed server",
 			fmt.Sprintf("API error: %s", err),
@@ -130,15 +132,46 @@ func (r *ManagedServer) Create(ctx context.Context, req resource.CreateRequest, 
 		return
 	}
 
-	// If the API returned an ID, the operation completed synchronously.
-	// Some Veeam operations return 202 — in that case the client should
-	// handle async polling transparently, but we log for visibility.
-	if result.ID != "" {
-		data.ID = types.StringValue(result.ID)
+	resultID := getStringValue(result, "id")
+	if resultID == "" {
+		resp.Diagnostics.AddError(
+			"Failed to create managed server",
+			"API response did not include managed server ID or async session ID.",
+		)
+		return
 	}
 
-	tflog.Info(ctx, "Created managed server", map[string]interface{}{"id": result.ID})
-	r.syncFromAPI(&data, &result)
+	if isAsyncManagedServerCreateResult(result) {
+		if err := r.client.WaitForTask(ctx, resultID); err != nil {
+			resp.Diagnostics.AddError(
+				"Failed to create managed server",
+				fmt.Sprintf("Async managed server creation task %s failed: %s", resultID, err),
+			)
+			return
+		}
+
+		resolvedID, err := r.findManagedServerID(ctx, &data)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Failed to resolve created managed server",
+				err.Error(),
+			)
+			return
+		}
+		data.ID = types.StringValue(resolvedID)
+	} else {
+		data.ID = types.StringValue(resultID)
+	}
+
+	if !data.ID.IsNull() && data.ID.ValueString() != "" {
+		var created models.ManagedServerModel
+		endpoint := fmt.Sprintf(client.PathManagedServerByID, data.ID.ValueString())
+		if err := r.client.GetJSON(ctx, endpoint, &created); err == nil {
+			r.syncFromAPI(&data, &created)
+		}
+	}
+
+	tflog.Info(ctx, "Created managed server", map[string]interface{}{"id": data.ID.ValueString()})
 	resp.Diagnostics.Append(resp.State.Set(ctx, data)...)
 }
 
@@ -257,10 +290,110 @@ func (r *ManagedServer) buildSpec(data *ManagedServerModel) interface{} {
 }
 
 func (r *ManagedServer) syncFromAPI(data *ManagedServerModel, api *models.ManagedServerModel) {
-	data.Name = types.StringValue(api.Name)
-	data.Description = types.StringValue(api.Description)
-	data.Type = types.StringValue(string(api.Type))
+	if api.Name != "" {
+		data.Name = types.StringValue(api.Name)
+	}
+	if api.Description != "" {
+		data.Description = types.StringValue(api.Description)
+	}
+	if string(api.Type) != "" {
+		data.Type = types.StringValue(string(api.Type))
+	}
 	if api.Status != "" {
 		data.Status = types.StringValue(string(api.Status))
 	}
+}
+
+func (r *ManagedServer) createManagedServer(ctx context.Context, data *ManagedServerModel, payload interface{}) (map[string]interface{}, error) {
+	const maxAttempts = 3
+
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		var result map[string]interface{}
+		err := r.client.PostJSON(ctx, client.PathManagedServers, payload, &result)
+		if err == nil {
+			return result, nil
+		}
+
+		if !shouldRetryManagedServerCreate(data, err) || attempt == maxAttempts {
+			return nil, err
+		}
+
+		tflog.Warn(ctx, "Managed server create failed during Linux credential validation, retrying", map[string]interface{}{
+			"attempt": attempt,
+			"name":    data.Name.ValueString(),
+		})
+
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(5 * time.Second):
+		}
+	}
+
+	return nil, fmt.Errorf("managed server create retry exhausted")
+}
+
+func shouldRetryManagedServerCreate(data *ManagedServerModel, err error) bool {
+	if data == nil || data.Type.IsNull() || !strings.EqualFold(data.Type.ValueString(), string(models.ManagedServerTypeLinuxHost)) {
+		return false
+	}
+
+	if err == nil {
+		return false
+	}
+
+	return strings.Contains(strings.ToLower(err.Error()), "failed to validate the specified linux credentials")
+}
+
+func isAsyncManagedServerCreateResult(result map[string]interface{}) bool {
+	resultType := getStringValue(result, "type")
+	if resultType == "" {
+		return true
+	}
+
+	if strings.EqualFold(resultType, "session") {
+		return true
+	}
+
+	return !strings.EqualFold(resultType, string(models.ManagedServerTypeViHost)) &&
+		!strings.EqualFold(resultType, string(models.ManagedServerTypeWindowsHost)) &&
+		!strings.EqualFold(resultType, string(models.ManagedServerTypeLinuxHost))
+}
+
+func (r *ManagedServer) findManagedServerID(ctx context.Context, data *ManagedServerModel) (string, error) {
+	var payload map[string]interface{}
+	if err := r.client.GetJSON(ctx, client.PathManagedServers, &payload); err != nil {
+		return "", fmt.Errorf("failed to list managed servers after create: %w", err)
+	}
+
+	rawData, ok := payload["data"].([]interface{})
+	if !ok {
+		return "", fmt.Errorf("unexpected managed servers list response shape: missing data array")
+	}
+
+	for _, item := range rawData {
+		entry, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		entryName := getStringValue(entry, "name")
+		if entryName == "" || !strings.EqualFold(entryName, data.Name.ValueString()) {
+			continue
+		}
+
+		if !data.Type.IsNull() {
+			entryType := getStringValue(entry, "type")
+			if entryType != "" && !strings.EqualFold(entryType, data.Type.ValueString()) {
+				continue
+			}
+		}
+
+		id := getStringValue(entry, "id")
+		if id != "" {
+			return id, nil
+		}
+	}
+
+	return "", fmt.Errorf("managed server %q was created but could not be located in managed server list", data.Name.ValueString())
 }
