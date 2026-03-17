@@ -24,13 +24,45 @@ func TestConfigurationBackup_PutConfig(t *testing.T) {
 		EncryptionPasswordID: types.StringValue("enc-1"),
 	}
 
+	mockClient.On("GetJSON", mock.Anything, client.PathConfigurationBackup, mock.Anything).Run(func(args mock.Arguments) {
+		result := args.Get(2).(*map[string]interface{})
+		*result = map[string]interface{}{
+			"isEnabled":           false,
+			"backupRepositoryId":  "repo-old",
+			"restorePointsToKeep": float64(7),
+			"encryption": map[string]interface{}{
+				"isEnabled":  false,
+				"passwordId": "enc-old",
+			},
+			"schedule": map[string]interface{}{
+				"period": "daily",
+			},
+			"notifications": map[string]interface{}{
+				"enabled": false,
+			},
+			"lastSuccessfulBackup": map[string]interface{}{
+				"id": "session-1",
+			},
+		}
+	}).Return(nil)
+
 	mockClient.On("PutJSON", mock.Anything, client.PathConfigurationBackup, mock.Anything, nil).Run(func(args mock.Arguments) {
-		spec := args.Get(2).(*models.ConfigurationBackupSpec)
-		assert.True(t, spec.Enabled)
-		assert.Equal(t, "repo-1", spec.RepositoryID)
-		assert.Equal(t, 14, spec.RestorePointsToKeep)
-		assert.True(t, spec.EncryptionEnabled)
-		assert.Equal(t, "enc-1", spec.EncryptionPasswordID)
+		payload := args.Get(2).(map[string]interface{})
+		assert.Equal(t, true, payload["isEnabled"])
+		assert.Equal(t, "repo-1", payload["backupRepositoryId"])
+		assert.Equal(t, 14, payload["restorePointsToKeep"])
+
+		encryption, ok := payload["encryption"].(map[string]interface{})
+		assert.True(t, ok)
+		assert.Equal(t, true, encryption["isEnabled"])
+		assert.Equal(t, "enc-1", encryption["passwordId"])
+
+		_, hasSchedule := payload["schedule"]
+		_, hasNotifications := payload["notifications"]
+		_, hasLastSuccessful := payload["lastSuccessfulBackup"]
+		assert.True(t, hasSchedule)
+		assert.True(t, hasNotifications)
+		assert.True(t, hasLastSuccessful)
 	}).Return(nil)
 
 	err := resource.putConfig(context.Background(), data)
@@ -43,7 +75,7 @@ func TestConfigurationBackup_TriggerBackup(t *testing.T) {
 	resource := &ConfigurationBackup{client: mockClient}
 	data := &ConfigurationBackupModel{}
 
-	mockClient.On("PostJSON", mock.Anything, client.PathConfigurationBackup, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+	mockClient.On("PostJSON", mock.Anything, client.PathConfigurationBackupStart, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 		result := args.Get(3).(*models.ConfigurationBackupSessionModel)
 		result.ID = "session-1"
 		result.State = "Stopped"

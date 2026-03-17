@@ -33,7 +33,7 @@ resource "veeam_configuration_backup" "config" {
 - `repository_id` (String) Repository used to store configuration backups.
 - `restore_points_to_keep` (Number) Number of restore points to retain.
 - `encryption_enabled` (Boolean) Enables encryption for configuration backups.
-- `encryption_password_id` (String) Encryption password resource ID.
+- `encryption_password_id` (String) Encryption password ID (from `veeam_encryption_password.<name>.id`, not a credential password string).
 - `trigger_on_apply` (Boolean) Triggers an immediate backup run on create/update.
 
 ### Read-Only
@@ -54,4 +54,5 @@ terraform import veeam_configuration_backup.example "config-backup"
 ## Notes
 
 - Deleting this resource disables configuration backup in Veeam.
+- The provider reads the current server configuration and updates only Terraform-managed fields to satisfy the V13 `ConfigBackupModel` full-object validation.
 - Triggered sessions are best-effort and depend on API response timing.

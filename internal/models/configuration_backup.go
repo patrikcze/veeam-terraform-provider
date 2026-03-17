@@ -2,21 +2,42 @@ package models
 
 // ConfigurationBackupSpec configures backup server configuration backup settings.
 type ConfigurationBackupSpec struct {
-	Enabled              bool   `json:"enabled"`
-	RepositoryID         string `json:"repositoryId,omitempty"`
-	RestorePointsToKeep  int    `json:"restorePointsToKeep,omitempty"`
-	EncryptionEnabled    bool   `json:"encryptionEnabled,omitempty"`
-	EncryptionPasswordID string `json:"encryptionPasswordId,omitempty"`
-	NotificationEnabled  bool   `json:"notificationEnabled,omitempty"`
+	IsEnabled            bool                               `json:"isEnabled"`
+	BackupRepositoryID   string                             `json:"backupRepositoryId,omitempty"`
+	RestorePointsToKeep  int                                `json:"restorePointsToKeep,omitempty"`
+	Notifications        *ConfigurationBackupNotifications  `json:"notifications,omitempty"`
+	Schedule             *ConfigurationBackupSchedule       `json:"schedule,omitempty"`
+	LastSuccessfulBackup *ConfigurationBackupLastSuccessful `json:"lastSuccessfulBackup,omitempty"`
+	Encryption           *ConfigurationBackupEncryption     `json:"encryption,omitempty"`
 }
 
 // ConfigurationBackupModel is returned by GET /api/v1/configBackup.
 type ConfigurationBackupModel struct {
-	Enabled              bool   `json:"enabled"`
-	RepositoryID         string `json:"repositoryId,omitempty"`
-	RestorePointsToKeep  int    `json:"restorePointsToKeep,omitempty"`
-	EncryptionEnabled    bool   `json:"encryptionEnabled,omitempty"`
-	EncryptionPasswordID string `json:"encryptionPasswordId,omitempty"`
+	IsEnabled            bool                               `json:"isEnabled"`
+	BackupRepositoryID   string                             `json:"backupRepositoryId,omitempty"`
+	RestorePointsToKeep  int                                `json:"restorePointsToKeep,omitempty"`
+	Notifications        *ConfigurationBackupNotifications  `json:"notifications,omitempty"`
+	Schedule             *ConfigurationBackupSchedule       `json:"schedule,omitempty"`
+	LastSuccessfulBackup *ConfigurationBackupLastSuccessful `json:"lastSuccessfulBackup,omitempty"`
+	Encryption           *ConfigurationBackupEncryption     `json:"encryption,omitempty"`
+}
+
+type ConfigurationBackupEncryption struct {
+	IsEnabled  bool   `json:"isEnabled"`
+	PasswordID string `json:"passwordId,omitempty"`
+}
+
+type ConfigurationBackupNotifications struct {
+	SNMPEnabled bool `json:"SNMPEnabled"`
+}
+
+type ConfigurationBackupSchedule struct {
+	IsEnabled bool `json:"isEnabled"`
+}
+
+type ConfigurationBackupLastSuccessful struct {
+	LastSuccessfulTime string `json:"lastSuccessfulTime,omitempty"`
+	SessionID          string `json:"sessionId,omitempty"`
 }
 
 // ConfigurationBackupSessionModel is returned when triggering backup.

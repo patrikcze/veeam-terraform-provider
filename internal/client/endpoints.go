@@ -126,7 +126,8 @@ const (
 // ---------------------------------------------------------------------------
 
 const (
-	PathConfigurationBackup = "/api/v1/configBackup"
+	PathConfigurationBackup      = "/api/v1/configBackup"
+	PathConfigurationBackupStart = "/api/v1/configBackup/backup"
 )
 
 // ---------------------------------------------------------------------------

@@ -107,21 +107,36 @@ func (r *ConfigurationBackup) Read(ctx context.Context, req resource.ReadRequest
 		return
 	}
 
-	var result models.ConfigurationBackupModel
+	var result map[string]interface{}
 	if err := r.client.GetJSON(ctx, client.PathConfigurationBackup, &result); err != nil {
 		resp.Diagnostics.AddError("Failed to read configuration backup", fmt.Sprintf("API error: %s", err))
 		return
 	}
+	payload := unwrapConfigBackupPayload(result)
 
 	data.ID = types.StringValue("config-backup")
-	data.Enabled = types.BoolValue(result.Enabled)
-	if result.RepositoryID != "" {
-		data.RepositoryID = types.StringValue(result.RepositoryID)
+	data.Enabled = types.BoolValue(getConfigBoolValue(payload, "isEnabled", "enabled"))
+
+	repositoryID := getConfigStringValue(payload, "backupRepositoryId", "repositoryId")
+	if repositoryID != "" {
+		data.RepositoryID = types.StringValue(repositoryID)
 	}
-	data.RestorePointsToKeep = types.Int64Value(int64(result.RestorePointsToKeep))
-	data.EncryptionEnabled = types.BoolValue(result.EncryptionEnabled)
-	if result.EncryptionPasswordID != "" {
-		data.EncryptionPasswordID = types.StringValue(result.EncryptionPasswordID)
+
+	data.RestorePointsToKeep = types.Int64Value(int64(getConfigIntValue(payload, "restorePointsToKeep")))
+
+	encryption := getNestedConfigMap(payload, "encryption")
+	if len(encryption) > 0 {
+		data.EncryptionEnabled = types.BoolValue(getConfigBoolValue(encryption, "isEnabled"))
+		passwordID := getConfigStringValue(encryption, "passwordId", "encryptionPasswordId")
+		if passwordID != "" {
+			data.EncryptionPasswordID = types.StringValue(passwordID)
+		}
+	} else {
+		data.EncryptionEnabled = types.BoolValue(getConfigBoolValue(payload, "encryptionEnabled"))
+		passwordID := getConfigStringValue(payload, "encryptionPasswordId")
+		if passwordID != "" {
+			data.EncryptionPasswordID = types.StringValue(passwordID)
+		}
 	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, data)...)
@@ -157,8 +172,15 @@ func (r *ConfigurationBackup) Delete(ctx context.Context, req resource.DeleteReq
 		return
 	}
 
-	disable := models.ConfigurationBackupSpec{Enabled: false}
-	if err := r.client.PutJSON(ctx, client.PathConfigurationBackup, &disable, nil); err != nil {
+	payload, err := r.loadConfigurationBackupPayload(ctx)
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to disable configuration backup", fmt.Sprintf("API error: %s", err))
+		return
+	}
+
+	setBoolValue(payload, false, "enabled", "isEnabled")
+
+	if err := r.client.PutJSON(ctx, client.PathConfigurationBackup, payload, nil); err != nil {
 		resp.Diagnostics.AddError("Failed to disable configuration backup", fmt.Sprintf("API error: %s", err))
 	}
 }
@@ -172,26 +194,36 @@ func NewConfigurationBackup() resource.Resource {
 }
 
 func (r *ConfigurationBackup) putConfig(ctx context.Context, data *ConfigurationBackupModel) error {
-	spec := &models.ConfigurationBackupSpec{Enabled: data.Enabled.ValueBool()}
-	if !data.RepositoryID.IsNull() {
-		spec.RepositoryID = data.RepositoryID.ValueString()
-	}
-	if !data.RestorePointsToKeep.IsNull() && !data.RestorePointsToKeep.IsUnknown() {
-		spec.RestorePointsToKeep = int(data.RestorePointsToKeep.ValueInt64())
-	}
-	if !data.EncryptionEnabled.IsNull() {
-		spec.EncryptionEnabled = data.EncryptionEnabled.ValueBool()
-	}
-	if !data.EncryptionPasswordID.IsNull() {
-		spec.EncryptionPasswordID = data.EncryptionPasswordID.ValueString()
+	payload, err := r.loadConfigurationBackupPayload(ctx)
+	if err != nil {
+		return err
 	}
 
-	return r.client.PutJSON(ctx, client.PathConfigurationBackup, spec, nil)
+	setBoolValue(payload, data.Enabled.ValueBool(), "enabled", "isEnabled")
+
+	if !data.RepositoryID.IsNull() && !data.RepositoryID.IsUnknown() {
+		setStringValue(payload, data.RepositoryID.ValueString(), "backupRepositoryId", "repositoryId")
+	}
+
+	if !data.RestorePointsToKeep.IsNull() && !data.RestorePointsToKeep.IsUnknown() {
+		setIntValue(payload, int(data.RestorePointsToKeep.ValueInt64()), "restorePointsToKeep")
+	}
+
+	encryption := ensureNestedConfigMap(payload, "encryption")
+	if !data.EncryptionEnabled.IsNull() && !data.EncryptionEnabled.IsUnknown() {
+		setBoolValue(encryption, data.EncryptionEnabled.ValueBool(), "isEnabled", "enabled")
+	}
+
+	if !data.EncryptionPasswordID.IsNull() && !data.EncryptionPasswordID.IsUnknown() {
+		setStringValue(encryption, data.EncryptionPasswordID.ValueString(), "passwordId", "encryptionPasswordId")
+	}
+
+	return r.client.PutJSON(ctx, client.PathConfigurationBackup, payload, nil)
 }
 
 func (r *ConfigurationBackup) triggerBackup(ctx context.Context, data *ConfigurationBackupModel) error {
 	var session models.ConfigurationBackupSessionModel
-	if err := r.client.PostJSON(ctx, client.PathConfigurationBackup, &models.ConfigurationBackupSpec{}, &session); err != nil {
+	if err := r.client.PostJSON(ctx, client.PathConfigurationBackupStart, map[string]interface{}{}, &session); err != nil {
 		return err
 	}
 
@@ -206,4 +238,132 @@ func (r *ConfigurationBackup) triggerBackup(ctx context.Context, data *Configura
 	}
 
 	return nil
+}
+
+func (r *ConfigurationBackup) loadConfigurationBackupPayload(ctx context.Context) (map[string]interface{}, error) {
+	var raw map[string]interface{}
+	if err := r.client.GetJSON(ctx, client.PathConfigurationBackup, &raw); err != nil {
+		return nil, err
+	}
+
+	payload := unwrapConfigBackupPayload(raw)
+	if payload == nil {
+		return map[string]interface{}{}, nil
+	}
+
+	return payload, nil
+}
+
+func unwrapConfigBackupPayload(raw map[string]interface{}) map[string]interface{} {
+	if raw == nil {
+		return map[string]interface{}{}
+	}
+
+	if data, ok := raw["data"]; ok {
+		if nested, ok := data.(map[string]interface{}); ok {
+			return nested
+		}
+	}
+
+	return raw
+}
+
+func setBoolValue(payload map[string]interface{}, value bool, keys ...string) {
+	for _, key := range keys {
+		if _, exists := payload[key]; exists {
+			payload[key] = value
+			return
+		}
+	}
+
+	if len(keys) > 0 {
+		payload[keys[0]] = value
+	}
+}
+
+func setStringValue(payload map[string]interface{}, value string, keys ...string) {
+	for _, key := range keys {
+		if _, exists := payload[key]; exists {
+			payload[key] = value
+			return
+		}
+	}
+
+	if len(keys) > 0 {
+		payload[keys[0]] = value
+	}
+}
+
+func setIntValue(payload map[string]interface{}, value int, keys ...string) {
+	for _, key := range keys {
+		if _, exists := payload[key]; exists {
+			payload[key] = value
+			return
+		}
+	}
+
+	if len(keys) > 0 {
+		payload[keys[0]] = value
+	}
+}
+
+func getConfigStringValue(payload map[string]interface{}, keys ...string) string {
+	for _, key := range keys {
+		if value, ok := payload[key]; ok {
+			if asString, ok := value.(string); ok {
+				return asString
+			}
+		}
+	}
+
+	return ""
+}
+
+func getConfigBoolValue(payload map[string]interface{}, keys ...string) bool {
+	for _, key := range keys {
+		if value, ok := payload[key]; ok {
+			if asBool, ok := value.(bool); ok {
+				return asBool
+			}
+		}
+	}
+
+	return false
+}
+
+func getConfigIntValue(payload map[string]interface{}, keys ...string) int {
+	for _, key := range keys {
+		if value, ok := payload[key]; ok {
+			switch typed := value.(type) {
+			case int:
+				return typed
+			case int64:
+				return int(typed)
+			case float64:
+				return int(typed)
+			}
+		}
+	}
+
+	return 0
+}
+
+func getNestedConfigMap(payload map[string]interface{}, key string) map[string]interface{} {
+	if value, ok := payload[key]; ok {
+		if nested, ok := value.(map[string]interface{}); ok {
+			return nested
+		}
+	}
+
+	return map[string]interface{}{}
+}
+
+func ensureNestedConfigMap(payload map[string]interface{}, key string) map[string]interface{} {
+	if existing := getNestedConfigMap(payload, key); len(existing) > 0 {
+		return existing
+	}
+
+	nested := map[string]interface{}{}
+	payload[key] = nested
+	return nested
 }
