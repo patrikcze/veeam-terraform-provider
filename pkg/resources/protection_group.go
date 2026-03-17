@@ -166,8 +166,8 @@ func (r *ProtectionGroup) Create(ctx context.Context, req resource.CreateRequest
 
 	payload := r.buildCreateSpec(&data)
 
-	var result models.IndividualComputersProtectionGroupModel
-	if err := r.client.PostJSON(ctx, client.PathProtectionGroups, payload, &result); err != nil {
+	var session map[string]interface{}
+	if err := r.client.PostJSON(ctx, client.PathProtectionGroups, payload, &session); err != nil {
 		resp.Diagnostics.AddError(
 			"Failed to create protection group",
 			fmt.Sprintf("API error: %s", err),
@@ -175,8 +175,41 @@ func (r *ProtectionGroup) Create(ctx context.Context, req resource.CreateRequest
 		return
 	}
 
-	data.ID = types.StringValue(result.ID)
-	r.syncFromAPI(&data, &result)
+	sessionID := getStringValue(session, "id")
+	if sessionID == "" {
+		resp.Diagnostics.AddError(
+			"Failed to create protection group",
+			"API response did not include async session ID.",
+		)
+		return
+	}
+
+	if err := r.client.WaitForTask(ctx, sessionID); err != nil {
+		resp.Diagnostics.AddError(
+			"Failed to create protection group",
+			fmt.Sprintf("Async protection group creation task %s failed: %s", sessionID, err),
+		)
+		return
+	}
+
+	resolvedID, err := r.findProtectionGroupIDByName(ctx, &data)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Failed to resolve created protection group",
+			err.Error(),
+		)
+		return
+	}
+
+	data.ID = types.StringValue(resolvedID)
+
+	if err := r.readProtectionGroup(ctx, &data); err != nil {
+		resp.Diagnostics.AddError(
+			"Failed to refresh protection group",
+			fmt.Sprintf("Protection group was created but refresh failed: %s", err),
+		)
+		return
+	}
 
 	if !data.IsDisabled.IsNull() && data.IsDisabled.ValueBool() {
 		disableEndpoint := fmt.Sprintf(client.PathProtectionGroupDisable, data.ID.ValueString())
@@ -409,6 +442,42 @@ func (r *ProtectionGroup) readProtectionGroup(ctx context.Context, data *Protect
 
 	r.syncFromAPI(data, &result)
 	return nil
+}
+
+func (r *ProtectionGroup) findProtectionGroupIDByName(ctx context.Context, data *ProtectionGroupModel) (string, error) {
+	var payload map[string]interface{}
+	if err := r.client.GetJSON(ctx, client.PathProtectionGroups, &payload); err != nil {
+		return "", fmt.Errorf("failed to list protection groups after create: %w", err)
+	}
+
+	rawData, ok := payload["data"].([]interface{})
+	if !ok {
+		return "", fmt.Errorf("unexpected protection groups list response shape: missing data array")
+	}
+
+	for _, item := range rawData {
+		entry, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		entryName := getStringValue(entry, "name")
+		if !strings.EqualFold(entryName, data.Name.ValueString()) {
+			continue
+		}
+
+		entryType := getStringValue(entry, "type")
+		if entryType != "" && !strings.EqualFold(entryType, data.Type.ValueString()) {
+			continue
+		}
+
+		id := getStringValue(entry, "id")
+		if id != "" {
+			return id, nil
+		}
+	}
+
+	return "", fmt.Errorf("protection group %q was created but could not be located in protection group list", data.Name.ValueString())
 }
 
 func validateProtectionGroupPlan(data *ProtectionGroupModel) error {
