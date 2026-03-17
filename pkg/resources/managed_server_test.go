@@ -48,3 +48,37 @@ func TestIsAsyncManagedServerCreateResult(t *testing.T) {
 	assert.True(t, isAsyncManagedServerCreateResult(map[string]interface{}{"id": "session-2", "type": "Session"}))
 	assert.False(t, isAsyncManagedServerCreateResult(map[string]interface{}{"id": "server-1", "type": "LinuxHost"}))
 }
+
+func TestShouldResolveLinuxFingerprint(t *testing.T) {
+	t.Run("linux with sha256 fingerprint", func(t *testing.T) {
+		data := &ManagedServerModel{
+			Type:           types.StringValue("LinuxHost"),
+			SSHFingerprint: types.StringValue("SHA256:abc"),
+		}
+		assert.True(t, shouldResolveLinuxFingerprint(data))
+	})
+
+	t.Run("linux with openssh fingerprint", func(t *testing.T) {
+		data := &ManagedServerModel{
+			Type:           types.StringValue("LinuxHost"),
+			SSHFingerprint: types.StringValue("ssh-rsa 3072 abc"),
+		}
+		assert.False(t, shouldResolveLinuxFingerprint(data))
+	})
+
+	t.Run("linux with empty fingerprint", func(t *testing.T) {
+		data := &ManagedServerModel{
+			Type:           types.StringValue("LinuxHost"),
+			SSHFingerprint: types.StringValue(""),
+		}
+		assert.True(t, shouldResolveLinuxFingerprint(data))
+	})
+
+	t.Run("non linux", func(t *testing.T) {
+		data := &ManagedServerModel{
+			Type:           types.StringValue("WindowsHost"),
+			SSHFingerprint: types.StringValue("SHA256:abc"),
+		}
+		assert.False(t, shouldResolveLinuxFingerprint(data))
+	})
+}

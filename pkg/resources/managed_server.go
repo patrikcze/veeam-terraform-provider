@@ -121,6 +121,18 @@ func (r *ManagedServer) Create(ctx context.Context, req resource.CreateRequest, 
 		return
 	}
 
+	if shouldResolveLinuxFingerprint(&data) {
+		fingerprint, err := r.resolveLinuxSSHFingerprint(ctx, &data)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Failed to resolve Linux SSH fingerprint",
+				fmt.Sprintf("API error: %s", err),
+			)
+			return
+		}
+		data.SSHFingerprint = types.StringValue(fingerprint)
+	}
+
 	payload := r.buildSpec(&data)
 
 	result, err := r.createManagedServer(ctx, &data, payload)
@@ -314,6 +326,14 @@ func (r *ManagedServer) createManagedServer(ctx context.Context, data *ManagedSe
 			return result, nil
 		}
 
+		if shouldRetryManagedServerCreate(data, err) && attempt < maxAttempts {
+			fingerprint, resolveErr := r.resolveLinuxSSHFingerprint(ctx, data)
+			if resolveErr == nil && fingerprint != "" {
+				data.SSHFingerprint = types.StringValue(fingerprint)
+				payload = r.buildSpec(data)
+			}
+		}
+
 		if !shouldRetryManagedServerCreate(data, err) || attempt == maxAttempts {
 			return nil, err
 		}
@@ -343,6 +363,56 @@ func shouldRetryManagedServerCreate(data *ManagedServerModel, err error) bool {
 	}
 
 	return strings.Contains(strings.ToLower(err.Error()), "failed to validate the specified linux credentials")
+}
+
+func shouldResolveLinuxFingerprint(data *ManagedServerModel) bool {
+	if data == nil || data.Type.IsNull() {
+		return false
+	}
+
+	if !strings.EqualFold(data.Type.ValueString(), string(models.ManagedServerTypeLinuxHost)) {
+		return false
+	}
+
+	if data.SSHFingerprint.IsNull() || data.SSHFingerprint.IsUnknown() {
+		return true
+	}
+
+	fingerprint := strings.TrimSpace(data.SSHFingerprint.ValueString())
+	if fingerprint == "" {
+		return true
+	}
+
+	if strings.HasPrefix(strings.ToUpper(fingerprint), "SHA256:") {
+		return true
+	}
+
+	return false
+}
+
+func (r *ManagedServer) resolveLinuxSSHFingerprint(ctx context.Context, data *ManagedServerModel) (string, error) {
+	request := map[string]interface{}{
+		"serverName":             data.Name.ValueString(),
+		"credentialsStorageType": string(models.CredentialsStorageTypePermanent),
+		"credentialsId":          data.CredentialsID.ValueString(),
+		"type":                   string(models.ManagedServerTypeLinuxHost),
+	}
+
+	var response map[string]interface{}
+	if err := r.client.PostJSON(ctx, client.PathConnectionCertificate, request, &response); err != nil {
+		return "", fmt.Errorf("failed to retrieve SSH fingerprint: %w", err)
+	}
+
+	fingerprint := strings.TrimSpace(getStringValue(response, "fingerprint"))
+	if fingerprint == "" {
+		return "", fmt.Errorf("connection fingerprint response did not include fingerprint value")
+	}
+
+	tflog.Info(ctx, "Resolved Linux SSH fingerprint from Veeam API", map[string]interface{}{
+		"name": data.Name.ValueString(),
+	})
+
+	return fingerprint, nil
 }
 
 func isAsyncManagedServerCreateResult(result map[string]interface{}) bool {

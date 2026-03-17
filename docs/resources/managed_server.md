@@ -31,7 +31,7 @@ resource "veeam_managed_server" "linux" {
   description     = "Linux backup repository server"
   type            = "LinuxHost"
   credentials_id  = veeam_credential.linux_user.id
-  ssh_fingerprint = "SHA256:abc123..."
+  ssh_fingerprint = "ssh-rsa 3072 KCR7SAh1JAqLNVgFaPcL6uEBS72dX+brNJKsjXov22M"
 }
 ```
 
@@ -48,7 +48,7 @@ resource "veeam_managed_server" "linux" {
 - `description` (String) Optional description.
 - `port` (Number) Connection port (e.g. 443 for ViHost).
 - `certificate_thumbprint` (String) TLS certificate thumbprint (ViHost only).
-- `ssh_fingerprint` (String) SSH host key fingerprint (LinuxHost only).
+- `ssh_fingerprint` (String) SSH host key fingerprint (LinuxHost only). Use the Veeam/OpenSSH style value (for example `ssh-rsa 3072 ...`), not `SHA256:...`.
 
 ### Read-Only
 
@@ -68,3 +68,4 @@ terraform import veeam_managed_server.example "server-id-123"
 - Server creation may be asynchronous (the API returns 202 Accepted).
 - Deleting a managed server removes it from the Veeam infrastructure.
 - The `status` field is computed and reflects the current availability of the server.
+- For Linux hosts, if `ssh_fingerprint` is omitted, empty, or provided in `SHA256:` format, the provider automatically requests the fingerprint from VBR (`/api/v1/connectionCertificate`) and uses that value for creation.
