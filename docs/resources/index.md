@@ -23,6 +23,9 @@ Manages standard and Linux/Windows credentials.
 ### [veeam_cloud_credential](cloud_credential.md)
 Manages cloud credentials used by Veeam for AWS, Azure, and GCP integrations.
 
+### [veeam_protection_group](protection_group.md)
+Manages Veeam agent protection groups for discovered and protected computers.
+
 ### [veeam_scale_out_repository](scale_out_repository.md)
 Manages Veeam scale-out backup repositories.
 

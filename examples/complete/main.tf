@@ -131,12 +131,21 @@ resource "veeam_protection_group" "office_servers" {
 
   computers {
     hostname       = "server1.example.com"
+    connection_type = "PermanentCredentials"
     credentials_id = veeam_credential.linux_cred.id
   }
 
   computers {
     hostname       = "server2.example.com"
+    connection_type = "PermanentCredentials"
     credentials_id = veeam_credential.linux_cred.id
+  }
+
+  options {
+    install_backup_agent   = true
+    distribution_server_id = local.managed_server_id
+    update_automatically   = true
+    reboot_if_required     = false
   }
 }
 

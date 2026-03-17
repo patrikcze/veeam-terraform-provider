@@ -177,6 +177,15 @@ const (
 	ProtectionGroupTypeCloudMachines       EProtectionGroupType = "CloudMachines"
 )
 
+// EIndividualComputerConnectionType determines how a computer authenticates in an IndividualComputers protection group.
+type EIndividualComputerConnectionType string
+
+const (
+	IndividualComputerConnectionTypePermanentCredentials EIndividualComputerConnectionType = "PermanentCredentials"
+	IndividualComputerConnectionTypeSingleUseCredentials EIndividualComputerConnectionType = "SingleUseCredentials"
+	IndividualComputerConnectionTypeCertificate          EIndividualComputerConnectionType = "Certificate"
+)
+
 // ---------------------------------------------------------------------------
 // Session Enums
 // ---------------------------------------------------------------------------

@@ -152,9 +152,11 @@ const (
 // ---------------------------------------------------------------------------
 
 const (
-	PathProtectionGroups      = "/api/v1/agents/protectionGroups"
-	PathProtectionGroupByID   = "/api/v1/agents/protectionGroups/%s"
-	PathProtectionGroupRescan = "/api/v1/agents/protectionGroups/%s/rescan"
+	PathProtectionGroups       = "/api/v1/agents/protectionGroups"
+	PathProtectionGroupByID    = "/api/v1/agents/protectionGroups/%s"
+	PathProtectionGroupRescan  = "/api/v1/agents/protectionGroups/%s/rescan"
+	PathProtectionGroupEnable  = "/api/v1/agents/protectionGroups/%s/enable"
+	PathProtectionGroupDisable = "/api/v1/agents/protectionGroups/%s/disable"
 )
 
 // ---------------------------------------------------------------------------

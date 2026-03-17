@@ -11,6 +11,7 @@ type ProtectionGroupModel struct {
 	Name        string               `json:"name"`
 	Description string               `json:"description"`
 	Type        EProtectionGroupType `json:"type"`
+	IsDisabled  bool                 `json:"isDisabled"`
 }
 
 // IndividualComputersProtectionGroupModel manages specific computers.
@@ -61,13 +62,22 @@ type CloudMachinesProtectionGroupSpec struct {
 
 // ProtectionGroupComputer is a computer in an IndividualComputers group.
 type ProtectionGroupComputer struct {
-	HostName      string `json:"hostName"`
-	CredentialsID string `json:"credentialsId,omitempty"`
+	HostName             string                            `json:"hostName"`
+	ConnectionType       EIndividualComputerConnectionType `json:"connectionType"`
+	CredentialsID        string                            `json:"credentialsId,omitempty"`
+	SingleUseCredentials *LinuxCredentialsSpec             `json:"singleUseCredentials,omitempty"`
 }
 
 // ProtectionGroupOptions configures protection group behavior.
 type ProtectionGroupOptions struct {
-	AutoDiscoveryEnabled bool `json:"autoDiscoveryEnabled,omitempty"`
+	DistributionServerID      string   `json:"distributionServerId,omitempty"`
+	DistributionRepositoryID  string   `json:"distributionRepositoryId,omitempty"`
+	InstallBackupAgent        bool     `json:"installBackupAgent"`
+	InstallCBTDriver          bool     `json:"installCBTDriver"`
+	InstallApplicationPlugins bool     `json:"installApplicationPlugins"`
+	ApplicationPlugins        []string `json:"applicationPlugins,omitempty"`
+	UpdateAutomatically       bool     `json:"updateAutomatically"`
+	RebootIfRequired          bool     `json:"rebootIfRequired"`
 }
 
 // CloudAccountRef references a cloud account for CloudMachines groups.
