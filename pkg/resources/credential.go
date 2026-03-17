@@ -292,7 +292,7 @@ func (r *Credential) syncModelFromAPI(data *CredentialModel, api *models.Credent
 }
 
 func (r *Credential) deleteCredentialWithRetries(ctx context.Context, endpoint string) error {
-	const maxAttempts = 5
+	const maxAttempts = 12
 
 	var lastErr error
 	for attempt := 0; attempt < maxAttempts; attempt++ {
@@ -308,11 +308,19 @@ func (r *Credential) deleteCredentialWithRetries(ctx context.Context, endpoint s
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-time.After(3 * time.Second):
+		case <-time.After(credentialDeleteRetryDelay(attempt)):
 		}
 	}
 
 	return lastErr
+}
+
+func credentialDeleteRetryDelay(attempt int) time.Duration {
+	seconds := 2 + (attempt * 2)
+	if seconds > 15 {
+		seconds = 15
+	}
+	return time.Duration(seconds) * time.Second
 }
 
 func isCredentialInUseError(err error) bool {
