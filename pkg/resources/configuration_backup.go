@@ -186,7 +186,6 @@ func (r *ConfigurationBackup) Delete(ctx context.Context, req resource.DeleteReq
 	setBoolValue(payload, false, "enabled", "isEnabled")
 	encryption := ensureNestedConfigMap(payload, "encryption")
 	setBoolValue(encryption, false, "isEnabled", "enabled")
-	setStringValue(encryption, "", "passwordId", "encryptionPasswordId")
 
 	if err := r.putConfigurationPayload(ctx, payload); err != nil {
 		resp.Diagnostics.AddError("Failed to disable configuration backup", fmt.Sprintf("API error: %s", err))

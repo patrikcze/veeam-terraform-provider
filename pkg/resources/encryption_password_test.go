@@ -13,6 +13,12 @@ import (
 	"github.com/patrikcze/terraform-provider-veeam/internal/models"
 )
 
+func TestIsConfigBackupPasswordInUseError(t *testing.T) {
+	err := fmt.Errorf("API request failed (HTTP 400): UnknownError: Unable to delete selected password because it is in use by: Backup Configuration Job")
+	assert.True(t, isConfigBackupPasswordInUseError(err))
+	assert.False(t, isConfigBackupPasswordInUseError(fmt.Errorf("some other error")))
+}
+
 func TestEncryptionPassword_CreatePayload(t *testing.T) {
 	mockClient := new(MockVeeamClient)
 	resource := &EncryptionPassword{client: mockClient}
@@ -93,6 +99,22 @@ func TestEncryptionPassword_UpdateAndDeleteEndpoints(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = resource.client.DeleteJSON(context.Background(), endpoint)
+	assert.NoError(t, err)
+	mockClient.AssertExpectations(t)
+}
+
+func TestEncryptionPassword_DeleteRetriesForConfigBackupInUse(t *testing.T) {
+	mockClient := new(MockVeeamClient)
+	resource := &EncryptionPassword{client: mockClient}
+
+	id := "enc-123"
+	endpoint := fmt.Sprintf(client.PathEncryptionPasswordByID, id)
+	errInUse := fmt.Errorf("API request failed (HTTP 400): UnknownError: Unable to delete selected password because it is in use by: Backup Configuration Job")
+
+	mockClient.On("DeleteJSON", mock.Anything, endpoint).Return(errInUse).Once()
+	mockClient.On("DeleteJSON", mock.Anything, endpoint).Return(nil).Once()
+
+	err := resource.deleteEncryptionPasswordWithRetries(context.Background(), endpoint)
 	assert.NoError(t, err)
 	mockClient.AssertExpectations(t)
 }

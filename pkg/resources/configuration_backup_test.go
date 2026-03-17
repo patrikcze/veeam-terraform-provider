@@ -174,7 +174,6 @@ func TestConfigurationBackup_DeletePayloadClearsEncryption(t *testing.T) {
 	setBoolValue(payload, false, "enabled", "isEnabled")
 	encryption := ensureNestedConfigMap(payload, "encryption")
 	setBoolValue(encryption, false, "isEnabled", "enabled")
-	setStringValue(encryption, "", "passwordId", "encryptionPasswordId")
 
 	mockClient.On("PutJSON", mock.Anything, client.PathConfigurationBackup, mock.Anything, nil).Run(func(args mock.Arguments) {
 		updated := args.Get(2).(map[string]interface{})
@@ -182,7 +181,7 @@ func TestConfigurationBackup_DeletePayloadClearsEncryption(t *testing.T) {
 		encryption, ok := updated["encryption"].(map[string]interface{})
 		assert.True(t, ok)
 		assert.Equal(t, false, encryption["isEnabled"])
-		assert.Equal(t, "", encryption["passwordId"])
+		assert.Equal(t, "enc-1", encryption["passwordId"])
 	}).Return(nil).Once()
 
 	err := resource.putConfigurationPayload(context.Background(), payload)

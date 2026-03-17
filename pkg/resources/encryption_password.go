@@ -3,6 +3,8 @@ package resources
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -161,13 +163,50 @@ func (r *EncryptionPassword) Delete(ctx context.Context, req resource.DeleteRequ
 	}
 
 	endpoint := fmt.Sprintf(client.PathEncryptionPasswordByID, data.ID.ValueString())
-	if err := r.client.DeleteJSON(ctx, endpoint); err != nil {
+	if err := r.deleteEncryptionPasswordWithRetries(ctx, endpoint); err != nil {
+		if isConfigBackupPasswordInUseError(err) {
+			resp.Diagnostics.AddError(
+				"Failed to delete encryption password",
+				fmt.Sprintf("API error for encryption password %s: %s. Veeam still reports the password in use by Configuration Backup. Ensure configuration backup encryption is switched to another password (or fully disabled in VBR), then retry destroy.", data.ID.ValueString(), err),
+			)
+			return
+		}
+
 		resp.Diagnostics.AddError(
 			"Failed to delete encryption password",
 			fmt.Sprintf("API error for encryption password %s: %s", data.ID.ValueString(), err),
 		)
 		return
 	}
+}
+
+func (r *EncryptionPassword) deleteEncryptionPasswordWithRetries(ctx context.Context, endpoint string) error {
+	var lastErr error
+	for attempt := 0; attempt < 4; attempt++ {
+		lastErr = r.client.DeleteJSON(ctx, endpoint)
+		if lastErr == nil {
+			return nil
+		}
+
+		if !isConfigBackupPasswordInUseError(lastErr) {
+			return lastErr
+		}
+
+		if attempt < 3 {
+			time.Sleep(2 * time.Second)
+		}
+	}
+
+	return lastErr
+}
+
+func isConfigBackupPasswordInUseError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "unable to delete selected password because it is in use by: backup configuration job")
 }
 
 func (r *EncryptionPassword) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
