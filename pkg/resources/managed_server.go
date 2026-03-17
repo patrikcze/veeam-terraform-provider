@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -121,8 +122,12 @@ func (r *ManagedServer) Create(ctx context.Context, req resource.CreateRequest, 
 		return
 	}
 
-	if shouldResolveLinuxFingerprint(&data) {
-		fingerprint, err := r.resolveLinuxSSHFingerprint(ctx, &data)
+	// Use a create-only copy so we can resolve/adjust payload fields without
+	// changing configured attribute values in Terraform state.
+	createData := data
+
+	if shouldResolveLinuxFingerprint(&createData) {
+		fingerprint, err := r.resolveLinuxSSHFingerprint(ctx, &createData)
 		if err != nil {
 			resp.Diagnostics.AddError(
 				"Failed to resolve Linux SSH fingerprint",
@@ -130,12 +135,12 @@ func (r *ManagedServer) Create(ctx context.Context, req resource.CreateRequest, 
 			)
 			return
 		}
-		data.SSHFingerprint = types.StringValue(fingerprint)
+		createData.SSHFingerprint = types.StringValue(fingerprint)
 	}
 
-	payload := r.buildSpec(&data)
+	payload := r.buildSpec(&createData)
 
-	result, err := r.createManagedServer(ctx, &data, payload)
+	result, err := r.createManagedServer(ctx, &createData, payload)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Failed to create managed server",
@@ -162,7 +167,7 @@ func (r *ManagedServer) Create(ctx context.Context, req resource.CreateRequest, 
 			return
 		}
 
-		resolvedID, err := r.findManagedServerID(ctx, &data)
+		resolvedID, err := r.findManagedServerID(ctx, &createData)
 		if err != nil {
 			resp.Diagnostics.AddError(
 				"Failed to resolve created managed server",
@@ -241,6 +246,14 @@ func (r *ManagedServer) Delete(ctx context.Context, req resource.DeleteRequest, 
 		resp.Diagnostics.AddError(
 			"Failed to delete managed server",
 			fmt.Sprintf("API error for server %s: %s", data.ID.ValueString(), err),
+		)
+		return
+	}
+
+	if err := r.waitForManagedServerDeleted(ctx, data.ID.ValueString()); err != nil {
+		resp.Diagnostics.AddError(
+			"Failed to confirm managed server deletion",
+			fmt.Sprintf("Managed server %s delete request was accepted but resource still appears present: %s", data.ID.ValueString(), err),
 		)
 		return
 	}
@@ -466,4 +479,50 @@ func (r *ManagedServer) findManagedServerID(ctx context.Context, data *ManagedSe
 	}
 
 	return "", fmt.Errorf("managed server %q was created but could not be located in managed server list", data.Name.ValueString())
+}
+
+func (r *ManagedServer) waitForManagedServerDeleted(ctx context.Context, serverID string) error {
+	const pollInterval = 3 * time.Second
+	const timeout = 2 * time.Minute
+
+	pollCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	endpoint := fmt.Sprintf(client.PathManagedServerByID, serverID)
+
+	ticker := time.NewTicker(pollInterval)
+	defer ticker.Stop()
+
+	for {
+		var result models.ManagedServerModel
+		err := r.client.GetJSON(pollCtx, endpoint, &result)
+		if err != nil {
+			if isManagedServerNotFound(err) {
+				return nil
+			}
+			return err
+		}
+
+		select {
+		case <-pollCtx.Done():
+			return fmt.Errorf("timed out after %s", timeout)
+		case <-ticker.C:
+		}
+	}
+}
+
+func isManagedServerNotFound(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	var apiErr *models.APIError
+	if errors.As(err, &apiErr) {
+		if strings.EqualFold(apiErr.ErrorCode, "NotFound") {
+			return true
+		}
+	}
+
+	errText := strings.ToLower(err.Error())
+	return strings.Contains(errText, "http 404") || strings.Contains(errText, "notfound")
 }

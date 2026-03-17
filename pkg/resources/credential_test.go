@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -112,4 +113,12 @@ func TestCredential_SyncModelFromAPI(t *testing.T) {
 	assert.Equal(t, "Standard", data.Type.ValueString())
 	// Password must NOT be overwritten from API response
 	assert.Equal(t, "original-password", data.Password.ValueString())
+}
+
+func TestIsCredentialInUseError(t *testing.T) {
+	err := fmt.Errorf("API request failed (HTTP 400): UnknownError: Unable to delete selected credentials 123 because they are currently in use.")
+	assert.True(t, isCredentialInUseError(err))
+
+	err = fmt.Errorf("API request failed (HTTP 400): UnknownError: validation failed")
+	assert.False(t, isCredentialInUseError(err))
 }

@@ -82,3 +82,20 @@ func TestShouldResolveLinuxFingerprint(t *testing.T) {
 		assert.False(t, shouldResolveLinuxFingerprint(data))
 	})
 }
+
+func TestIsManagedServerNotFound(t *testing.T) {
+	t.Run("api not found code", func(t *testing.T) {
+		err := fmt.Errorf("API request failed (HTTP 404): %w", &models.APIError{ErrorCode: "NotFound", Message: "not found"})
+		assert.True(t, isManagedServerNotFound(err))
+	})
+
+	t.Run("plain text 404", func(t *testing.T) {
+		err := fmt.Errorf("API request failed with HTTP 404: missing")
+		assert.True(t, isManagedServerNotFound(err))
+	})
+
+	t.Run("other error", func(t *testing.T) {
+		err := fmt.Errorf("API request failed (HTTP 400): bad request")
+		assert.False(t, isManagedServerNotFound(err))
+	})
+}
