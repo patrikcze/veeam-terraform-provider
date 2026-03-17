@@ -70,10 +70,10 @@ install_dependencies() {
     # Install Go if not already installed
     if ! command -v go &> /dev/null; then
         print_status "Installing Go..."
-        wget https://go.dev/dl/go1.21.5.linux-amd64.tar.gz
+        wget https://go.dev/dl/go1.24.4.linux-amd64.tar.gz
         sudo rm -rf /usr/local/go
-        sudo tar -C /usr/local -xzf go1.21.5.linux-amd64.tar.gz
-        rm go1.21.5.linux-amd64.tar.gz
+        sudo tar -C /usr/local -xzf go1.24.4.linux-amd64.tar.gz
+        rm go1.24.4.linux-amd64.tar.gz
         
         # Add Go to PATH
         echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc

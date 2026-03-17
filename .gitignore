@@ -74,5 +74,6 @@ secrets/
 coverage.txt
 coverage.html
 
-# Swagger spec (contains API structure, keep out of public repos if desired)
-# Veeam13_swagger.json
+# Swagger spec — contains full API structure; never commit to public repos
+Veeam13_swagger.json
+*.swagger.json
