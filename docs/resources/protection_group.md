@@ -70,6 +70,32 @@ resource "veeam_protection_group" "cloud_azure" {
 }
 ```
 
+### CloudMachines (AWS)
+
+```hcl
+resource "veeam_protection_group" "cloud_aws" {
+  name = "AWS-EC2"
+  type = "CloudMachines"
+
+  cloud_account = [
+    {
+      account_type   = "AWS"
+      credentials_id = veeam_cloud_credential.aws_compute.id
+      region_type    = "Global"
+      region_id      = "eu-west-1"
+      assign_iam_role = false
+    }
+  ]
+
+  cloud_machines = [
+    {
+      type      = "Machine"
+      object_id = "i-0123456789abcdef0"
+    }
+  ]
+}
+```
+
 ## Schema
 
 ### Required
@@ -128,6 +154,8 @@ terraform import veeam_protection_group.example "group-id-123"
 - Protection groups are used with Veeam Agent for Linux/Windows.
 - The `IndividualComputers` type allows specifying computers by hostname.
 - The `CloudMachines` type requires one `cloud_account` block and at least one `cloud_machines` selector block.
+- `CloudMachines` workflows depend on valid cloud compute credentials (for example `AzureCompute` or `Amazon`) created in advance.
+- If package deployment is used, options can depend on distribution infrastructure (`distribution_server_id` or `distribution_repository_id`) and related storage settings.
 - When `options.install_backup_agent = true`, set either `options.distribution_server_id` or `options.distribution_repository_id`.
 - `SingleUseCredentials` connection type is defined by API but not yet exposed in Terraform schema for this resource.
 - Deleting a protection group does not uninstall agents from the target computers.

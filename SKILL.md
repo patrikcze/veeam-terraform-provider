@@ -380,3 +380,12 @@ Cloud credential API readbacks can be sparse. Do not overwrite planned state wit
 - Encryption password deletion may temporarily fail with:
     - `Unable to delete selected password because it is in use by: Backup Configuration Job`
 - This is expected VBR behavior in some runs; retry shortly after.
+
+---
+
+## 12. Protection Groups — CloudMachines Practical Notes
+
+- `CloudMachines` type depends on valid cloud compute credentials prepared in advance (for example `AzureCompute` or `Amazon`).
+- Keep discriminator-specific requirements strict (`AWS` uses `credentialsId`; `Azure` uses `subscriptionId`; both require `regionType` + `regionId`).
+- Agent deployment options for CloudMachines can require distribution dependencies (`distributionServerId` or `distributionRepositoryId`) and related storage/infrastructure configured in VBR.
+- As with other agent operations, expect additional infrastructure dependencies in real environments and prefer validation errors that clearly point to missing prerequisite resources.
