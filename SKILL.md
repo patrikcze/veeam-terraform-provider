@@ -308,3 +308,61 @@ func TestAuthenticate(t *testing.T) {
 - **EManagedServerType:** `WindowsHost`, `LinuxHost`, `ViHost`, `CloudDirectorHost`, `HvServer`, ...
 - **EJobType:** `VSphereBackup`, `BackupCopy`, `HyperVBackup`, `VSphereReplica`, `WindowsAgentBackup`, `LinuxAgentBackup`, ...
 - **EProtectionGroupType:** `IndividualComputers`, `ADObjects`, `CSVFile`, `PreInstalledAgents`, `CloudMachines`, ...
+
+---
+
+## 10. Cloud Credentials (Rev1) — Implementation Pattern
+
+Cloud credentials are discriminator-based (`oneOf`) and must use exact type values:
+
+- `Amazon`
+- `AzureStorage`
+- `AzureCompute`
+- `Google`
+- `GoogleService`
+
+### Azure Storage (priority path)
+
+For `type = "AzureStorage"`, API-required fields are:
+
+- `account`
+- `sharedKey`
+
+Terraform aliases may exist (`account_name`, `secret_key`), but outgoing API payload must map to `account` and `sharedKey`.
+
+### Azure Compute (ExistingAccount)
+
+For `type = "AzureCompute"` with existing app registration:
+
+- `creationMode = "ExistingAccount"`
+- `connectionName`
+- `existingAccount.deployment.deploymentType`
+- `existingAccount.subscription.tenantId`
+- `existingAccount.subscription.applicationId`
+- `existingAccount.subscription.secret`
+
+### State consistency rule
+
+Cloud credential API readbacks can be sparse. Do not overwrite planned state with empty API fields during Create/Read sync.
+
+---
+
+## 11. Configuration Backup + Encryption Password Behavior
+
+### Config backup update contract
+
+- `PUT /api/v1/configBackup` follows full-model validation.
+- Required nested objects must be preserved (`notifications`, `schedule`, `lastSuccessfulBackup`, `encryption`).
+- Use GET + merge + PUT flow.
+
+### Config backup encryption schema requirement
+
+- `ConfigBackupEncryptionModel` requires both:
+    - `isEnabled`
+    - `passwordId`
+
+### Real VBR behavior (destroy)
+
+- Encryption password deletion may temporarily fail with:
+    - `Unable to delete selected password because it is in use by: Backup Configuration Job`
+- This is expected VBR behavior in some runs; retry shortly after.

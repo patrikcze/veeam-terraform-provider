@@ -108,7 +108,16 @@ tests/                          — acceptance tests (require TF_ACC=1)
 
 ## Reference Files
 - `Veeam13_swagger.json` — Full V13 API spec. The source of truth for endpoints, models, and enums.
+- `~/Downloads/veeam13_swagger_1.3-rev1.json` — Workspace-local rev1 swagger used for compatibility verification during implementation and debugging.
 - `SKILL.md` — Detailed implementation patterns and code examples.
+
+## Real Acceptance Notes (VBR)
+
+- Provider behavior has been validated with real VBR apply/destroy runs for: `credential`, `repository`, `proxy`, `configuration_backup`, `encryption_password`, and `cloud_credential` (`AzureStorage`).
+- Data source health-check validated all currently implemented data sources in `internal/provider.go`.
+- For `configBackup`, follow full-object update semantics and retain required nested fields from API payloads.
+- For `cloudCredentials`, use discriminator values and subtype-required fields from swagger; do not rely on generic legacy field names only.
+- Encryption password deletion can be transiently blocked by VBR when referenced by Configuration Backup job; retry behavior is expected.
 
 ## What NOT to Do
 - Do not guess API schemas. Always verify against the swagger.
