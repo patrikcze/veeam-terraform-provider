@@ -141,7 +141,20 @@ resource "veeam_protection_group" "office_servers" {
 }
 
 # ---------------------------------------------------------------------------
-# 8. Data Sources
+# 8. Configuration Backup
+# ---------------------------------------------------------------------------
+
+resource "veeam_configuration_backup" "config" {
+  enabled                = true
+  repository_id          = veeam_repository.linux_repo.id
+  restore_points_to_keep = 14
+  encryption_enabled     = true
+  encryption_password_id = veeam_encryption_password.backup_key.id
+  trigger_on_apply       = false
+}
+
+# ---------------------------------------------------------------------------
+# 9. Data Sources
 # ---------------------------------------------------------------------------
 
 data "veeam_credentials" "all" {}
@@ -168,4 +181,8 @@ output "backup_job_id" {
 
 output "total_credentials" {
   value = length(data.veeam_credentials.all.credentials)
+}
+
+output "configuration_backup_id" {
+  value = veeam_configuration_backup.config.id
 }

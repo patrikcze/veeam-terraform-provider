@@ -12,12 +12,17 @@ Manages backup server configuration backup settings and can trigger a backup run
 ## Example Usage
 
 ```hcl
+resource "veeam_encryption_password" "config_key" {
+  password = var.encryption_password
+  hint     = "Configuration backup key"
+}
+
 resource "veeam_configuration_backup" "config" {
   enabled                = true
-  repository_id          = var.repository_id
+  repository_id          = veeam_repository.main.id
   restore_points_to_keep = 14
   encryption_enabled     = true
-  encryption_password_id = var.encryption_password_id
+  encryption_password_id = veeam_encryption_password.config_key.id
   trigger_on_apply       = false
 }
 ```

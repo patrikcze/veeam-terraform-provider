@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -38,7 +39,7 @@ func TestConfigurationBackup_PutConfig(t *testing.T) {
 				"period": "daily",
 			},
 			"notifications": map[string]interface{}{
-				"enabled": false,
+				"SNMPEnabled": false,
 			},
 			"lastSuccessfulBackup": map[string]interface{}{
 				"id": "session-1",
@@ -64,6 +65,57 @@ func TestConfigurationBackup_PutConfig(t *testing.T) {
 		assert.True(t, hasNotifications)
 		assert.True(t, hasLastSuccessful)
 	}).Return(nil)
+
+	err := resource.putConfig(context.Background(), data)
+	assert.NoError(t, err)
+	mockClient.AssertExpectations(t)
+}
+
+func TestConfigurationBackup_PutConfig_SNMPFallbackRetry(t *testing.T) {
+	mockClient := new(MockVeeamClient)
+	resource := &ConfigurationBackup{client: mockClient}
+
+	data := &ConfigurationBackupModel{
+		Enabled:              types.BoolValue(true),
+		RepositoryID:         types.StringValue("repo-1"),
+		RestorePointsToKeep:  types.Int64Value(14),
+		EncryptionEnabled:    types.BoolValue(true),
+		EncryptionPasswordID: types.StringValue("enc-1"),
+	}
+
+	mockClient.On("GetJSON", mock.Anything, client.PathConfigurationBackup, mock.Anything).Run(func(args mock.Arguments) {
+		result := args.Get(2).(*map[string]interface{})
+		*result = map[string]interface{}{
+			"isEnabled":           true,
+			"backupRepositoryId":  "repo-old",
+			"restorePointsToKeep": float64(7),
+			"encryption": map[string]interface{}{
+				"isEnabled":  false,
+				"passwordId": "enc-old",
+			},
+			"schedule": map[string]interface{}{
+				"isEnabled": true,
+			},
+			"notifications": map[string]interface{}{
+				"SNMPEnabled": true,
+			},
+			"lastSuccessfulBackup": map[string]interface{}{
+				"sessionId": "session-1",
+			},
+		}
+	}).Return(nil)
+
+	mockClient.On("PutJSON", mock.Anything, client.PathConfigurationBackup, mock.Anything, nil).Run(func(args mock.Arguments) {
+		payload := args.Get(2).(map[string]interface{})
+		notifications := payload["notifications"].(map[string]interface{})
+		assert.Equal(t, true, notifications["SNMPEnabled"])
+	}).Return(fmt.Errorf("API request failed (HTTP 400): UnknownError: Specify SNMP settings in General Options.")).Once()
+
+	mockClient.On("PutJSON", mock.Anything, client.PathConfigurationBackup, mock.Anything, nil).Run(func(args mock.Arguments) {
+		payload := args.Get(2).(map[string]interface{})
+		notifications := payload["notifications"].(map[string]interface{})
+		assert.Equal(t, false, notifications["SNMPEnabled"])
+	}).Return(nil).Once()
 
 	err := resource.putConfig(context.Background(), data)
 	assert.NoError(t, err)

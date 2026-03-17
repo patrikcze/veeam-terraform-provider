@@ -29,6 +29,9 @@ Manages Veeam scale-out backup repositories.
 ### [veeam_configuration_backup](configuration_backup.md)
 Manages configuration backup settings and can trigger configuration backup runs.
 
+### [veeam_encryption_password](encryption_password.md)
+Manages encryption passwords used by backup jobs and configuration backup.
+
 ## Common Patterns
 
 ### Resource Dependencies

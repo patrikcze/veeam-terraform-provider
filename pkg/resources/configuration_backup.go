@@ -3,6 +3,7 @@ package resources
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -218,7 +219,16 @@ func (r *ConfigurationBackup) putConfig(ctx context.Context, data *Configuration
 		setStringValue(encryption, data.EncryptionPasswordID.ValueString(), "passwordId", "encryptionPasswordId")
 	}
 
-	return r.client.PutJSON(ctx, client.PathConfigurationBackup, payload, nil)
+	if err := r.client.PutJSON(ctx, client.PathConfigurationBackup, payload, nil); err != nil {
+		if isSNMPGeneralOptionsError(err) {
+			notifications := ensureNestedConfigMap(payload, "notifications")
+			setBoolValue(notifications, false, "SNMPEnabled", "snmpEnabled", "enabled")
+			return r.client.PutJSON(ctx, client.PathConfigurationBackup, payload, nil)
+		}
+		return err
+	}
+
+	return nil
 }
 
 func (r *ConfigurationBackup) triggerBackup(ctx context.Context, data *ConfigurationBackupModel) error {
@@ -366,4 +376,13 @@ func ensureNestedConfigMap(payload map[string]interface{}, key string) map[strin
 	nested := map[string]interface{}{}
 	payload[key] = nested
 	return nested
+}
+
+func isSNMPGeneralOptionsError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "specify snmp settings in general options")
 }
