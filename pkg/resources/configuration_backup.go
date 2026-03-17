@@ -97,6 +97,8 @@ func (r *ConfigurationBackup) Create(ctx context.Context, req resource.CreateReq
 		}
 	}
 
+	ensureKnownLastSessionFields(&data)
+
 	data.ID = types.StringValue("config-backup")
 	resp.Diagnostics.Append(resp.State.Set(ctx, data)...)
 }
@@ -162,6 +164,8 @@ func (r *ConfigurationBackup) Update(ctx context.Context, req resource.UpdateReq
 		}
 	}
 
+	ensureKnownLastSessionFields(&data)
+
 	data.ID = types.StringValue("config-backup")
 	resp.Diagnostics.Append(resp.State.Set(ctx, data)...)
 }
@@ -180,8 +184,11 @@ func (r *ConfigurationBackup) Delete(ctx context.Context, req resource.DeleteReq
 	}
 
 	setBoolValue(payload, false, "enabled", "isEnabled")
+	encryption := ensureNestedConfigMap(payload, "encryption")
+	setBoolValue(encryption, false, "isEnabled", "enabled")
+	setStringValue(encryption, "", "passwordId", "encryptionPasswordId")
 
-	if err := r.client.PutJSON(ctx, client.PathConfigurationBackup, payload, nil); err != nil {
+	if err := r.putConfigurationPayload(ctx, payload); err != nil {
 		resp.Diagnostics.AddError("Failed to disable configuration backup", fmt.Sprintf("API error: %s", err))
 	}
 }
@@ -219,6 +226,10 @@ func (r *ConfigurationBackup) putConfig(ctx context.Context, data *Configuration
 		setStringValue(encryption, data.EncryptionPasswordID.ValueString(), "passwordId", "encryptionPasswordId")
 	}
 
+	return r.putConfigurationPayload(ctx, payload)
+}
+
+func (r *ConfigurationBackup) putConfigurationPayload(ctx context.Context, payload map[string]interface{}) error {
 	if err := r.client.PutJSON(ctx, client.PathConfigurationBackup, payload, nil); err != nil {
 		if isSNMPGeneralOptionsError(err) {
 			notifications := ensureNestedConfigMap(payload, "notifications")
@@ -376,6 +387,18 @@ func ensureNestedConfigMap(payload map[string]interface{}, key string) map[strin
 	nested := map[string]interface{}{}
 	payload[key] = nested
 	return nested
+}
+
+func ensureKnownLastSessionFields(data *ConfigurationBackupModel) {
+	if data.LastSessionID.IsUnknown() || data.LastSessionID.IsNull() {
+		data.LastSessionID = types.StringNull()
+	}
+	if data.LastSessionState.IsUnknown() || data.LastSessionState.IsNull() {
+		data.LastSessionState = types.StringNull()
+	}
+	if data.LastSessionResult.IsUnknown() || data.LastSessionResult.IsNull() {
+		data.LastSessionResult = types.StringNull()
+	}
 }
 
 func isSNMPGeneralOptionsError(err error) bool {
