@@ -431,7 +431,10 @@ func (r *ProtectionGroup) syncFromAPI(data *ProtectionGroupModel, api *models.In
 		data.Computers = computers
 	}
 
-	if api.Options != nil {
+	// Keep options null in Terraform state when user did not configure the
+	// options block. VBR may auto-populate defaults, but writing them into a
+	// non-computed optional field causes apply consistency errors.
+	if len(data.Options) > 0 && api.Options != nil {
 		options := ProtectionGroupOptionsModel{
 			DistributionServerID:      types.StringNull(),
 			DistributionRepositoryID:  types.StringNull(),

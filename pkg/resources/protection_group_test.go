@@ -107,3 +107,35 @@ func TestIsAsyncProtectionGroupOperationResult(t *testing.T) {
 	assert.True(t, isAsyncProtectionGroupOperationResult(map[string]interface{}{"id": "session-3"}))
 	assert.False(t, isAsyncProtectionGroupOperationResult(map[string]interface{}{}))
 }
+
+func TestProtectionGroupSyncFromAPIPreservesNullOptionsWhenNotConfigured(t *testing.T) {
+	resource := &ProtectionGroup{}
+	data := &ProtectionGroupModel{
+		Name:        types.StringValue("LinuxCompBackup"),
+		Description: types.StringValue("Basic Linux protection group"),
+		Type:        types.StringValue("IndividualComputers"),
+		Options:     nil,
+	}
+
+	api := &models.IndividualComputersProtectionGroupModel{
+		ProtectionGroupModel: models.ProtectionGroupModel{
+			ID:          "pg-1",
+			Name:        "LinuxCompBackup",
+			Description: "Infrastructure Item Saving",
+			Type:        models.ProtectionGroupTypeIndividualComputers,
+			IsDisabled:  false,
+		},
+		Options: &models.ProtectionGroupOptions{
+			DistributionServerID:      "6745a759-2205-4cd2-b172-8ec8f7e60ef8",
+			DistributionRepositoryID:  "00000000-0000-0000-0000-000000000000",
+			InstallBackupAgent:        true,
+			InstallCBTDriver:          false,
+			InstallApplicationPlugins: false,
+			UpdateAutomatically:       true,
+			RebootIfRequired:          false,
+		},
+	}
+
+	resource.syncFromAPI(data, api)
+	assert.Nil(t, data.Options)
+}
