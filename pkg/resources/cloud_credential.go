@@ -27,24 +27,24 @@ type CloudCredential struct {
 }
 
 type CloudCredentialModel struct {
-	ID             types.String `tfsdk:"id"`
-	Name           types.String `tfsdk:"name"`
-	Description    types.String `tfsdk:"description"`
-	Type           types.String `tfsdk:"type"`
-	AccessKey      types.String `tfsdk:"access_key"`
-	Account        types.String `tfsdk:"account"`
-	SharedKey      types.String `tfsdk:"shared_key"`
-	ConnectionName types.String `tfsdk:"connection_name"`
-	CreationMode   types.String `tfsdk:"creation_mode"`
-	DeploymentType types.String `tfsdk:"deployment_type"`
+	ID               types.String `tfsdk:"id"`
+	Name             types.String `tfsdk:"name"`
+	Description      types.String `tfsdk:"description"`
+	Type             types.String `tfsdk:"type"`
+	AccessKey        types.String `tfsdk:"access_key"`
+	Account          types.String `tfsdk:"account"`
+	SharedKey        types.String `tfsdk:"shared_key"`
+	ConnectionName   types.String `tfsdk:"connection_name"`
+	CreationMode     types.String `tfsdk:"creation_mode"`
+	DeploymentType   types.String `tfsdk:"deployment_type"`
 	DeploymentRegion types.String `tfsdk:"deployment_region"`
-	AccountName    types.String `tfsdk:"account_name"`
-	SecretKey      types.String `tfsdk:"secret_key"`
-	TenantID       types.String `tfsdk:"tenant_id"`
-	ApplicationID  types.String `tfsdk:"application_id"`
-	ApplicationKey types.String `tfsdk:"application_key"`
-	ProjectID      types.String `tfsdk:"project_id"`
-	ServiceAccount types.String `tfsdk:"service_account"`
+	AccountName      types.String `tfsdk:"account_name"`
+	SecretKey        types.String `tfsdk:"secret_key"`
+	TenantID         types.String `tfsdk:"tenant_id"`
+	ApplicationID    types.String `tfsdk:"application_id"`
+	ApplicationKey   types.String `tfsdk:"application_key"`
+	ProjectID        types.String `tfsdk:"project_id"`
+	ServiceAccount   types.String `tfsdk:"service_account"`
 }
 
 func (r *CloudCredential) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -61,23 +61,23 @@ func (r *CloudCredential) Schema(_ context.Context, _ resource.SchemaRequest, re
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
-			"name":            schema.StringAttribute{Required: true},
-			"description":     schema.StringAttribute{Optional: true, Computed: true},
-			"type":            schema.StringAttribute{Required: true},
-			"access_key":      schema.StringAttribute{Optional: true},
-			"account":         schema.StringAttribute{Optional: true},
-			"shared_key":      schema.StringAttribute{Optional: true, Sensitive: true},
-			"connection_name": schema.StringAttribute{Optional: true},
-			"creation_mode":   schema.StringAttribute{Optional: true},
-			"deployment_type": schema.StringAttribute{Optional: true},
+			"name":              schema.StringAttribute{Required: true},
+			"description":       schema.StringAttribute{Optional: true, Computed: true},
+			"type":              schema.StringAttribute{Required: true},
+			"access_key":        schema.StringAttribute{Optional: true},
+			"account":           schema.StringAttribute{Optional: true},
+			"shared_key":        schema.StringAttribute{Optional: true, Sensitive: true},
+			"connection_name":   schema.StringAttribute{Optional: true},
+			"creation_mode":     schema.StringAttribute{Optional: true},
+			"deployment_type":   schema.StringAttribute{Optional: true},
 			"deployment_region": schema.StringAttribute{Optional: true},
-			"account_name":    schema.StringAttribute{Optional: true},
-			"secret_key":      schema.StringAttribute{Optional: true, Sensitive: true},
-			"tenant_id":       schema.StringAttribute{Optional: true},
-			"application_id":  schema.StringAttribute{Optional: true},
-			"application_key": schema.StringAttribute{Optional: true, Sensitive: true},
-			"project_id":      schema.StringAttribute{Optional: true},
-			"service_account": schema.StringAttribute{Optional: true, Sensitive: true},
+			"account_name":      schema.StringAttribute{Optional: true},
+			"secret_key":        schema.StringAttribute{Optional: true, Sensitive: true},
+			"tenant_id":         schema.StringAttribute{Optional: true},
+			"application_id":    schema.StringAttribute{Optional: true},
+			"application_key":   schema.StringAttribute{Optional: true, Sensitive: true},
+			"project_id":        schema.StringAttribute{Optional: true},
+			"service_account":   schema.StringAttribute{Optional: true, Sensitive: true},
 		},
 	}
 }
@@ -115,6 +115,9 @@ func (r *CloudCredential) Create(ctx context.Context, req resource.CreateRequest
 
 	data.ID = types.StringValue(result.ID)
 	r.syncFromAPI(&data, &result)
+	if data.Description.IsUnknown() {
+		data.Description = types.StringNull()
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, data)...)
 }
 
@@ -280,29 +283,14 @@ func (r *CloudCredential) buildSpec(data *CloudCredentialModel) (*models.CloudCr
 }
 
 func (r *CloudCredential) syncFromAPI(data *CloudCredentialModel, api *models.CloudCredentialModel) {
-	data.Name = types.StringValue(api.Name)
-	data.Description = types.StringValue(api.Description)
-	data.Type = types.StringValue(api.Type)
-	if api.AccessKey != "" {
-		data.AccessKey = types.StringValue(api.AccessKey)
+	if api.Name != "" {
+		data.Name = types.StringValue(api.Name)
 	}
-	if api.Account != "" {
-		data.Account = types.StringValue(api.Account)
+	if api.Description != "" {
+		data.Description = types.StringValue(api.Description)
 	}
-	if api.ConnectionName != "" {
-		data.ConnectionName = types.StringValue(api.ConnectionName)
-	}
-	if api.AccountName != "" {
-		data.AccountName = types.StringValue(api.AccountName)
-	}
-	if api.TenantID != "" {
-		data.TenantID = types.StringValue(api.TenantID)
-	}
-	if api.ApplicationID != "" {
-		data.ApplicationID = types.StringValue(api.ApplicationID)
-	}
-	if api.ProjectID != "" {
-		data.ProjectID = types.StringValue(api.ProjectID)
+	if api.Type != "" {
+		data.Type = types.StringValue(api.Type)
 	}
 }
 

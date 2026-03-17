@@ -81,3 +81,30 @@ terraform import veeam_cloud_credential.example "cloud-credential-id-123"
 - Use variables or environment variables for secret values.
 - For `AzureStorage`, the Veeam API requires `account` and `sharedKey`.
 - For `AzureCompute`, this resource currently supports `ExistingAccount` flow with tenant/app/secret credentials.
+
+## Azure Storage Acceptance Example
+
+```hcl
+resource "veeam_cloud_credential" "azure_storage" {
+  name       = "azure-storageaccount"
+  type       = "AzureStorage"
+
+  # Either 'account' or 'account_name' can be used as input.
+  account_name = var.azure_storage_account
+
+  # Prefer 'shared_key' for AzureStorage.
+  shared_key = var.azure_storage_shared_key
+}
+```
+
+## Troubleshooting
+
+- Error: `Unsupported cloud credential type`  
+  Use one of: `Amazon`, `AzureStorage`, `AzureCompute`, `Google`, `GoogleService`.  
+  Values like `MicrosoftAzure` are deployment types for Azure compute, not cloud credential `type` values.
+
+- Error: `Type 'AzureStorage' requires 'account' ... and 'shared_key' ...`  
+  Provide `account` (or `account_name`) and `shared_key` (or `secret_key`).
+
+- Error mentions Amazon requirements while testing Azure  
+  Check your `type` value in Terraform state/plan output. If it shows `Amazon`, update config to `type = "AzureStorage"` and re-apply.

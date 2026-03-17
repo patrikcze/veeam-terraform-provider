@@ -12,11 +12,11 @@ import (
 func TestCloudCredential_BuildSpec(t *testing.T) {
 	resource := &CloudCredential{}
 	data := &CloudCredentialModel{
-		Name:           types.StringValue("aws-main"),
-		Description:    types.StringValue("AWS account"),
-		Type:           types.StringValue("Amazon"),
-		AccessKey:      types.StringValue("AKIA_TEST"),
-		SecretKey:      types.StringValue("secret"),
+		Name:        types.StringValue("aws-main"),
+		Description: types.StringValue("AWS account"),
+		Type:        types.StringValue("Amazon"),
+		AccessKey:   types.StringValue("AKIA_TEST"),
+		SecretKey:   types.StringValue("secret"),
 	}
 
 	spec, validationError := resource.buildSpec(data)
@@ -47,14 +47,14 @@ func TestCloudCredential_BuildSpec_AzureStorageSharedKey(t *testing.T) {
 func TestCloudCredential_BuildSpec_AzureComputeExistingAccount(t *testing.T) {
 	resource := &CloudCredential{}
 	data := &CloudCredentialModel{
-		Name:            types.StringValue("azure-compute"),
-		Type:            types.StringValue("AzureCompute"),
-		ConnectionName:  types.StringValue("Azure Compute Connection"),
-		CreationMode:    types.StringValue("ExistingAccount"),
-		DeploymentType:  types.StringValue("MicrosoftAzure"),
-		TenantID:        types.StringValue("tenant-id"),
-		ApplicationID:   types.StringValue("application-id"),
-		ApplicationKey:  types.StringValue("application-secret"),
+		Name:           types.StringValue("azure-compute"),
+		Type:           types.StringValue("AzureCompute"),
+		ConnectionName: types.StringValue("Azure Compute Connection"),
+		CreationMode:   types.StringValue("ExistingAccount"),
+		DeploymentType: types.StringValue("MicrosoftAzure"),
+		TenantID:       types.StringValue("tenant-id"),
+		ApplicationID:  types.StringValue("application-id"),
+		ApplicationKey: types.StringValue("application-secret"),
 	}
 
 	spec, validationError := resource.buildSpec(data)
@@ -83,10 +83,14 @@ func TestCloudCredential_BuildSpec_ValidationError(t *testing.T) {
 
 func TestCloudCredential_SyncFromAPI(t *testing.T) {
 	resource := &CloudCredential{}
-	state := &CloudCredentialModel{}
+	state := &CloudCredentialModel{
+		Name:        types.StringValue("azure-storageaccount"),
+		Type:        types.StringValue("AzureStorage"),
+		AccountName: types.StringValue("sapackerimagesdest"),
+	}
 	api := &models.CloudCredentialModel{
 		ID:          "cloud-1",
-		Name:        "azure-main",
+		Name:        "",
 		Description: "Azure credential",
 		Type:        "AzureStorage",
 		Account:     "tenant-account",
@@ -96,10 +100,9 @@ func TestCloudCredential_SyncFromAPI(t *testing.T) {
 
 	resource.syncFromAPI(state, api)
 
-	assert.Equal(t, "azure-main", state.Name.ValueString())
+	assert.Equal(t, "azure-storageaccount", state.Name.ValueString())
 	assert.Equal(t, "Azure credential", state.Description.ValueString())
 	assert.Equal(t, "AzureStorage", state.Type.ValueString())
-	assert.Equal(t, "tenant-account", state.Account.ValueString())
-	assert.Equal(t, "tenant-1", state.TenantID.ValueString())
-	assert.Equal(t, "project-1", state.ProjectID.ValueString())
+	assert.Equal(t, "sapackerimagesdest", state.AccountName.ValueString())
+	assert.True(t, state.Account.IsNull() || state.Account.IsUnknown())
 }
