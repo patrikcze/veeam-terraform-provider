@@ -136,6 +136,55 @@ func TestProtectionGroupSyncFromAPIPreservesNullOptionsWhenNotConfigured(t *test
 		},
 	}
 
-	resource.syncFromAPI(data, api)
+	resource.syncFromAPIIndividual(data, api)
 	assert.Nil(t, data.Options)
+}
+
+func TestValidateProtectionGroupPlanCloudMachinesRequiresCloudAccount(t *testing.T) {
+	data := &ProtectionGroupModel{
+		Type:          types.StringValue("CloudMachines"),
+		CloudMachines: []ProtectionGroupCloudMachineModel{{Type: types.StringValue("Region"), ObjectID: types.StringValue("eu-west-1")}},
+	}
+
+	err := validateProtectionGroupPlan(data)
+	assert.Error(t, err)
+}
+
+func TestValidateProtectionGroupPlanCloudMachinesAWSRequiresCredentials(t *testing.T) {
+	data := &ProtectionGroupModel{
+		Type: types.StringValue("CloudMachines"),
+		CloudAccount: []ProtectionGroupCloudAccountModel{{
+			AccountType: types.StringValue("AWS"),
+			RegionType:  types.StringValue("Global"),
+			RegionID:    types.StringValue("eu-west-1"),
+		}},
+		CloudMachines: []ProtectionGroupCloudMachineModel{{
+			Type:     types.StringValue("Machine"),
+			ObjectID: types.StringValue("i-123"),
+		}},
+	}
+
+	err := validateProtectionGroupPlan(data)
+	assert.Error(t, err)
+}
+
+func TestValidateProtectionGroupPlanCloudMachinesValidAzure(t *testing.T) {
+	data := &ProtectionGroupModel{
+		Type: types.StringValue("CloudMachines"),
+		CloudAccount: []ProtectionGroupCloudAccountModel{{
+			AccountType:    types.StringValue("Azure"),
+			SubscriptionID: types.StringValue("sub-123"),
+			RegionType:     types.StringValue("Global"),
+			RegionID:       types.StringValue("westeurope"),
+		}},
+		CloudMachines: []ProtectionGroupCloudMachineModel{{
+			Type:     types.StringValue("Tag"),
+			Name:     types.StringValue("Environment"),
+			Value:    types.StringValue("prod"),
+			ObjectID: types.StringNull(),
+		}},
+	}
+
+	err := validateProtectionGroupPlan(data)
+	assert.NoError(t, err)
 }

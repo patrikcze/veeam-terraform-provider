@@ -50,15 +50,35 @@ type ProtectionGroupOptionsModel struct {
 	RebootIfRequired          types.Bool   `tfsdk:"reboot_if_required"`
 }
 
+// ProtectionGroupCloudAccountModel is the cloud account selector for CloudMachines groups.
+type ProtectionGroupCloudAccountModel struct {
+	AccountType    types.String `tfsdk:"account_type"`
+	CredentialsID  types.String `tfsdk:"credentials_id"`
+	SubscriptionID types.String `tfsdk:"subscription_id"`
+	RegionType     types.String `tfsdk:"region_type"`
+	RegionID       types.String `tfsdk:"region_id"`
+	AssignIAMRole  types.Bool   `tfsdk:"assign_iam_role"`
+}
+
+// ProtectionGroupCloudMachineModel is a cloud object selector for CloudMachines groups.
+type ProtectionGroupCloudMachineModel struct {
+	Type     types.String `tfsdk:"type"`
+	Name     types.String `tfsdk:"name"`
+	ObjectID types.String `tfsdk:"object_id"`
+	Value    types.String `tfsdk:"value"`
+}
+
 // ProtectionGroupModel is the Terraform state model.
 type ProtectionGroupModel struct {
-	ID          types.String                   `tfsdk:"id"`
-	Name        types.String                   `tfsdk:"name"`
-	Description types.String                   `tfsdk:"description"`
-	Type        types.String                   `tfsdk:"type"`
-	IsDisabled  types.Bool                     `tfsdk:"is_disabled"`
-	Computers   []ProtectionGroupComputerModel `tfsdk:"computers"`
-	Options     []ProtectionGroupOptionsModel  `tfsdk:"options"`
+	ID            types.String                       `tfsdk:"id"`
+	Name          types.String                       `tfsdk:"name"`
+	Description   types.String                       `tfsdk:"description"`
+	Type          types.String                       `tfsdk:"type"`
+	IsDisabled    types.Bool                         `tfsdk:"is_disabled"`
+	Computers     []ProtectionGroupComputerModel     `tfsdk:"computers"`
+	CloudAccount  []ProtectionGroupCloudAccountModel `tfsdk:"cloud_account"`
+	CloudMachines []ProtectionGroupCloudMachineModel `tfsdk:"cloud_machines"`
+	Options       []ProtectionGroupOptionsModel      `tfsdk:"options"`
 }
 
 func (r *ProtectionGroup) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -67,7 +87,7 @@ func (r *ProtectionGroup) Metadata(_ context.Context, req resource.MetadataReque
 
 func (r *ProtectionGroup) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Manages a Veeam agent protection group (IndividualComputers).",
+		MarkdownDescription: "Manages a Veeam agent protection group (IndividualComputers or CloudMachines).",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				MarkdownDescription: "Protection group identifier (assigned by the server).",
@@ -96,7 +116,7 @@ func (r *ProtectionGroup) Schema(_ context.Context, _ resource.SchemaRequest, re
 			},
 			"computers": schema.ListNestedAttribute{
 				MarkdownDescription: "List of computers in the protection group.",
-				Required:            true,
+				Optional:            true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"hostname": schema.StringAttribute{
@@ -111,6 +131,32 @@ func (r *ProtectionGroup) Schema(_ context.Context, _ resource.SchemaRequest, re
 							MarkdownDescription: "Credential ID for the computer. Required with `PermanentCredentials`.",
 							Optional:            true,
 						},
+					},
+				},
+			},
+			"cloud_account": schema.ListNestedAttribute{
+				MarkdownDescription: "Cloud account settings for type `CloudMachines`.",
+				Optional:            true,
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"account_type":    schema.StringAttribute{Required: true},
+						"credentials_id":  schema.StringAttribute{Optional: true},
+						"subscription_id": schema.StringAttribute{Optional: true},
+						"region_type":     schema.StringAttribute{Optional: true},
+						"region_id":       schema.StringAttribute{Optional: true},
+						"assign_iam_role": schema.BoolAttribute{Optional: true},
+					},
+				},
+			},
+			"cloud_machines": schema.ListNestedAttribute{
+				MarkdownDescription: "Cloud object selectors for type `CloudMachines`.",
+				Optional:            true,
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"type":      schema.StringAttribute{Required: true},
+						"name":      schema.StringAttribute{Optional: true},
+						"object_id": schema.StringAttribute{Optional: true},
+						"value":     schema.StringAttribute{Optional: true},
 					},
 				},
 			},
@@ -165,10 +211,8 @@ func (r *ProtectionGroup) Create(ctx context.Context, req resource.CreateRequest
 		return
 	}
 
-	payload := r.buildCreateSpec(&data)
-
-	var session map[string]interface{}
-	if err := r.client.PostJSON(ctx, client.PathProtectionGroups, payload, &session); err != nil {
+	var createResult map[string]interface{}
+	if err := r.client.PostJSON(ctx, client.PathProtectionGroups, r.buildCreateSpec(&data), &createResult); err != nil {
 		resp.Diagnostics.AddError(
 			"Failed to create protection group",
 			fmt.Sprintf("API error: %s", err),
@@ -176,21 +220,23 @@ func (r *ProtectionGroup) Create(ctx context.Context, req resource.CreateRequest
 		return
 	}
 
-	sessionID := getStringValue(session, "id")
-	if sessionID == "" {
-		resp.Diagnostics.AddError(
-			"Failed to create protection group",
-			"API response did not include async session ID.",
-		)
-		return
-	}
+	if isAsyncProtectionGroupOperationResult(createResult) {
+		sessionID := getStringValue(createResult, "id")
+		if sessionID == "" {
+			resp.Diagnostics.AddError(
+				"Failed to create protection group",
+				"API response did not include async session ID.",
+			)
+			return
+		}
 
-	if err := r.client.WaitForTask(ctx, sessionID); err != nil {
-		resp.Diagnostics.AddError(
-			"Failed to create protection group",
-			fmt.Sprintf("Async protection group creation task %s failed: %s", sessionID, err),
-		)
-		return
+		if err := r.client.WaitForTask(ctx, sessionID); err != nil {
+			resp.Diagnostics.AddError(
+				"Failed to create protection group",
+				fmt.Sprintf("Async protection group creation task %s failed: %s", sessionID, err),
+			)
+			return
+		}
 	}
 
 	resolvedID, err := r.findProtectionGroupIDByName(ctx, &data)
@@ -210,6 +256,10 @@ func (r *ProtectionGroup) Create(ctx context.Context, req resource.CreateRequest
 			fmt.Sprintf("Protection group was created but refresh failed: %s", err),
 		)
 		return
+	}
+
+	if len(data.Options) == 0 {
+		data.Options = nil
 	}
 
 	if !data.IsDisabled.IsNull() && data.IsDisabled.ValueBool() {
@@ -382,6 +432,15 @@ func (r *ProtectionGroup) buildCreateSpec(data *ProtectionGroupModel) interface{
 		Type:        models.EProtectionGroupType(data.Type.ValueString()),
 	}
 
+	if strings.EqualFold(data.Type.ValueString(), string(models.ProtectionGroupTypeCloudMachines)) {
+		return &models.CloudMachinesProtectionGroupSpec{
+			ProtectionGroupSpec: base,
+			CloudAccount:        buildProtectionGroupCloudAccount(data.CloudAccount),
+			CloudMachines:       buildProtectionGroupCloudMachines(data.CloudMachines),
+			Options:             buildProtectionGroupOptions(data.Options),
+		}
+	}
+
 	return &models.IndividualComputersProtectionGroupSpec{
 		ProtectionGroupSpec: base,
 		Computers:           buildProtectionGroupComputers(data.Computers),
@@ -390,6 +449,21 @@ func (r *ProtectionGroup) buildCreateSpec(data *ProtectionGroupModel) interface{
 }
 
 func (r *ProtectionGroup) buildUpdateModel(data *ProtectionGroupModel) interface{} {
+	if strings.EqualFold(data.Type.ValueString(), string(models.ProtectionGroupTypeCloudMachines)) {
+		return &models.CloudMachinesProtectionGroupModel{
+			ProtectionGroupModel: models.ProtectionGroupModel{
+				ID:          data.ID.ValueString(),
+				Name:        data.Name.ValueString(),
+				Description: data.Description.ValueString(),
+				Type:        models.EProtectionGroupType(data.Type.ValueString()),
+				IsDisabled:  !data.IsDisabled.IsNull() && data.IsDisabled.ValueBool(),
+			},
+			CloudAccount:  buildProtectionGroupCloudAccount(data.CloudAccount),
+			CloudMachines: buildProtectionGroupCloudMachines(data.CloudMachines),
+			Options:       buildProtectionGroupOptions(data.Options),
+		}
+	}
+
 	return &models.IndividualComputersProtectionGroupModel{
 		ProtectionGroupModel: models.ProtectionGroupModel{
 			ID:          data.ID.ValueString(),
@@ -403,7 +477,7 @@ func (r *ProtectionGroup) buildUpdateModel(data *ProtectionGroupModel) interface
 	}
 }
 
-func (r *ProtectionGroup) syncFromAPI(data *ProtectionGroupModel, api *models.IndividualComputersProtectionGroupModel) {
+func (r *ProtectionGroup) syncFromAPIIndividual(data *ProtectionGroupModel, api *models.IndividualComputersProtectionGroupModel) {
 	if api.Name != "" {
 		data.Name = types.StringValue(api.Name)
 	}
@@ -414,6 +488,9 @@ func (r *ProtectionGroup) syncFromAPI(data *ProtectionGroupModel, api *models.In
 		data.Type = types.StringValue(string(api.Type))
 	}
 	data.IsDisabled = types.BoolValue(api.IsDisabled)
+
+	data.CloudAccount = nil
+	data.CloudMachines = nil
 
 	if len(api.Computers) > 0 {
 		computers := make([]ProtectionGroupComputerModel, 0, len(api.Computers))
@@ -465,14 +542,126 @@ func (r *ProtectionGroup) syncFromAPI(data *ProtectionGroupModel, api *models.In
 	}
 }
 
+func (r *ProtectionGroup) syncFromAPICloud(data *ProtectionGroupModel, api *models.CloudMachinesProtectionGroupModel) {
+	if api.Name != "" {
+		data.Name = types.StringValue(api.Name)
+	}
+	if api.Description != "" {
+		data.Description = types.StringValue(api.Description)
+	}
+	if string(api.Type) != "" {
+		data.Type = types.StringValue(string(api.Type))
+	}
+	data.IsDisabled = types.BoolValue(api.IsDisabled)
+	data.Computers = nil
+
+	if api.CloudAccount != nil {
+		account := ProtectionGroupCloudAccountModel{
+			AccountType:    types.StringValue(string(api.CloudAccount.AccountType)),
+			CredentialsID:  types.StringNull(),
+			SubscriptionID: types.StringNull(),
+			RegionType:     types.StringNull(),
+			RegionID:       types.StringNull(),
+			AssignIAMRole:  types.BoolNull(),
+		}
+		if api.CloudAccount.CredentialsID != "" {
+			account.CredentialsID = types.StringValue(api.CloudAccount.CredentialsID)
+		}
+		if api.CloudAccount.SubscriptionID != "" {
+			account.SubscriptionID = types.StringValue(api.CloudAccount.SubscriptionID)
+		}
+		if api.CloudAccount.RegionType != "" {
+			account.RegionType = types.StringValue(api.CloudAccount.RegionType)
+		}
+		if api.CloudAccount.RegionID != "" {
+			account.RegionID = types.StringValue(api.CloudAccount.RegionID)
+		}
+		if api.CloudAccount.AssignIAMRole {
+			account.AssignIAMRole = types.BoolValue(true)
+		}
+		data.CloudAccount = []ProtectionGroupCloudAccountModel{account}
+	}
+
+	if len(api.CloudMachines) > 0 {
+		items := make([]ProtectionGroupCloudMachineModel, 0, len(api.CloudMachines))
+		for _, entry := range api.CloudMachines {
+			item := ProtectionGroupCloudMachineModel{
+				Type:     types.StringValue(string(entry.Type)),
+				Name:     types.StringNull(),
+				ObjectID: types.StringNull(),
+				Value:    types.StringNull(),
+			}
+			if entry.Name != "" {
+				item.Name = types.StringValue(entry.Name)
+			}
+			if entry.ObjectID != "" {
+				item.ObjectID = types.StringValue(entry.ObjectID)
+			}
+			if entry.Value != "" {
+				item.Value = types.StringValue(entry.Value)
+			}
+			items = append(items, item)
+		}
+		data.CloudMachines = items
+	}
+
+	if len(data.Options) > 0 && api.Options != nil {
+		options := ProtectionGroupOptionsModel{
+			DistributionServerID:      types.StringNull(),
+			DistributionRepositoryID:  types.StringNull(),
+			InstallBackupAgent:        types.BoolValue(api.Options.InstallBackupAgent),
+			InstallCBTDriver:          types.BoolValue(api.Options.InstallCBTDriver),
+			InstallApplicationPlugins: types.BoolValue(api.Options.InstallApplicationPlugins),
+			UpdateAutomatically:       types.BoolValue(api.Options.UpdateAutomatically),
+			RebootIfRequired:          types.BoolValue(api.Options.RebootIfRequired),
+			ApplicationPlugins:        types.ListNull(types.StringType),
+		}
+		if api.Options.DistributionServerID != "" {
+			options.DistributionServerID = types.StringValue(api.Options.DistributionServerID)
+		}
+		if api.Options.DistributionRepositoryID != "" {
+			options.DistributionRepositoryID = types.StringValue(api.Options.DistributionRepositoryID)
+		}
+		if len(api.Options.ApplicationPlugins) > 0 {
+			values := make([]attr.Value, 0, len(api.Options.ApplicationPlugins))
+			for _, plugin := range api.Options.ApplicationPlugins {
+				values = append(values, types.StringValue(plugin))
+			}
+			options.ApplicationPlugins = types.ListValueMust(types.StringType, values)
+		}
+		data.Options = []ProtectionGroupOptionsModel{options}
+	}
+}
+
 func (r *ProtectionGroup) readProtectionGroup(ctx context.Context, data *ProtectionGroupModel) error {
+	typeValue := strings.TrimSpace(data.Type.ValueString())
+	if data.Type.IsNull() || data.Type.IsUnknown() || typeValue == "" {
+		var probe map[string]interface{}
+		endpoint := fmt.Sprintf(client.PathProtectionGroupByID, data.ID.ValueString())
+		if err := r.client.GetJSON(ctx, endpoint, &probe); err != nil {
+			return err
+		}
+		typeValue = getStringValue(probe, "type")
+	}
+
+	if strings.EqualFold(typeValue, string(models.ProtectionGroupTypeCloudMachines)) {
+		var result models.CloudMachinesProtectionGroupModel
+		endpoint := fmt.Sprintf(client.PathProtectionGroupByID, data.ID.ValueString())
+		if err := r.client.GetJSON(ctx, endpoint, &result); err != nil {
+			return err
+		}
+
+		r.syncFromAPICloud(data, &result)
+		return nil
+	}
+
 	var result models.IndividualComputersProtectionGroupModel
 	endpoint := fmt.Sprintf(client.PathProtectionGroupByID, data.ID.ValueString())
 	if err := r.client.GetJSON(ctx, endpoint, &result); err != nil {
 		return err
 	}
 
-	r.syncFromAPI(data, &result)
+	r.syncFromAPIIndividual(data, &result)
 	return nil
 }
 
@@ -517,33 +706,99 @@ func validateProtectionGroupPlan(data *ProtectionGroupModel) error {
 		return fmt.Errorf("protection group plan is empty")
 	}
 
-	if !strings.EqualFold(data.Type.ValueString(), string(models.ProtectionGroupTypeIndividualComputers)) {
-		return fmt.Errorf("only protection group type %q is currently supported by this resource", models.ProtectionGroupTypeIndividualComputers)
+	if data.Type.IsNull() || data.Type.IsUnknown() || strings.TrimSpace(data.Type.ValueString()) == "" {
+		return fmt.Errorf("type must be set")
 	}
 
-	if len(data.Computers) == 0 {
-		return fmt.Errorf("at least one computers block is required for type %q", models.ProtectionGroupTypeIndividualComputers)
+	typeValue := strings.TrimSpace(data.Type.ValueString())
+	if !strings.EqualFold(typeValue, string(models.ProtectionGroupTypeIndividualComputers)) &&
+		!strings.EqualFold(typeValue, string(models.ProtectionGroupTypeCloudMachines)) {
+		return fmt.Errorf("type must be one of %q or %q", models.ProtectionGroupTypeIndividualComputers, models.ProtectionGroupTypeCloudMachines)
 	}
 
-	for index, item := range data.Computers {
-		if item.HostName.IsNull() || item.HostName.IsUnknown() || strings.TrimSpace(item.HostName.ValueString()) == "" {
-			return fmt.Errorf("computers[%d].hostname must be set", index)
+	if strings.EqualFold(typeValue, string(models.ProtectionGroupTypeIndividualComputers)) {
+		if len(data.Computers) == 0 {
+			return fmt.Errorf("at least one computers block is required for type %q", models.ProtectionGroupTypeIndividualComputers)
 		}
 
-		connectionType := strings.TrimSpace(item.ConnectionType.ValueString())
-		switch connectionType {
-		case string(models.IndividualComputerConnectionTypePermanentCredentials):
-			if item.CredentialsID.IsNull() || item.CredentialsID.IsUnknown() || strings.TrimSpace(item.CredentialsID.ValueString()) == "" {
-				return fmt.Errorf("computers[%d].credentials_id is required when connection_type is %q", index, connectionType)
+		for index, item := range data.Computers {
+			if item.HostName.IsNull() || item.HostName.IsUnknown() || strings.TrimSpace(item.HostName.ValueString()) == "" {
+				return fmt.Errorf("computers[%d].hostname must be set", index)
 			}
-		case string(models.IndividualComputerConnectionTypeCertificate):
-			if !item.CredentialsID.IsNull() && strings.TrimSpace(item.CredentialsID.ValueString()) != "" {
-				return fmt.Errorf("computers[%d].credentials_id must be omitted when connection_type is %q", index, connectionType)
+
+			connectionType := strings.TrimSpace(item.ConnectionType.ValueString())
+			switch connectionType {
+			case string(models.IndividualComputerConnectionTypePermanentCredentials):
+				if item.CredentialsID.IsNull() || item.CredentialsID.IsUnknown() || strings.TrimSpace(item.CredentialsID.ValueString()) == "" {
+					return fmt.Errorf("computers[%d].credentials_id is required when connection_type is %q", index, connectionType)
+				}
+			case string(models.IndividualComputerConnectionTypeCertificate):
+				if !item.CredentialsID.IsNull() && strings.TrimSpace(item.CredentialsID.ValueString()) != "" {
+					return fmt.Errorf("computers[%d].credentials_id must be omitted when connection_type is %q", index, connectionType)
+				}
+			case string(models.IndividualComputerConnectionTypeSingleUseCredentials):
+				return fmt.Errorf("computers[%d].connection_type %q is not implemented yet in Terraform schema; use %q", index, connectionType, models.IndividualComputerConnectionTypePermanentCredentials)
+			default:
+				return fmt.Errorf("computers[%d].connection_type must be one of %q, %q, %q", index, models.IndividualComputerConnectionTypePermanentCredentials, models.IndividualComputerConnectionTypeSingleUseCredentials, models.IndividualComputerConnectionTypeCertificate)
 			}
-		case string(models.IndividualComputerConnectionTypeSingleUseCredentials):
-			return fmt.Errorf("computers[%d].connection_type %q is not implemented yet in Terraform schema; use %q", index, connectionType, models.IndividualComputerConnectionTypePermanentCredentials)
+		}
+	}
+
+	if strings.EqualFold(typeValue, string(models.ProtectionGroupTypeCloudMachines)) {
+		if len(data.CloudAccount) != 1 {
+			return fmt.Errorf("exactly one cloud_account block is required for type %q", models.ProtectionGroupTypeCloudMachines)
+		}
+
+		account := data.CloudAccount[0]
+		if account.AccountType.IsNull() || account.AccountType.IsUnknown() || strings.TrimSpace(account.AccountType.ValueString()) == "" {
+			return fmt.Errorf("cloud_account[0].account_type must be set")
+		}
+		if account.RegionType.IsNull() || account.RegionType.IsUnknown() || strings.TrimSpace(account.RegionType.ValueString()) == "" {
+			return fmt.Errorf("cloud_account[0].region_type must be set")
+		}
+		if account.RegionID.IsNull() || account.RegionID.IsUnknown() || strings.TrimSpace(account.RegionID.ValueString()) == "" {
+			return fmt.Errorf("cloud_account[0].region_id must be set")
+		}
+
+		accountType := strings.TrimSpace(account.AccountType.ValueString())
+		switch accountType {
+		case string(models.ProtectionGroupCloudAccountTypeAWS):
+			if account.CredentialsID.IsNull() || account.CredentialsID.IsUnknown() || strings.TrimSpace(account.CredentialsID.ValueString()) == "" {
+				return fmt.Errorf("cloud_account[0].credentials_id is required when account_type is %q", models.ProtectionGroupCloudAccountTypeAWS)
+			}
+		case string(models.ProtectionGroupCloudAccountTypeAzure):
+			if account.SubscriptionID.IsNull() || account.SubscriptionID.IsUnknown() || strings.TrimSpace(account.SubscriptionID.ValueString()) == "" {
+				return fmt.Errorf("cloud_account[0].subscription_id is required when account_type is %q", models.ProtectionGroupCloudAccountTypeAzure)
+			}
 		default:
-			return fmt.Errorf("computers[%d].connection_type must be one of %q, %q, %q", index, models.IndividualComputerConnectionTypePermanentCredentials, models.IndividualComputerConnectionTypeSingleUseCredentials, models.IndividualComputerConnectionTypeCertificate)
+			return fmt.Errorf("cloud_account[0].account_type must be one of %q or %q", models.ProtectionGroupCloudAccountTypeAWS, models.ProtectionGroupCloudAccountTypeAzure)
+		}
+
+		if len(data.CloudMachines) == 0 {
+			return fmt.Errorf("at least one cloud_machines block is required for type %q", models.ProtectionGroupTypeCloudMachines)
+		}
+
+		for index, item := range data.CloudMachines {
+			if item.Type.IsNull() || item.Type.IsUnknown() || strings.TrimSpace(item.Type.ValueString()) == "" {
+				return fmt.Errorf("cloud_machines[%d].type must be set", index)
+			}
+
+			machineType := strings.TrimSpace(item.Type.ValueString())
+			switch machineType {
+			case string(models.CloudMachinesObjectTypeMachine), string(models.CloudMachinesObjectTypeRegion):
+				if item.ObjectID.IsNull() || item.ObjectID.IsUnknown() || strings.TrimSpace(item.ObjectID.ValueString()) == "" {
+					return fmt.Errorf("cloud_machines[%d].object_id must be set when type is %q", index, machineType)
+				}
+			case string(models.CloudMachinesObjectTypeTag):
+				if item.Name.IsNull() || item.Name.IsUnknown() || strings.TrimSpace(item.Name.ValueString()) == "" {
+					return fmt.Errorf("cloud_machines[%d].name must be set when type is %q", index, machineType)
+				}
+				if item.Value.IsNull() || item.Value.IsUnknown() || strings.TrimSpace(item.Value.ValueString()) == "" {
+					return fmt.Errorf("cloud_machines[%d].value must be set when type is %q", index, machineType)
+				}
+			default:
+				return fmt.Errorf("cloud_machines[%d].type must be one of %q, %q, %q", index, models.CloudMachinesObjectTypeMachine, models.CloudMachinesObjectTypeRegion, models.CloudMachinesObjectTypeTag)
+			}
 		}
 	}
 
@@ -574,6 +829,55 @@ func buildProtectionGroupComputers(computers []ProtectionGroupComputerModel) []m
 		}
 		if !item.CredentialsID.IsNull() && !item.CredentialsID.IsUnknown() {
 			entry.CredentialsID = item.CredentialsID.ValueString()
+		}
+		out = append(out, entry)
+	}
+	return out
+}
+
+func buildProtectionGroupCloudAccount(accounts []ProtectionGroupCloudAccountModel) *models.CloudMachinesAccount {
+	if len(accounts) == 0 {
+		return nil
+	}
+
+	item := accounts[0]
+	account := &models.CloudMachinesAccount{
+		AccountType: models.EProtectionGroupCloudAccountType(item.AccountType.ValueString()),
+	}
+
+	if !item.CredentialsID.IsNull() && !item.CredentialsID.IsUnknown() {
+		account.CredentialsID = item.CredentialsID.ValueString()
+	}
+	if !item.SubscriptionID.IsNull() && !item.SubscriptionID.IsUnknown() {
+		account.SubscriptionID = item.SubscriptionID.ValueString()
+	}
+	if !item.RegionType.IsNull() && !item.RegionType.IsUnknown() {
+		account.RegionType = item.RegionType.ValueString()
+	}
+	if !item.RegionID.IsNull() && !item.RegionID.IsUnknown() {
+		account.RegionID = item.RegionID.ValueString()
+	}
+	if !item.AssignIAMRole.IsNull() && !item.AssignIAMRole.IsUnknown() {
+		account.AssignIAMRole = item.AssignIAMRole.ValueBool()
+	}
+
+	return account
+}
+
+func buildProtectionGroupCloudMachines(items []ProtectionGroupCloudMachineModel) []models.CloudMachineObject {
+	out := make([]models.CloudMachineObject, 0, len(items))
+	for _, item := range items {
+		entry := models.CloudMachineObject{
+			Type: models.ECloudMachinesObjectType(item.Type.ValueString()),
+		}
+		if !item.Name.IsNull() && !item.Name.IsUnknown() {
+			entry.Name = item.Name.ValueString()
+		}
+		if !item.ObjectID.IsNull() && !item.ObjectID.IsUnknown() {
+			entry.ObjectID = item.ObjectID.ValueString()
+		}
+		if !item.Value.IsNull() && !item.Value.IsUnknown() {
+			entry.Value = item.Value.ValueString()
 		}
 		out = append(out, entry)
 	}

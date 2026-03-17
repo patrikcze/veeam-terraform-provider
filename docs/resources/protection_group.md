@@ -2,14 +2,16 @@
 page_title: "veeam_protection_group Resource - terraform-provider-veeam"
 subcategory: ""
 description: |-
-  Manages a Veeam agent protection group (IndividualComputers).
+  Manages a Veeam agent protection group (IndividualComputers or CloudMachines).
 ---
 
 # veeam_protection_group (Resource)
 
-Manages a Veeam agent protection group. Currently supports `IndividualComputers` type.
+Manages a Veeam agent protection group. Supports `IndividualComputers` and `CloudMachines` types.
 
 ## Example Usage
+
+### IndividualComputers
 
 ```hcl
 resource "veeam_protection_group" "servers" {
@@ -42,16 +44,58 @@ resource "veeam_protection_group" "servers" {
 }
 ```
 
+### CloudMachines (Azure)
+
+```hcl
+resource "veeam_protection_group" "cloud_azure" {
+  name = "Azure-VMs"
+  type = "CloudMachines"
+
+  cloud_account = [
+    {
+      account_type    = "Azure"
+      subscription_id = "00000000-0000-0000-0000-000000000000"
+      region_type     = "Global"
+      region_id       = "westeurope"
+    }
+  ]
+
+  cloud_machines = [
+    {
+      type  = "Tag"
+      name  = "Environment"
+      value = "prod"
+    }
+  ]
+}
+```
+
 ## Schema
 
 ### Required
 
 - `name` (String) Protection group name.
-- `type` (String) Protection group type. Currently this resource supports `IndividualComputers`.
+- `type` (String) Protection group type. Supported values: `IndividualComputers`, `CloudMachines`.
+
+For `type = "IndividualComputers"`:
 - `computers` (List of Objects) List of computers in the protection group. Each object supports:
   - `hostname` (String, Required) FQDN or IP address of the computer.
   - `connection_type` (String, Required) Connection type: `PermanentCredentials`, `SingleUseCredentials`, `Certificate`.
   - `credentials_id` (String, Optional) Credential ID. Required with `PermanentCredentials`; must be omitted with `Certificate`.
+
+For `type = "CloudMachines"`:
+- `cloud_account` (List of Objects, exactly 1 required):
+  - `account_type` (String, Required) `AWS` or `Azure`.
+  - `region_type` (String, Required)
+  - `region_id` (String, Required)
+  - `credentials_id` (String, Required for `AWS`)
+  - `subscription_id` (String, Required for `Azure`)
+  - `assign_iam_role` (Boolean, Optional; AWS only)
+- `cloud_machines` (List of Objects, at least 1 required):
+  - `type` (String, Required) `Machine`, `Region`, or `Tag`.
+  - `object_id` (String, Required for `Machine` and `Region`)
+  - `name` (String, Required for `Tag`)
+  - `value` (String, Required for `Tag`)
 
 ### Optional
 
@@ -83,6 +127,7 @@ terraform import veeam_protection_group.example "group-id-123"
 
 - Protection groups are used with Veeam Agent for Linux/Windows.
 - The `IndividualComputers` type allows specifying computers by hostname.
+- The `CloudMachines` type requires one `cloud_account` block and at least one `cloud_machines` selector block.
 - When `options.install_backup_agent = true`, set either `options.distribution_server_id` or `options.distribution_repository_id`.
 - `SingleUseCredentials` connection type is defined by API but not yet exposed in Terraform schema for this resource.
 - Deleting a protection group does not uninstall agents from the target computers.

@@ -186,6 +186,23 @@ const (
 	IndividualComputerConnectionTypeCertificate          EIndividualComputerConnectionType = "Certificate"
 )
 
+// EProtectionGroupCloudAccountType determines cloud account subtype for CloudMachines protection groups.
+type EProtectionGroupCloudAccountType string
+
+const (
+	ProtectionGroupCloudAccountTypeAWS   EProtectionGroupCloudAccountType = "AWS"
+	ProtectionGroupCloudAccountTypeAzure EProtectionGroupCloudAccountType = "Azure"
+)
+
+// ECloudMachinesObjectType is the discriminator for cloud object selectors.
+type ECloudMachinesObjectType string
+
+const (
+	CloudMachinesObjectTypeMachine ECloudMachinesObjectType = "Machine"
+	CloudMachinesObjectTypeRegion  ECloudMachinesObjectType = "Region"
+	CloudMachinesObjectTypeTag     ECloudMachinesObjectType = "Tag"
+)
+
 // ---------------------------------------------------------------------------
 // Session Enums
 // ---------------------------------------------------------------------------
