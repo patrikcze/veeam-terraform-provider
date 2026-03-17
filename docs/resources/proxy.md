@@ -2,12 +2,12 @@
 page_title: "veeam_proxy Resource - terraform-provider-veeam"
 subcategory: ""
 description: |-
-  Manages a Veeam backup proxy (ViProxy).
+  Manages a Veeam backup proxy (ViProxy, HvProxy, or FileProxy).
 ---
 
 # veeam_proxy (Resource)
 
-Manages a Veeam backup proxy. Currently supports vSphere proxies (`ViProxy`).
+Manages a Veeam backup proxy. Supports vSphere (`ViProxy`), Hyper-V (`HvProxy`), and file (`FileProxy`) proxy types.
 
 ## Example Usage
 
@@ -53,6 +53,7 @@ terraform import veeam_proxy.example "proxy-id-123"
 
 ## Notes
 
-- The proxy name is derived from the associated managed server and is read-only.
-- Transport mode `Auto` lets Veeam choose the best mode automatically.
+- The proxy `name` is derived from the associated managed server and cannot be set directly.
+- Transport mode `Auto` allows Veeam to select the most efficient mode for each backup task.
 - Deleting a proxy removes it from the backup infrastructure but does not affect the underlying managed server.
+- `HvProxy` and `FileProxy` types follow the same schema as `ViProxy`; validate settings against your Veeam environment.

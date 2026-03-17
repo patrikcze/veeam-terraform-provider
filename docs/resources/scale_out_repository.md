@@ -48,4 +48,5 @@ terraform import veeam_scale_out_repository.example "sobr-id-123"
 
 ## Notes
 
-- Mode toggles are applied as API operations after create/update.
+- A scale-out backup repository (SOBR) aggregates multiple standard repositories (performance extents) into a single logical target. Performance extents must be configured in VBR before enabling advanced tiers.
+- `capacity_tier_enabled`, `maintenance_mode_enabled`, and `sealed_mode_enabled` are applied as separate API operations after the repository object is created or updated. A plan that only changes these values will still issue an update call.

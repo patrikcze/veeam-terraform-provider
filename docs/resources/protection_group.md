@@ -198,5 +198,4 @@ terraform import veeam_protection_group.example "group-id-123"
 - For Azure CloudMachines, create a `veeam_cloud_credential` with `type = "AzureCompute"` before creating the protection group.
 - If package deployment is used, options can depend on distribution infrastructure (`distribution_server_id` or `distribution_repository_id`) and related storage settings.
 - When `options.install_backup_agent = true`, set either `options.distribution_server_id` or `options.distribution_repository_id`.
-- `SingleUseCredentials` connection type is defined by API but not yet exposed in Terraform schema for this resource.
 - Deleting a protection group does not uninstall agents from the target computers.

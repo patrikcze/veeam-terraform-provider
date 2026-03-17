@@ -48,13 +48,13 @@ resource "veeam_backup_job" "daily" {
 
 ## Import
 
-Import by job name:
+Import by job ID:
 
 ```bash
-terraform import veeam_backup_job.example "job-id-123"
+terraform import veeam_backup_job.example <job-id>
 ```
 
 ## Notes
 
-- Job names must be unique in the Veeam environment.
-- The `type` value should match Veeam REST API enum values for your workload.
+- Job names must be unique within the Veeam environment.
+- The `type` value must match the Veeam REST API enum. Common values: `VSphereBackup`, `BackupCopy`, `VSphereReplica`, `HyperVBackup`, `WindowsAgentBackup`, `LinuxAgentBackup`.

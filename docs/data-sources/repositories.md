@@ -12,32 +12,20 @@ Queries repositories from Veeam Backup & Replication.
 ## Example Usage
 
 ```hcl
-# Get all repositories
+# List all repositories
 data "veeam_repositories" "all" {}
 
-# Get a specific repository by ID
-data "veeam_repositories" "specific_by_id" {
-  repository_id = "repo-456"
+output "repository_names" {
+  value = [for r in data.veeam_repositories.all.repositories : r.name]
 }
 
-# Get a specific repository by name
-data "veeam_repositories" "specific_by_name" {
-  repository_name = "Main Repository"
+# Look up a specific repository by name
+data "veeam_repositories" "primary" {
+  repository_name = "Linux-Primary-Repo"
 }
 
-# Use the data in outputs
-output "all_repositories" {
-  value = data.veeam_repositories.all.repositories
-}
-
-output "specific_repo_details" {
-  value = data.veeam_repositories.specific_by_name.repositories[0]
-}
-
-# Use repository data in a resource
-resource "veeam_backup_job" "repo_job" {
-  name       = "Backup-with-${data.veeam_repositories.specific_by_name.repositories[0].name}-repo"
-  repository = data.veeam_repositories.specific_by_name.repositories[0].id
+output "primary_repo_id" {
+  value = data.veeam_repositories.primary.repositories[0].id
 }
 ```
 
@@ -51,41 +39,35 @@ resource "veeam_backup_job" "repo_job" {
 ### Read-Only
 
 - `id` (String) Data source state identifier.
-- `repositories` (List of Object) Repository objects with capacity and status fields.
+- `repositories` (List of Object) Repository objects. Each item includes:
+  - `id` (String) Repository identifier.
+  - `name` (String) Repository name.
+  - `description` (String) Description.
+  - `type` (String) Repository type (`WinLocal`, `LinuxLocal`, `Nfs`, `Smb`, etc.).
+  - `path` (String) Filesystem or share path.
+  - `capacity` (Number) Total capacity in bytes.
+  - `free_space` (Number) Available free space in bytes.
+  - `used_space` (Number) Used space in bytes.
+  - `status` (String) Repository health status.
+  - `created_at` (String) Creation timestamp.
+  - `updated_at` (String) Last update timestamp.
 
 ## Usage Examples
 
-### Filtering and Processing
+### Filter by available free space
 
 ```hcl
-# Get all repositories and filter based on free space
 data "veeam_repositories" "all" {}
 
 locals {
-  large_repos = [
-    for repo in data.veeam_repositories.all.repositories : repo
-    if repo.free_space > 10737418240  # Filter repositories with more than 10GB free space
+  repos_with_space = [
+    for r in data.veeam_repositories.all.repositories : r
+    if r.free_space > 10737418240  # more than 10 GB free
   ]
 }
 
-output "large_repositories" {
-  value = local.large_repos
-}
-```
-
-### Conditional Resource Creation
-
-```hcl
-# Create a backup job only if a specific repository exists
-data "veeam_repositories" "check_repo" {
-  repository_name = "Critical-Repo"
-}
-
-resource "veeam_backup_job" "conditional" {
-  count = length(data.veeam_repositories.check_repo.repositories) > 0 ? 1 : 0
-  
-  name = "Critical-Repo-Backup"
-  repository = data.veeam_repositories.check_repo.repositories[0].id
+output "repositories_with_space" {
+  value = local.repos_with_space
 }
 ```
 
@@ -93,3 +75,4 @@ resource "veeam_backup_job" "conditional" {
 
 - Without filters, all repositories are returned.
 - Results are always returned as a list, even for a single match.
+- Use `repository_id` on `veeam_backup_job` to reference a repository returned by this data source.

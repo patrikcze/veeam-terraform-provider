@@ -24,8 +24,7 @@ data "veeam_sessions" "all" {}
 ### Read-Only
 
 - `id` (String) Data source state identifier.
-- `sessions` (List of Object) Session records with:
-	- `id`, `name`, `job_id`, `session_type`, `state`, `result`, `creation_time`, `end_time`.
+- `sessions` (List of Object) Session records with `id`, `name`, `job_id`, `session_type`, `state`, `result`, `creation_time`, `end_time`.
 
 ## Notes
 
