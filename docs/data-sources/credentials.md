@@ -32,4 +32,4 @@ output "credentials" {
 ## Notes
 
 - Passwords are never returned by the API.
-- This data source is useful for referencing existing credentials by name in other resources.
+- Use this data source to look up the `id` of an existing credential for use in the `credentials_id` argument of resources such as `veeam_managed_server`, `veeam_repository`, and `veeam_protection_group`.

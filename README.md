@@ -1,221 +1,287 @@
 # Veeam Terraform Provider
 
-This Terraform provider allows you to manage Veeam Backup & Replication resources using Terraform. The provider enables declarative configuration management of Veeam environments, leveraging the capabilities of HashiCorp Terraform.
-
-## Features
-
-- **Backup Job Management**: Create, update, and delete backup jobs with full storage/schedule/retention configuration
-- **Repository Management**: Polymorphic repositories — WinLocal, LinuxLocal, Nfs, Smb
-- **Credential Management**: Standard (Windows/domain) and Linux SSH credentials
-- **Managed Server Management**: ViHost, WindowsHost, LinuxHost managed servers
-- **Proxy Management**: vSphere backup proxies with transport mode configuration
-- **Encryption Passwords**: Manage encryption keys for backup encryption
-- **Protection Groups**: Agent-based protection groups (IndividualComputers)
-- **Data Sources**: Query credentials, backup jobs, and repositories
-- **Import Support**: All resources support `terraform import`
-- **Version-Resilient Architecture**: All API paths centralized in `internal/client/endpoints.go` — update one file when Veeam releases a new API version
+Terraform provider for [Veeam Backup & Replication V13](https://www.veeam.com/), built on the
+HashiCorp Terraform Plugin Framework and the Veeam REST API (v1.3-rev1).
 
 ## Requirements
 
-- [Terraform](https://www.terraform.io/downloads.html) >= 1.0
-- [Go](https://golang.org/doc/install) >= 1.24 (for building from source)
-- Veeam Backup & Replication V13 server
-- Network access to Veeam server REST API (port 9419)
+- Terraform >= 1.6
+- Veeam Backup & Replication V13 (REST API port 9419)
+- Go >= 1.24 (only for building from source)
 
 ## Installation
-
-### From Terraform Registry
 
 ```hcl
 terraform {
   required_providers {
     veeam = {
-      source = "patrikcze/veeam"
+      source  = "patrikcze/veeam"
       version = "~> 1.0"
     }
   }
 }
 ```
 
-### Building from Source
-
-```bash
-# Clone the repository
-git clone https://github.com/patrikcze/terraform-provider-veeam.git
-cd terraform-provider-veeam
-
-# Build the provider
-make build
-
-# Install locally for development
-make install
-```
-
-## Quick Start
-
-### Basic Provider Configuration
+## Provider Configuration
 
 ```hcl
 provider "veeam" {
   host     = "veeam.example.com"
-  username = "admin"
-  password = var.veeam_password  # Use variables for sensitive data
-  insecure = false               # Set to true for self-signed certificates
+  username = "administrator"
+  password = var.veeam_password
+  # port     = 9419   # optional, default 9419
+  # insecure = false  # set true only for self-signed certs in lab environments
 }
 ```
 
-### Environment Variables
+All arguments can also be supplied via environment variables:
 
-For security, use environment variables instead of hardcoding credentials:
+| Argument   | Environment variable | Default  | Description |
+|------------|----------------------|----------|-------------|
+| `host`     | `VEEAM_HOST`         | —        | VBR server hostname or IP |
+| `port`     | `VEEAM_PORT`         | `9419`   | REST API port |
+| `username` | `VEEAM_USERNAME`     | —        | Login username |
+| `password` | `VEEAM_PASSWORD`     | —        | Login password |
+| `insecure` | `VEEAM_INSECURE`     | `false`  | Skip TLS verification |
 
 ```bash
 export VEEAM_HOST="veeam.example.com"
-export VEEAM_USERNAME="admin"
-export VEEAM_PASSWORD="your-password"
-export VEEAM_INSECURE="false"
+export VEEAM_USERNAME="administrator"
+export VEEAM_PASSWORD="secret"
 ```
 
-Then configure the provider:
+```hcl
+provider "veeam" {} # reads everything from env vars
+```
+
+## Real-World Examples
+
+### Linux backup server + encrypted backup job
+
+This is the most common flow: register a Linux host, create a local repository on it,
+add an encryption password, and configure a daily backup job.
 
 ```hcl
-provider "veeam" {
-  # Configuration will be read from environment variables
+# 1. Credential for the Linux host
+resource "veeam_credential" "linux_backup" {
+  type            = "Linux"
+  username        = "backupadmin"
+  password        = var.linux_password
+  description     = "Linux backup server admin"
+  elevate_to_root = true
+  add_to_sudoers  = true
 }
-```
 
-### Simple Example
+# 2. Register the Linux server in Veeam infrastructure
+resource "veeam_managed_server" "linux_backup" {
+  name           = "backup01.example.com"
+  type           = "LinuxHost"
+  credentials_id = veeam_credential.linux_backup.id
+  description    = "Primary Linux backup server"
+}
 
-```hcl
-# Create a backup repository
+# 3. Create a backup repository on that server
 resource "veeam_repository" "primary" {
-  name        = "Primary-Backup-Repo"
-  description = "Primary backup repository"
-  path        = "/backup/primary"
-  type        = "linux"
-  capacity    = 10737418240  # 10GB in bytes
+  name           = "Linux-Primary-Repo"
+  type           = "LinuxLocal"
+  host_id        = veeam_managed_server.linux_backup.id
+  path           = "/mnt/backup"
+  max_task_count = 4
+  description    = "Primary backup repository"
 }
 
-# Create a backup job
-resource "veeam_backup_job" "daily" {
-  name    = "Daily-VM-Backup"
-  enabled = true
+# 4. Encryption password for backup data-at-rest encryption
+resource "veeam_encryption_password" "main" {
+  hint     = "Primary backup encryption key"
+  password = var.encryption_password
 }
 
-# Query existing backup jobs
-data "veeam_backup_jobs" "all" {}
-
-output "backup_jobs" {
-  value = data.veeam_backup_jobs.all.backup_jobs
+# 5. Daily backup job targeting the repository
+resource "veeam_backup_job" "vms_daily" {
+  name               = "VMs-Daily-Backup"
+  type               = "VSphereBackup"
+  repository_id      = veeam_repository.primary.id
+  retention_type     = "RestorePoints"
+  retention_quantity = 14
+  proxy_auto_select  = true
+  schedule_enabled   = true
+  schedule_kind      = "Daily"
+  schedule_time      = "22:00"
+  retry_enabled      = true
+  retry_count        = 3
+  retry_await_minutes = 10
 }
 ```
 
-## Provider Configuration
+### Windows repository (WinLocal)
 
-The provider supports the following configuration options:
+```hcl
+resource "veeam_credential" "windows_admin" {
+  type        = "Standard"
+  username    = "EXAMPLE\\backupadmin"
+  password    = var.windows_password
+  description = "Windows domain backup account"
+}
 
-| Argument   | Type   | Required | Description |
-|------------|--------|----------|-------------|
-| `host`     | string | Yes      | Veeam Backup & Replication server hostname or IP address |
-| `username` | string | Yes      | Username for authentication to the Veeam server |
-| `password` | string | Yes      | Password for authentication to the Veeam server |
-| `insecure` | bool   | No       | Skip TLS certificate verification (default: false) |
+# Windows managed server must already exist (or be registered separately)
+resource "veeam_repository" "win_primary" {
+  name           = "Windows-Backup-Repo"
+  type           = "WinLocal"
+  host_id        = var.windows_host_id   # ID of the registered Windows managed server
+  path           = "D:\\VeeamBackup"
+  max_task_count = 4
+}
+```
+
+### SMB/NFS network share repositories
+
+```hcl
+# SMB share — requires credentials for authentication
+resource "veeam_repository" "smb_nas" {
+  name           = "NAS-SMB-Repo"
+  type           = "Smb"
+  share_path     = "\\\\nas.example.com\\veeambackup"
+  credentials_id = veeam_credential.windows_admin.id
+  max_task_count = 2
+}
+
+# NFS share — no credentials required
+resource "veeam_repository" "nfs_nas" {
+  name       = "NAS-NFS-Repo"
+  type       = "Nfs"
+  share_path = "nas.example.com:/export/veeambackup"
+}
+```
+
+### Cloud credentials
+
+```hcl
+# AWS S3 integration
+resource "veeam_cloud_credential" "aws" {
+  name       = "AWS-Backup-Account"
+  type       = "Amazon"
+  access_key = var.aws_access_key    # sensitive
+  secret_key = var.aws_secret_key    # sensitive
+}
+
+# Azure Blob Storage
+resource "veeam_cloud_credential" "azure_blob" {
+  name        = "Azure-Blob-Storage"
+  type        = "AzureStorage"
+  account     = var.azure_storage_account
+  shared_key  = var.azure_shared_key    # sensitive
+}
+
+# Azure Compute (for VM backup/restore)
+resource "veeam_cloud_credential" "azure_compute" {
+  name            = "Azure-Compute"
+  type            = "AzureCompute"
+  connection_name = "MyAzureSubscription"
+  creation_mode   = "ExistingAccount"
+  deployment_type = "MicrosoftAzure"
+  tenant_id       = var.azure_tenant_id       # sensitive
+  application_id  = var.azure_application_id  # sensitive
+  application_key = var.azure_application_key # sensitive
+}
+```
+
+### Query infrastructure state with data sources
+
+```hcl
+data "veeam_server_info"  "this" {}
+data "veeam_license"      "this" {}
+data "veeam_repositories" "all"  {}
+data "veeam_backup_jobs"  "all"  {}
+data "veeam_job_states"   "all"  {}
+
+output "vbr_version" {
+  value = data.veeam_server_info.this.server_version
+}
+
+output "running_jobs" {
+  value = [
+    for j in data.veeam_job_states.all.job_states : j.name
+    if j.status == "Running"
+  ]
+}
+
+output "repository_names" {
+  value = [for r in data.veeam_repositories.all.repositories : r.name]
+}
+```
+
+### Import existing resources
+
+All resources support `terraform import`:
+
+```bash
+terraform import veeam_credential.linux_backup <credential-id>
+terraform import veeam_managed_server.linux_backup <server-id>
+terraform import veeam_repository.primary <repository-id>
+terraform import veeam_backup_job.vms_daily <job-id>
+```
 
 ## Resources
 
-- `veeam_backup_job` — Backup jobs with storage, schedule, retention, proxy settings
-- `veeam_cloud_credential` — Cloud credentials for AWS/Azure/GCP integrations
-- `veeam_configuration_backup` — Configuration backup settings and trigger
-- `veeam_credential` — Standard (Windows/domain) and Linux SSH credentials
-- `veeam_encryption_password` — Encryption passwords for backup encryption
-- `veeam_managed_server` — ViHost, WindowsHost, LinuxHost managed servers
-- `veeam_protection_group` — Agent protection groups (IndividualComputers)
-- `veeam_proxy` — vSphere backup proxies
-- `veeam_repository` — Backup repositories (WinLocal, LinuxLocal, Nfs, Smb)
-- `veeam_scale_out_repository` — Scale-out backup repositories (SOBR)
+| Resource | Description |
+|----------|-------------|
+| `veeam_backup_job` | Backup jobs (VSphereBackup, BackupCopy, etc.) with storage, schedule, and retention |
+| `veeam_cloud_credential` | Cloud credentials for AWS, Azure Blob, Azure Compute, Google Cloud |
+| `veeam_configuration_backup` | VBR configuration backup settings |
+| `veeam_credential` | Standard (Windows/domain) and Linux SSH credentials |
+| `veeam_encryption_password` | Encryption passwords for backup data-at-rest encryption |
+| `veeam_managed_server` | Managed servers: ViHost, WindowsHost, LinuxHost |
+| `veeam_protection_group` | Agent-based protection groups (IndividualComputers, CloudMachines) |
+| `veeam_proxy` | vSphere backup proxies with transport mode configuration |
+| `veeam_repository` | Backup repositories: WinLocal, LinuxLocal, Nfs, Smb |
+| `veeam_scale_out_repository` | Scale-out backup repositories (SOBR) |
 
 ## Data Sources
 
-- `veeam_backups` — Query backups and optional backup files
-- `veeam_backup_jobs` — Query backup jobs (all or by ID/name)
-- `veeam_credentials` — List all credentials
-- `veeam_job_states` — Aggregated job state overview
-- `veeam_license` — Installed license and consumption summary
-- `veeam_managed_servers` — Query managed servers
-- `veeam_protection_groups` — Query protection groups
-- `veeam_proxies` — Query backup proxies
-- `veeam_repository_states` — Repository capacity and status
-- `veeam_repositories` — Query repositories (all or by ID/name)
-- `veeam_restore_points` — Query restore points
-- `veeam_server_info` — Query backup server info
-- `veeam_sessions` — Query session history and status
-- `veeam_wan_accelerators` — Query WAN accelerators
-
-## Documentation
-
-Detailed documentation for each resource and data source is available in the `/docs` directory:
-
-- [Resources Documentation](docs/resources/index.md)
-- [Data Sources Documentation](docs/data-sources/index.md)
-- [Examples](examples/)
-
-## Examples
-
-Comprehensive examples are available in the `/examples` directory:
-
-- [Basic Setup](examples/basic/)
-- [Advanced Configuration](examples/advanced/)
-- [Data Source Usage](examples/data-sources/)
+| Data Source | Description |
+|-------------|-------------|
+| `veeam_backups` | Backups and optional backup files |
+| `veeam_backup_jobs` | Backup jobs (all or filtered by ID/name) |
+| `veeam_credentials` | All saved credentials |
+| `veeam_job_states` | Aggregated job state overview |
+| `veeam_license` | Installed license and consumption |
+| `veeam_managed_servers` | Managed servers |
+| `veeam_protection_groups` | Protection groups |
+| `veeam_proxies` | Backup proxies |
+| `veeam_repositories` | Repositories (all or filtered by ID/name) |
+| `veeam_repository_states` | Repository capacity and free space |
+| `veeam_restore_points` | Restore points |
+| `veeam_server_info` | VBR server version and configuration |
+| `veeam_sessions` | Session history and status |
+| `veeam_wan_accelerators` | WAN accelerators |
 
 ## Development
 
-### Building
-
 ```bash
-make build
+make build    # build for current platform
+make install  # install to ~/.terraform.d/plugins/
+make test     # unit tests
+make check    # fmt + vet + lint + unit tests
+make lint     # golangci-lint
+make docs     # regenerate docs/
 ```
 
-### Testing
+Run a single test:
 
 ```bash
-make test
+go test ./pkg/resources/ -run TestCredential -v
 ```
 
-### Linting
+Acceptance tests require a live VBR server:
 
 ```bash
-make lint
-```
-
-### Formatting
-
-```bash
-make fmt
-```
-
-### Vendoring Dependencies
-
-```bash
-make vendor
-```
-
-## Contributing
-
-Contributions are welcome! Please follow these steps:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-Please make sure to run tests and linting before submitting:
-
-```bash
-make check
+export VEEAM_HOST="veeam.lab.example.com"
+export VEEAM_USERNAME="administrator"
+export VEEAM_PASSWORD="secret"
+export VEEAM_INSECURE="true"
+TF_ACC=1 make testacc
 ```
 
 ## License
 
-This project is licensed under the MPL-2.0 License - see the [LICENSE](LICENSE) file for details.
-
-
+[MPL-2.0](LICENSE)

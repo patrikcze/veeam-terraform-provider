@@ -48,20 +48,20 @@ resource "veeam_cloud_credential" "azure_compute" {
 ### Optional
 
 - `description` (String) Optional credential description.
-- `access_key` (String) Access key for `Amazon` type.
-- `account` (String) Account name for `AzureStorage` type.
-- `shared_key` (String, Sensitive) Shared key for `AzureStorage` type.
-- `connection_name` (String) Connection display name for `AzureCompute` type.
-- `creation_mode` (String) Azure compute creation mode. Currently supported: `ExistingAccount`.
+- `access_key` (String, Sensitive) AWS access key ID (`Amazon` type).
+- `account` (String) Storage account name (`AzureStorage` type).
+- `shared_key` (String, Sensitive) Storage account shared key (`AzureStorage` type).
+- `connection_name` (String) Connection display name (`AzureCompute` type).
+- `creation_mode` (String) Azure compute creation mode. Supported value: `ExistingAccount`.
 - `deployment_type` (String) Azure compute deployment type: `MicrosoftAzure` or `MicrosoftAzureStack`.
-- `deployment_region` (String) Optional Azure region for Azure compute deployment payload.
-- `account_name` (String) Legacy alias for account/access-key style fields.
-- `secret_key` (String, Sensitive) Secret key value.
-- `tenant_id` (String) Tenant ID for Azure-style credentials.
-- `application_id` (String) Application/client ID.
-- `application_key` (String, Sensitive) Application/client secret (used as Azure compute `secret` for `ExistingAccount`).
-- `project_id` (String) Project ID for project-scoped clouds.
-- `service_account` (String, Sensitive) Service account JSON or key material.
+- `deployment_region` (String) Azure region for compute deployment (`AzureCompute` type, optional).
+- `account_name` (String) Alias accepted for `account` (`AzureStorage`) or `access_key` (`Amazon`).
+- `secret_key` (String, Sensitive) AWS secret access key (`Amazon` type) or alias for `shared_key` (`AzureStorage`).
+- `tenant_id` (String, Sensitive) Azure Active Directory tenant ID (`AzureCompute` type).
+- `application_id` (String, Sensitive) Azure application (client) ID (`AzureCompute` type).
+- `application_key` (String, Sensitive) Azure application client secret (`AzureCompute` type).
+- `project_id` (String, Sensitive) Google Cloud project ID (`Google` or `GoogleService` type).
+- `service_account` (String, Sensitive) Google service account key JSON (`GoogleService` type).
 
 ### Read-Only
 
@@ -77,34 +77,10 @@ terraform import veeam_cloud_credential.example "cloud-credential-id-123"
 
 ## Notes
 
-- Sensitive fields are marked as sensitive in Terraform state output.
-- Use variables or environment variables for secret values.
-- For `AzureStorage`, the Veeam API requires `account` and `sharedKey`.
-- For `AzureCompute`, this resource currently supports `ExistingAccount` flow with tenant/app/secret credentials.
-
-## Azure Storage Acceptance Example
-
-```hcl
-resource "veeam_cloud_credential" "azure_storage" {
-  name       = "azure-storageaccount"
-  type       = "AzureStorage"
-
-  # Either 'account' or 'account_name' can be used as input.
-  account_name = var.azure_storage_account
-
-  # Prefer 'shared_key' for AzureStorage.
-  shared_key = var.azure_storage_shared_key
-}
-```
-
-## Troubleshooting
-
-- Error: `Unsupported cloud credential type`  
-  Use one of: `Amazon`, `AzureStorage`, `AzureCompute`, `Google`, `GoogleService`.  
-  Values like `MicrosoftAzure` are deployment types for Azure compute, not cloud credential `type` values.
-
-- Error: `Type 'AzureStorage' requires 'account' ... and 'shared_key' ...`  
-  Provide `account` (or `account_name`) and `shared_key` (or `secret_key`).
-
-- Error mentions Amazon requirements while testing Azure  
-  Check your `type` value in Terraform state/plan output. If it shows `Amazon`, update config to `type = "AzureStorage"` and re-apply.
+- For `AzureStorage`, provide `account` (or `account_name`) and `shared_key` (or `secret_key`).
+- For `AzureCompute`, only the `ExistingAccount` creation mode is supported. Provide `tenant_id`, `application_id`, and `application_key`.
+- For `Amazon`, provide `access_key` and `secret_key`.
+- For `GoogleService`, provide `service_account`. `project_id` is optional.
+- `account_name` is accepted as an alias for `account` (AzureStorage) or `access_key` (Amazon).
+- The `type` value must be one of the exact enum strings: `Amazon`, `AzureStorage`, `AzureCompute`, `Google`, `GoogleService`. Values such as `MicrosoftAzure` are deployment types, not credential types.
+- The Veeam API does not return secret values on read. Secret fields are preserved from the last applied configuration.

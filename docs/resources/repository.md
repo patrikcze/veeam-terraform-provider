@@ -61,5 +61,6 @@ terraform import veeam_repository.example "repository-id-123"
 
 ## Notes
 
-- On VBR v13 rev1, local repositories require mount-server settings; the provider auto-populates this using `host_id` and `path`.
-- `path` and `host_id` are required in practice for `WinLocal` and `LinuxLocal` repositories.
+- `host_id` and `path` are listed as optional in the schema but are effectively required for `WinLocal` and `LinuxLocal` repositories. The provider uses them to populate the mount-server settings that VBR requires for local repository types.
+- `share_path` is required for `Nfs` and `Smb` types.
+- `credentials_id` is required for `Smb` when the share requires authentication.

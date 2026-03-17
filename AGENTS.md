@@ -122,6 +122,7 @@ tests/                          — acceptance tests (require TF_ACC=1)
 - For Linux managed servers, use VBR/OpenSSH fingerprint format (`ssh-rsa ...` style). If user input is empty or `SHA256:...`, resolve fingerprint via `POST /api/v1/connectionCertificate` before create.
 - Keep Terraform state stable for `ssh_fingerprint` (do not overwrite configured value with internally resolved value), otherwise Terraform may report inconsistent apply results.
 - Managed server delete must be treated as eventually consistent: poll GET-by-ID until NotFound before allowing dependent credential deletion.
+- CloudMachines protection groups require pre-existing cloud compute credentials (e.g., AzureCompute/Amazon) and may also depend on distribution infrastructure/repository settings when agent package deployment options are enabled.
 
 ## What NOT to Do
 - Do not guess API schemas. Always verify against the swagger.

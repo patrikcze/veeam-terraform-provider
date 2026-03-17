@@ -11,6 +11,7 @@ type ProtectionGroupModel struct {
 	Name        string               `json:"name"`
 	Description string               `json:"description"`
 	Type        EProtectionGroupType `json:"type"`
+	IsDisabled  bool                 `json:"isDisabled"`
 }
 
 // IndividualComputersProtectionGroupModel manages specific computers.
@@ -23,8 +24,8 @@ type IndividualComputersProtectionGroupModel struct {
 // CloudMachinesProtectionGroupModel manages cloud VM instances.
 type CloudMachinesProtectionGroupModel struct {
 	ProtectionGroupModel
-	CloudAccount  *CloudAccountRef        `json:"cloudAccount,omitempty"`
-	CloudMachines []CloudMachineRef       `json:"cloudMachines,omitempty"`
+	CloudAccount  *CloudMachinesAccount   `json:"cloudAccount,omitempty"`
+	CloudMachines []CloudMachineObject    `json:"cloudMachines,omitempty"`
 	Options       *ProtectionGroupOptions `json:"options,omitempty"`
 }
 
@@ -50,8 +51,8 @@ type IndividualComputersProtectionGroupSpec struct {
 // CloudMachinesProtectionGroupSpec creates/updates cloud machine groups.
 type CloudMachinesProtectionGroupSpec struct {
 	ProtectionGroupSpec
-	CloudAccount  *CloudAccountRef        `json:"cloudAccount,omitempty"`
-	CloudMachines []CloudMachineRef       `json:"cloudMachines,omitempty"`
+	CloudAccount  *CloudMachinesAccount   `json:"cloudAccount,omitempty"`
+	CloudMachines []CloudMachineObject    `json:"cloudMachines,omitempty"`
 	Options       *ProtectionGroupOptions `json:"options,omitempty"`
 }
 
@@ -61,23 +62,40 @@ type CloudMachinesProtectionGroupSpec struct {
 
 // ProtectionGroupComputer is a computer in an IndividualComputers group.
 type ProtectionGroupComputer struct {
-	HostName      string `json:"hostName"`
-	CredentialsID string `json:"credentialsId,omitempty"`
+	HostName             string                            `json:"hostName"`
+	ConnectionType       EIndividualComputerConnectionType `json:"connectionType"`
+	CredentialsID        string                            `json:"credentialsId,omitempty"`
+	SingleUseCredentials *LinuxCredentialsSpec             `json:"singleUseCredentials,omitempty"`
 }
 
 // ProtectionGroupOptions configures protection group behavior.
 type ProtectionGroupOptions struct {
-	AutoDiscoveryEnabled bool `json:"autoDiscoveryEnabled,omitempty"`
+	DistributionServerID      string   `json:"distributionServerId,omitempty"`
+	DistributionRepositoryID  string   `json:"distributionRepositoryId,omitempty"`
+	InstallBackupAgent        bool     `json:"installBackupAgent"`
+	InstallCBTDriver          bool     `json:"installCBTDriver"`
+	InstallApplicationPlugins bool     `json:"installApplicationPlugins"`
+	ApplicationPlugins        []string `json:"applicationPlugins,omitempty"`
+	UpdateAutomatically       bool     `json:"updateAutomatically"`
+	RebootIfRequired          bool     `json:"rebootIfRequired"`
 }
 
-// CloudAccountRef references a cloud account for CloudMachines groups.
-type CloudAccountRef struct {
-	AccountID string `json:"accountId,omitempty"`
-	Type      string `json:"type,omitempty"`
+// CloudMachinesAccount references a cloud account for CloudMachines groups.
+// AWS requires credentialsId, regionType, regionId.
+// Azure requires subscriptionId, regionType, regionId.
+type CloudMachinesAccount struct {
+	AccountType    EProtectionGroupCloudAccountType `json:"accountType"`
+	CredentialsID  string                           `json:"credentialsId,omitempty"`
+	SubscriptionID string                           `json:"subscriptionId,omitempty"`
+	RegionType     string                           `json:"regionType,omitempty"`
+	RegionID       string                           `json:"regionId,omitempty"`
+	AssignIAMRole  bool                             `json:"assignIamRole,omitempty"`
 }
 
-// CloudMachineRef references a specific cloud machine.
-type CloudMachineRef struct {
-	InstanceID string `json:"instanceId,omitempty"`
-	RegionID   string `json:"regionId,omitempty"`
+// CloudMachineObject references a cloud object selector in a CloudMachines group.
+type CloudMachineObject struct {
+	Type     ECloudMachinesObjectType `json:"type"`
+	Name     string                   `json:"name,omitempty"`
+	ObjectID string                   `json:"objectId,omitempty"`
+	Value    string                   `json:"value,omitempty"`
 }

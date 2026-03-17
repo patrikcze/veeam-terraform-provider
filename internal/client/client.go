@@ -28,7 +28,7 @@ const (
 	tokenRefreshBuffer = 2 * time.Minute
 
 	// defaultTimeout for HTTP requests.
-	defaultTimeout = 60 * time.Second
+	defaultTimeout = 30 * time.Second
 )
 
 // VeeamClient implements APIClient for the Veeam V13 REST API.
@@ -93,6 +93,15 @@ func NewVeeamClient(ctx context.Context, host string, port int, username, passwo
 		HTTPClient: &http.Client{
 			Timeout:   defaultTimeout,
 			Transport: transport,
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				if len(via) >= 3 {
+					return fmt.Errorf("too many redirects")
+				}
+				if req.URL.Scheme != "https" {
+					return fmt.Errorf("redirect to non-HTTPS URL blocked: %s", req.URL.Scheme)
+				}
+				return nil
+			},
 		},
 		username: username,
 		password: password,

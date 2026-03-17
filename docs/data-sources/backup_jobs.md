@@ -12,33 +12,20 @@ Queries backup jobs from Veeam Backup & Replication.
 ## Example Usage
 
 ```hcl
-# Get all backup jobs
+# List all backup jobs
 data "veeam_backup_jobs" "all" {}
 
-# Get a specific backup job by ID
-data "veeam_backup_jobs" "specific_by_id" {
-  job_id = "backup-job-123"
+output "all_backup_job_names" {
+  value = [for j in data.veeam_backup_jobs.all.backup_jobs : j.name]
 }
 
-# Get a specific backup job by name
-data "veeam_backup_jobs" "specific_by_name" {
+# Look up a specific job by name
+data "veeam_backup_jobs" "daily" {
   job_name = "Daily-VM-Backup"
 }
 
-# Use the data in outputs
-output "all_backup_jobs" {
-  value = data.veeam_backup_jobs.all.backup_jobs
-}
-
-output "specific_job_details" {
-  value = data.veeam_backup_jobs.specific_by_name.backup_jobs[0]
-}
-
-# Use backup job data in a resource
-resource "veeam_repository" "job_repository" {
-  name = "${data.veeam_backup_jobs.specific_by_name.backup_jobs[0].name}-repository"
-  path = "/backup/${data.veeam_backup_jobs.specific_by_name.backup_jobs[0].name}"
-  type = "linux"
+output "daily_job_id" {
+  value = data.veeam_backup_jobs.daily.backup_jobs[0].id
 }
 ```
 
@@ -56,10 +43,9 @@ resource "veeam_repository" "job_repository" {
 
 ## Usage Examples
 
-### Filtering and Processing
+### Filter enabled jobs
 
 ```hcl
-# Get all backup jobs and filter enabled ones
 data "veeam_backup_jobs" "all" {}
 
 locals {
@@ -74,24 +60,8 @@ output "enabled_backup_jobs" {
 }
 ```
 
-### Conditional Resource Creation
-
-```hcl
-# Create a repository only if a specific backup job exists
-data "veeam_backup_jobs" "check_job" {
-  job_name = "Critical-Backup"
-}
-
-resource "veeam_repository" "conditional" {
-  count = length(data.veeam_backup_jobs.check_job.backup_jobs) > 0 ? 1 : 0
-  
-  name = "Critical-Backup-Repository"
-  path = "/backup/critical"
-  type = "linux"
-}
-```
-
 ## Notes
 
 - Without filters, all backup jobs are returned.
-- Results are always returned as a list, even when filtering to one item.
+- Results are always returned as a list, even when filtering to a single item.
+- Each item exposes: `id`, `name`, `enabled`, `description`, `repository`, `schedule`, `job_type`, `created_at`, `updated_at`.

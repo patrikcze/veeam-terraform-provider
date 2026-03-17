@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/stretchr/testify/assert"
@@ -121,4 +122,11 @@ func TestIsCredentialInUseError(t *testing.T) {
 
 	err = fmt.Errorf("API request failed (HTTP 400): UnknownError: validation failed")
 	assert.False(t, isCredentialInUseError(err))
+}
+
+func TestCredentialDeleteRetryDelay(t *testing.T) {
+	assert.Equal(t, 2*time.Second, credentialDeleteRetryDelay(0))
+	assert.Equal(t, 4*time.Second, credentialDeleteRetryDelay(1))
+	assert.Equal(t, 10*time.Second, credentialDeleteRetryDelay(4))
+	assert.Equal(t, 15*time.Second, credentialDeleteRetryDelay(20))
 }

@@ -28,9 +28,10 @@ The provider authenticates via OAuth2 using username/password credentials. Crede
 ```hcl
 provider "veeam" {
   host     = "veeam.example.com"
-  username = "admin"
+  username = "administrator"
   password = var.veeam_password
-  insecure = false
+  # port    = 9419   # optional, defaults to 9419
+  # insecure = false # set to true only for self-signed certificates in lab environments
 }
 ```
 

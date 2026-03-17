@@ -1,0 +1,190 @@
+package resources
+
+import (
+	"testing"
+
+	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/stretchr/testify/assert"
+
+	"github.com/patrikcze/terraform-provider-veeam/internal/models"
+)
+
+func TestProtectionGroupBuildCreateSpec(t *testing.T) {
+	resource := &ProtectionGroup{}
+	data := &ProtectionGroupModel{
+		Name:        types.StringValue("Office-Servers"),
+		Description: types.StringValue("Agent deployment group"),
+		Type:        types.StringValue("IndividualComputers"),
+		Computers: []ProtectionGroupComputerModel{
+			{
+				HostName:       types.StringValue("srv01.example.local"),
+				ConnectionType: types.StringValue("PermanentCredentials"),
+				CredentialsID:  types.StringValue("cred-123"),
+			},
+		},
+		Options: []ProtectionGroupOptionsModel{
+			{
+				DistributionServerID:      types.StringValue("server-123"),
+				InstallBackupAgent:        types.BoolValue(true),
+				InstallCBTDriver:          types.BoolValue(false),
+				InstallApplicationPlugins: types.BoolValue(true),
+				ApplicationPlugins:        types.ListValueMust(types.StringType, []attr.Value{types.StringValue("MSSQL")}),
+				UpdateAutomatically:       types.BoolValue(true),
+				RebootIfRequired:          types.BoolValue(false),
+			},
+		},
+	}
+
+	spec := resource.buildCreateSpec(data)
+	pg, ok := spec.(*models.IndividualComputersProtectionGroupSpec)
+	assert.True(t, ok, "expected *IndividualComputersProtectionGroupSpec")
+	assert.Equal(t, models.ProtectionGroupTypeIndividualComputers, pg.Type)
+	if assert.Len(t, pg.Computers, 1) {
+		assert.Equal(t, models.IndividualComputerConnectionTypePermanentCredentials, pg.Computers[0].ConnectionType)
+		assert.Equal(t, "cred-123", pg.Computers[0].CredentialsID)
+	}
+	if assert.NotNil(t, pg.Options) {
+		assert.True(t, pg.Options.InstallBackupAgent)
+		assert.Equal(t, "server-123", pg.Options.DistributionServerID)
+	}
+}
+
+func TestValidateProtectionGroupPlanRequiresConnectionType(t *testing.T) {
+	data := &ProtectionGroupModel{
+		Type: types.StringValue("IndividualComputers"),
+		Computers: []ProtectionGroupComputerModel{
+			{
+				HostName:      types.StringValue("srv01"),
+				CredentialsID: types.StringValue("cred-1"),
+			},
+		},
+	}
+
+	err := validateProtectionGroupPlan(data)
+	assert.Error(t, err)
+}
+
+func TestValidateProtectionGroupPlanPermanentRequiresCredential(t *testing.T) {
+	data := &ProtectionGroupModel{
+		Type: types.StringValue("IndividualComputers"),
+		Computers: []ProtectionGroupComputerModel{
+			{
+				HostName:       types.StringValue("srv01"),
+				ConnectionType: types.StringValue("PermanentCredentials"),
+			},
+		},
+	}
+
+	err := validateProtectionGroupPlan(data)
+	assert.Error(t, err)
+}
+
+func TestValidateProtectionGroupPlanInstallBackupAgentDependency(t *testing.T) {
+	data := &ProtectionGroupModel{
+		Type: types.StringValue("IndividualComputers"),
+		Computers: []ProtectionGroupComputerModel{
+			{
+				HostName:       types.StringValue("srv01"),
+				ConnectionType: types.StringValue("PermanentCredentials"),
+				CredentialsID:  types.StringValue("cred-1"),
+			},
+		},
+		Options: []ProtectionGroupOptionsModel{
+			{
+				InstallBackupAgent: types.BoolValue(true),
+			},
+		},
+	}
+
+	err := validateProtectionGroupPlan(data)
+	assert.Error(t, err)
+}
+
+func TestIsAsyncProtectionGroupOperationResult(t *testing.T) {
+	assert.True(t, isAsyncProtectionGroupOperationResult(map[string]interface{}{"id": "session-1", "state": "Working"}))
+	assert.True(t, isAsyncProtectionGroupOperationResult(map[string]interface{}{"id": "session-2", "type": "Infrastructure"}))
+	assert.True(t, isAsyncProtectionGroupOperationResult(map[string]interface{}{"id": "session-3"}))
+	assert.False(t, isAsyncProtectionGroupOperationResult(map[string]interface{}{}))
+}
+
+func TestProtectionGroupSyncFromAPIPreservesNullOptionsWhenNotConfigured(t *testing.T) {
+	resource := &ProtectionGroup{}
+	data := &ProtectionGroupModel{
+		Name:        types.StringValue("LinuxCompBackup"),
+		Description: types.StringValue("Basic Linux protection group"),
+		Type:        types.StringValue("IndividualComputers"),
+		Options:     nil,
+	}
+
+	api := &models.IndividualComputersProtectionGroupModel{
+		ProtectionGroupModel: models.ProtectionGroupModel{
+			ID:          "pg-1",
+			Name:        "LinuxCompBackup",
+			Description: "Infrastructure Item Saving",
+			Type:        models.ProtectionGroupTypeIndividualComputers,
+			IsDisabled:  false,
+		},
+		Options: &models.ProtectionGroupOptions{
+			DistributionServerID:      "6745a759-2205-4cd2-b172-8ec8f7e60ef8",
+			DistributionRepositoryID:  "00000000-0000-0000-0000-000000000000",
+			InstallBackupAgent:        true,
+			InstallCBTDriver:          false,
+			InstallApplicationPlugins: false,
+			UpdateAutomatically:       true,
+			RebootIfRequired:          false,
+		},
+	}
+
+	resource.syncFromAPIIndividual(data, api)
+	assert.Nil(t, data.Options)
+}
+
+func TestValidateProtectionGroupPlanCloudMachinesRequiresCloudAccount(t *testing.T) {
+	data := &ProtectionGroupModel{
+		Type:          types.StringValue("CloudMachines"),
+		CloudMachines: []ProtectionGroupCloudMachineModel{{Type: types.StringValue("Region"), ObjectID: types.StringValue("eu-west-1")}},
+	}
+
+	err := validateProtectionGroupPlan(data)
+	assert.Error(t, err)
+}
+
+func TestValidateProtectionGroupPlanCloudMachinesAWSRequiresCredentials(t *testing.T) {
+	data := &ProtectionGroupModel{
+		Type: types.StringValue("CloudMachines"),
+		CloudAccount: []ProtectionGroupCloudAccountModel{{
+			AccountType: types.StringValue("AWS"),
+			RegionType:  types.StringValue("Global"),
+			RegionID:    types.StringValue("eu-west-1"),
+		}},
+		CloudMachines: []ProtectionGroupCloudMachineModel{{
+			Type:     types.StringValue("Machine"),
+			ObjectID: types.StringValue("i-123"),
+		}},
+	}
+
+	err := validateProtectionGroupPlan(data)
+	assert.Error(t, err)
+}
+
+func TestValidateProtectionGroupPlanCloudMachinesValidAzure(t *testing.T) {
+	data := &ProtectionGroupModel{
+		Type: types.StringValue("CloudMachines"),
+		CloudAccount: []ProtectionGroupCloudAccountModel{{
+			AccountType:    types.StringValue("Azure"),
+			SubscriptionID: types.StringValue("sub-123"),
+			RegionType:     types.StringValue("Global"),
+			RegionID:       types.StringValue("westeurope"),
+		}},
+		CloudMachines: []ProtectionGroupCloudMachineModel{{
+			Type:     types.StringValue("Tag"),
+			Name:     types.StringValue("Environment"),
+			Value:    types.StringValue("prod"),
+			ObjectID: types.StringNull(),
+		}},
+	}
+
+	err := validateProtectionGroupPlan(data)
+	assert.NoError(t, err)
+}

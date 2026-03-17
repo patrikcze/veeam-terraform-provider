@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 
@@ -12,6 +13,6 @@ func main() {
 	if err := providerserver.Serve(context.Background(), internal.New("dev"), providerserver.ServeOpts{
 		Address: "registry.terraform.io/patrikcze/veeam",
 	}); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 }

@@ -159,16 +159,9 @@ The test suite aims to achieve:
 
 ## Continuous Integration
 
-All tests are automatically run on:
-- Pull requests
-- Merges to main branch
-- Tagged releases
-
-The CI pipeline ensures that:
-- All tests pass
-- Code coverage meets minimum thresholds
-- No race conditions exist
-- Tests run on multiple Go versions
+Unit tests and `go vet` run automatically as a gate in `.github/workflows/release.yml`
+before each tagged release. There is no separate PR/merge CI workflow; run
+`make check` locally before opening a pull request.
 
 ## Adding New Tests
 
