@@ -217,6 +217,7 @@ The following scenarios were validated against a real Veeam Backup & Replication
 - `veeam_configuration_backup`
 - `veeam_encryption_password`
 - `veeam_cloud_credential` (`AzureStorage` shared key flow)
+- `veeam_managed_server` (`LinuxHost`, saved Linux credentials)
 
 ### Data sources — read verified
 
@@ -241,3 +242,5 @@ The following scenarios were validated against a real Veeam Backup & Replication
 - `ConfigBackupEncryptionModel` requires both `isEnabled` and `passwordId`.
 - Deleting an encryption password can transiently fail with "in use by: Backup Configuration Job" even after disabling configuration backup; retrying destroy shortly after typically succeeds.
 - Cloud credentials use discriminator type values exactly as defined by API (`Amazon`, `AzureStorage`, `AzureCompute`, `Google`, `GoogleService`).
+- For Linux managed servers, VBR expects SSH fingerprint in OpenSSH-style value (`ssh-rsa ...`). If user input is empty or `SHA256:...`, provider should resolve fingerprint from `POST /api/v1/connectionCertificate`.
+- Managed server delete is eventually consistent in VBR; provider should wait for GET-by-ID to return NotFound before deleting dependent Linux credential.

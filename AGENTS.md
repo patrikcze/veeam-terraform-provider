@@ -114,10 +114,14 @@ tests/                          — acceptance tests (require TF_ACC=1)
 ## Real Acceptance Notes (VBR)
 
 - Provider behavior has been validated with real VBR apply/destroy runs for: `credential`, `repository`, `proxy`, `configuration_backup`, `encryption_password`, and `cloud_credential` (`AzureStorage`).
+- Provider behavior has also been validated with real VBR apply/destroy for `managed_server` (`LinuxHost`) using saved Linux credentials.
 - Data source health-check validated all currently implemented data sources in `internal/provider.go`.
 - For `configBackup`, follow full-object update semantics and retain required nested fields from API payloads.
 - For `cloudCredentials`, use discriminator values and subtype-required fields from swagger; do not rely on generic legacy field names only.
 - Encryption password deletion can be transiently blocked by VBR when referenced by Configuration Backup job; retry behavior is expected.
+- For Linux managed servers, use VBR/OpenSSH fingerprint format (`ssh-rsa ...` style). If user input is empty or `SHA256:...`, resolve fingerprint via `POST /api/v1/connectionCertificate` before create.
+- Keep Terraform state stable for `ssh_fingerprint` (do not overwrite configured value with internally resolved value), otherwise Terraform may report inconsistent apply results.
+- Managed server delete must be treated as eventually consistent: poll GET-by-ID until NotFound before allowing dependent credential deletion.
 
 ## What NOT to Do
 - Do not guess API schemas. Always verify against the swagger.

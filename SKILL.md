@@ -146,6 +146,20 @@ func (c *VeeamClient) WaitForTask(ctx context.Context, sessionID string) error {
 }
 ```
 
+### Managed Server (LinuxHost) Practical Pattern
+
+For `veeam_managed_server` (`LinuxHost`) in real VBR runs:
+
+- Create may be effectively async; support session-style responses and poll completion.
+- Linux `sshFingerprint` should use VBR/OpenSSH format (`ssh-rsa ...`), not `SHA256:...`.
+- If fingerprint is missing/empty/`SHA256:...`, resolve it through:
+    - `POST /api/v1/connectionCertificate`
+    - request body: `serverName`, `credentialsStorageType=Permanent`, `credentialsId`, `type=LinuxHost`
+    - use response `fingerprint` for create payload.
+- Keep Terraform state consistent: do not replace configured `ssh_fingerprint` with an internally resolved value.
+- Delete is eventually consistent: after DELETE, poll `GET /api/v1/backupInfrastructure/managedServers/{id}` until `404/NotFound` before considering destroy complete.
+- Credential delete may transiently fail as in-use immediately after managed server deletion; short retry loop is expected.
+
 ---
 
 ## 5. Polymorphic Type Pattern
