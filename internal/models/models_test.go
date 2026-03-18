@@ -207,6 +207,9 @@ func TestViProxySpec_RoundTrip(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestBackupJobSpec_RoundTrip(t *testing.T) {
+	// Validates that BackupJobSpec serialises to / from JSON correctly using the
+	// updated API-aligned model names (BackupJobStorageModel, BackupProxiesSettingsModel,
+	// BackupJobRetentionPolicySettings, BackupScheduleModel, ScheduleDailyModel, ScheduleRetryModel).
 	original := BackupJobSpec{
 		JobSpec: JobSpec{
 			Name: "Daily-Backup",
@@ -214,24 +217,35 @@ func TestBackupJobSpec_RoundTrip(t *testing.T) {
 		},
 		Description:    "Daily VM backup",
 		IsHighPriority: true,
-		Storage: &BackupJobStorage{
+		VirtualMachines: &BackupJobVirtualMachinesSpec{
+			Includes: []VmwareObjectSpec{
+				{
+					Platform: "VSphere",
+					HostName: "vcenter.lab",
+					Name:     "vm-prod-01",
+					Type:     VmwareTypeVirtualMachine,
+					ObjectID: "vm-101",
+				},
+			},
+		},
+		Storage: &BackupJobStorageModel{
 			BackupRepositoryID: "repo-123",
-			BackupProxies: &BackupProxiesSettings{
+			BackupProxies: &BackupProxiesSettingsModel{
 				AutoSelectEnabled: true,
 			},
-			RetentionPolicy: &RetentionPolicySettings{
+			RetentionPolicy: &BackupJobRetentionPolicySettings{
 				Type:     RetentionPolicyTypeRestorePoints,
 				Quantity: 14,
 			},
 		},
-		Schedule: &BackupSchedule{
+		Schedule: &BackupScheduleModel{
 			RunAutomatically: true,
-			Daily: &ScheduleDaily{
+			Daily: &ScheduleDailyModel{
 				IsEnabled: true,
 				LocalTime: "22:00",
 				DailyKind: DailyKindsWeekdays,
 			},
-			Retry: &ScheduleRetry{
+			Retry: &ScheduleRetryModel{
 				IsEnabled:    true,
 				RetryCount:   3,
 				AwaitMinutes: 10,
@@ -248,6 +262,10 @@ func TestBackupJobSpec_RoundTrip(t *testing.T) {
 	assert.Equal(t, "Daily-Backup", decoded.Name)
 	assert.Equal(t, JobTypeBackup, decoded.Type)
 	assert.True(t, decoded.IsHighPriority)
+	require.NotNil(t, decoded.VirtualMachines)
+	require.Len(t, decoded.VirtualMachines.Includes, 1)
+	assert.Equal(t, "vm-prod-01", decoded.VirtualMachines.Includes[0].Name)
+	assert.Equal(t, "vcenter.lab", decoded.VirtualMachines.Includes[0].HostName)
 	assert.Equal(t, "repo-123", decoded.Storage.BackupRepositoryID)
 	assert.True(t, decoded.Storage.BackupProxies.AutoSelectEnabled)
 	assert.Equal(t, 14, decoded.Storage.RetentionPolicy.Quantity)
@@ -257,6 +275,7 @@ func TestBackupJobSpec_RoundTrip(t *testing.T) {
 }
 
 func TestBackupJobModel_RoundTrip(t *testing.T) {
+	// API now returns VmwareObjectSpec entries directly in includes (no nested inventoryObject).
 	jsonData := `{
 		"id": "job-abc",
 		"name": "Test-Job",
@@ -265,7 +284,7 @@ func TestBackupJobModel_RoundTrip(t *testing.T) {
 		"description": "Test backup job",
 		"virtualMachines": {
 			"includes": [
-				{"inventoryObject": {"type": "VirtualMachine", "name": "vm-01", "objectId": "obj-1"}}
+				{"platform": "VSphere", "hostName": "vcenter.lab", "name": "vm-01", "type": "VirtualMachine", "objectId": "vm-101"}
 			]
 		}
 	}`
@@ -278,7 +297,9 @@ func TestBackupJobModel_RoundTrip(t *testing.T) {
 	assert.False(t, model.IsDisabled)
 	require.NotNil(t, model.VirtualMachines)
 	require.Len(t, model.VirtualMachines.Includes, 1)
-	assert.Equal(t, "vm-01", model.VirtualMachines.Includes[0].InventoryObject.Name)
+	assert.Equal(t, "vm-01", model.VirtualMachines.Includes[0].Name)
+	assert.Equal(t, "vcenter.lab", model.VirtualMachines.Includes[0].HostName)
+	assert.Equal(t, VmwareTypeVirtualMachine, model.VirtualMachines.Includes[0].Type)
 }
 
 // ---------------------------------------------------------------------------
