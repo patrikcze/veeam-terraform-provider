@@ -16,18 +16,23 @@ func (m *MockVeeamClient) GetJSON(ctx context.Context, endpoint string, result i
 	return args.Error(0)
 }
 
-func (m *MockVeeamClient) PostJSON(endpoint string, payload interface{}, result interface{}) error {
-	args := m.Called(endpoint, payload, result)
+func (m *MockVeeamClient) PostJSON(ctx context.Context, endpoint string, payload interface{}, result interface{}) error {
+	args := m.Called(ctx, endpoint, payload, result)
 	return args.Error(0)
 }
 
-func (m *MockVeeamClient) PutJSON(endpoint string, payload interface{}, result interface{}) error {
-	args := m.Called(endpoint, payload, result)
+func (m *MockVeeamClient) PutJSON(ctx context.Context, endpoint string, payload interface{}, result interface{}) error {
+	args := m.Called(ctx, endpoint, payload, result)
 	return args.Error(0)
 }
 
-func (m *MockVeeamClient) DeleteJSON(endpoint string) error {
-	args := m.Called(endpoint)
+func (m *MockVeeamClient) DeleteJSON(ctx context.Context, endpoint string) error {
+	args := m.Called(ctx, endpoint)
+	return args.Error(0)
+}
+
+func (m *MockVeeamClient) WaitForTask(ctx context.Context, sessionID string) error {
+	args := m.Called(ctx, sessionID)
 	return args.Error(0)
 }
 
@@ -57,15 +62,10 @@ func (h *TestHelper) SetupMockResponse(method, endpoint string, response interfa
 			}
 		}).Return(nil)
 	case "POST":
-		h.MockClient.On("PostJSON", endpoint, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
-			if response != nil {
-				result := args.Get(2).(*map[string]interface{})
-				*result = response.(map[string]interface{})
-			}
-		}).Return(nil)
+		h.MockClient.On("PostJSON", mock.Anything, endpoint, mock.Anything, mock.Anything).Return(nil)
 	case "PUT":
-		h.MockClient.On("PutJSON", endpoint, mock.Anything, mock.Anything).Return(nil)
+		h.MockClient.On("PutJSON", mock.Anything, endpoint, mock.Anything, mock.Anything).Return(nil)
 	case "DELETE":
-		h.MockClient.On("DeleteJSON", endpoint).Return(nil)
+		h.MockClient.On("DeleteJSON", mock.Anything, endpoint).Return(nil)
 	}
 }

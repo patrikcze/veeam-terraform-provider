@@ -1,6 +1,6 @@
 module github.com/patrikcze/terraform-provider-veeam
 
-go 1.24.4
+go 1.26.1
 
 require (
 	github.com/hashicorp/terraform-plugin-framework v1.15.0
