@@ -46,7 +46,7 @@ func (r *Proxy) Metadata(_ context.Context, req resource.MetadataRequest, resp *
 
 func (r *Proxy) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Manages a Veeam backup proxy (ViProxy).",
+		MarkdownDescription: "Manages a Veeam backup proxy (ViProxy, HvProxy, or GeneralPurposeProxy).",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				MarkdownDescription: "Proxy identifier (assigned by the server).",
@@ -65,7 +65,7 @@ func (r *Proxy) Schema(_ context.Context, _ resource.SchemaRequest, resp *resour
 				Computed:            true,
 			},
 			"type": schema.StringAttribute{
-				MarkdownDescription: "Proxy type: `ViProxy`, `HvProxy`, or `FileProxy`.",
+				MarkdownDescription: "Proxy type: `ViProxy`, `HvProxy`, or `GeneralPurposeProxy`.",
 				Required:            true,
 			},
 			"host_id": schema.StringAttribute{
@@ -73,20 +73,24 @@ func (r *Proxy) Schema(_ context.Context, _ resource.SchemaRequest, resp *resour
 				Required:            true,
 			},
 			"transport_mode": schema.StringAttribute{
-				MarkdownDescription: "Data transport mode: `Auto`, `DirectAccess`, `VirtualAppliance`, or `Network`.",
+				MarkdownDescription: "Data transport mode (`ViProxy` only): `Auto`, `DirectAccess`, `VirtualAppliance`, or `Network`.",
 				Optional:            true,
+				Computed:            true,
 			},
 			"failover_to_network": schema.BoolAttribute{
-				MarkdownDescription: "Failover to network transport if primary mode fails.",
+				MarkdownDescription: "Failover to network transport if primary mode fails (`ViProxy` only).",
 				Optional:            true,
+				Computed:            true,
 			},
 			"host_to_proxy_encryption": schema.BoolAttribute{
-				MarkdownDescription: "Encrypt data between host and proxy.",
+				MarkdownDescription: "Encrypt data between host and proxy (`ViProxy` only).",
 				Optional:            true,
+				Computed:            true,
 			},
 			"max_task_count": schema.Int64Attribute{
 				MarkdownDescription: "Maximum concurrent tasks.",
 				Optional:            true,
+				Computed:            true,
 			},
 		},
 	}
@@ -132,8 +136,7 @@ func (r *Proxy) Create(ctx context.Context, req resource.CreateRequest, resp *re
 	resultID := getStringValue(result, "id")
 	resultType := getStringValue(result, "type")
 
-	// Some Veeam operations return async session objects. In that case,
-	// wait for completion and then resolve proxy ID from inventory.
+	// POST returns a SessionModel (async) — wait for task and resolve proxy ID.
 	if resultType == "" {
 		if resultID == "" {
 			resp.Diagnostics.AddError(
@@ -164,9 +167,9 @@ func (r *Proxy) Create(ctx context.Context, req resource.CreateRequest, resp *re
 		data.ID = types.StringValue(resultID)
 	}
 
-	// Read created proxy to sync computed fields while preserving planned values.
+	// Read created proxy to sync computed fields.
 	if !data.ID.IsNull() && data.ID.ValueString() != "" {
-		var created models.ProxyModel
+		var created models.ViProxyModel
 		endpoint := fmt.Sprintf(client.PathProxyByID, data.ID.ValueString())
 		if err := r.client.GetJSON(ctx, endpoint, &created); err == nil {
 			r.syncFromAPI(&data, &created)
@@ -182,7 +185,7 @@ func (r *Proxy) Read(ctx context.Context, req resource.ReadRequest, resp *resour
 		return
 	}
 
-	var result models.ProxyModel
+	var result models.ViProxyModel
 	endpoint := fmt.Sprintf(client.PathProxyByID, data.ID.ValueString())
 	if err := r.client.GetJSON(ctx, endpoint, &result); err != nil {
 		resp.Diagnostics.AddError(
@@ -206,12 +209,26 @@ func (r *Proxy) Update(ctx context.Context, req resource.UpdateRequest, resp *re
 	payload := r.buildSpec(&data)
 
 	endpoint := fmt.Sprintf(client.PathProxyByID, data.ID.ValueString())
-	if err := r.client.PutJSON(ctx, endpoint, payload, nil); err != nil {
+	var result map[string]interface{}
+	if err := r.client.PutJSON(ctx, endpoint, payload, &result); err != nil {
 		resp.Diagnostics.AddError(
 			"Failed to update proxy",
 			fmt.Sprintf("API error for proxy %s: %s", data.ID.ValueString(), err),
 		)
 		return
+	}
+
+	// Handle async response from PUT.
+	resultID := getStringValue(result, "id")
+	resultType := getStringValue(result, "type")
+	if resultType == "" && resultID != "" {
+		if err := r.client.WaitForTask(ctx, resultID); err != nil {
+			resp.Diagnostics.AddError(
+				"Failed to update proxy",
+				fmt.Sprintf("Async task %s failed: %s", resultID, err),
+			)
+			return
+		}
 	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, data)...)
@@ -247,33 +264,65 @@ func NewProxy() resource.Resource {
 // Helpers
 // ---------------------------------------------------------------------------
 
+// buildSpec builds the correct proxy spec based on the proxy type.
 func (r *Proxy) buildSpec(data *ProxyModel) interface{} {
-	server := &models.ProxyServerSettings{
-		HostID: data.HostID.ValueString(),
-	}
-	if !data.TransportMode.IsNull() {
-		server.TransportMode = models.EBackupProxyTransportMode(data.TransportMode.ValueString())
-	}
-	if !data.FailoverToNetwork.IsNull() {
-		server.FailoverToNetwork = data.FailoverToNetwork.ValueBool()
-	}
-	if !data.HostToProxyEncryption.IsNull() {
-		server.HostToProxyEncryption = data.HostToProxyEncryption.ValueBool()
-	}
-	if !data.MaxTaskCount.IsNull() && !data.MaxTaskCount.IsUnknown() {
-		server.MaxTaskCount = int(data.MaxTaskCount.ValueInt64())
+	proxyType := models.EProxyType(data.Type.ValueString())
+	base := models.ProxySpec{
+		Description: data.Description.ValueString(),
+		Type:        proxyType,
 	}
 
-	return &models.ViProxySpec{
-		ProxySpec: models.ProxySpec{
-			Description: data.Description.ValueString(),
-			Type:        models.EProxyType(data.Type.ValueString()),
-		},
-		Server: server,
+	switch proxyType {
+	case models.ProxyTypeHvProxy:
+		server := &models.HvProxyServerSettings{
+			HostID: data.HostID.ValueString(),
+		}
+		if !data.MaxTaskCount.IsNull() && !data.MaxTaskCount.IsUnknown() {
+			server.MaxTaskCount = int(data.MaxTaskCount.ValueInt64())
+		}
+		return &models.HvProxySpec{
+			ProxySpec: base,
+			Server:    server,
+		}
+
+	case models.ProxyTypeGeneralPurposeProxy:
+		server := &models.GeneralPurposeProxyServerSettings{
+			HostID: data.HostID.ValueString(),
+		}
+		if !data.MaxTaskCount.IsNull() && !data.MaxTaskCount.IsUnknown() {
+			server.MaxTaskCount = int(data.MaxTaskCount.ValueInt64())
+		}
+		return &models.GeneralPurposeProxySpec{
+			ProxySpec: base,
+			Server:    server,
+		}
+
+	default: // ViProxy
+		server := &models.ProxyServerSettings{
+			HostID: data.HostID.ValueString(),
+		}
+		if !data.TransportMode.IsNull() {
+			server.TransportMode = models.EBackupProxyTransportMode(data.TransportMode.ValueString())
+		}
+		if !data.FailoverToNetwork.IsNull() {
+			server.FailoverToNetwork = data.FailoverToNetwork.ValueBool()
+		}
+		if !data.HostToProxyEncryption.IsNull() {
+			server.HostToProxyEncryption = data.HostToProxyEncryption.ValueBool()
+		}
+		if !data.MaxTaskCount.IsNull() && !data.MaxTaskCount.IsUnknown() {
+			server.MaxTaskCount = int(data.MaxTaskCount.ValueInt64())
+		}
+		return &models.ViProxySpec{
+			ProxySpec: base,
+			Server:    server,
+		}
 	}
 }
 
-func (r *Proxy) syncFromAPI(data *ProxyModel, api *models.ProxyModel) {
+// syncFromAPI merges API response fields into the Terraform state.
+// Uses ViProxyModel which covers all proxy types (extra fields just remain empty for non-ViProxy).
+func (r *Proxy) syncFromAPI(data *ProxyModel, api *models.ViProxyModel) {
 	if api.Name != "" {
 		data.Name = types.StringValue(api.Name)
 	}
@@ -282,6 +331,17 @@ func (r *Proxy) syncFromAPI(data *ProxyModel, api *models.ProxyModel) {
 	}
 	if string(api.Type) != "" {
 		data.Type = types.StringValue(string(api.Type))
+	}
+	if api.Server != nil {
+		if api.Server.HostID != "" {
+			data.HostID = types.StringValue(api.Server.HostID)
+		}
+		if api.Server.MaxTaskCount > 0 {
+			data.MaxTaskCount = types.Int64Value(int64(api.Server.MaxTaskCount))
+		}
+		if string(api.Server.TransportMode) != "" {
+			data.TransportMode = types.StringValue(string(api.Server.TransportMode))
+		}
 	}
 }
 

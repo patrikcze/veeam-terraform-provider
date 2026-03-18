@@ -463,11 +463,17 @@ func TestConfigurationBackupModel_RoundTrip(t *testing.T) {
 
 func TestScaleOutRepositoryModel_RoundTrip(t *testing.T) {
 	original := ScaleOutRepositoryModel{
-		ID:                       "sobr-1",
-		Name:                     "SOBR Main",
-		Description:              "Main SOBR",
-		IsSealedModeEnabled:      true,
-		IsMaintenanceModeEnabled: false,
+		ID:          "sobr-1",
+		Name:        "SOBR Main",
+		Description: "Main SOBR",
+		PerformanceTier: &PerformanceTierModel{
+			PerformanceExtents: []PerformanceExtentModel{
+				{ID: "repo-1", Name: "Repo One"},
+			},
+		},
+		CapacityTier: &CapacityTierModel{
+			IsEnabled: true,
+		},
 	}
 
 	data, err := json.Marshal(original)
@@ -476,6 +482,10 @@ func TestScaleOutRepositoryModel_RoundTrip(t *testing.T) {
 	var decoded ScaleOutRepositoryModel
 	require.NoError(t, json.Unmarshal(data, &decoded))
 	assert.Equal(t, "sobr-1", decoded.ID)
-	assert.True(t, decoded.IsSealedModeEnabled)
-	assert.False(t, decoded.IsMaintenanceModeEnabled)
+	assert.Equal(t, "SOBR Main", decoded.Name)
+	require.NotNil(t, decoded.PerformanceTier)
+	require.Len(t, decoded.PerformanceTier.PerformanceExtents, 1)
+	assert.Equal(t, "repo-1", decoded.PerformanceTier.PerformanceExtents[0].ID)
+	require.NotNil(t, decoded.CapacityTier)
+	assert.True(t, decoded.CapacityTier.IsEnabled)
 }

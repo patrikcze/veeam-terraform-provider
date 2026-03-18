@@ -144,11 +144,12 @@ resource "veeam_credential" "windows_admin" {
 
 # Windows managed server must already exist (or be registered separately)
 resource "veeam_repository" "win_primary" {
-  name           = "Windows-Backup-Repo"
-  type           = "WinLocal"
-  host_id        = var.windows_host_id   # ID of the registered Windows managed server
-  path           = "D:\\VeeamBackup"
-  max_task_count = 4
+  name               = "Windows-Backup-Repo"
+  type               = "WinLocal"
+  host_id            = var.windows_host_id   # ID of the registered Windows managed server
+  path               = "D:\\VeeamBackup"
+  max_task_count     = 4
+  task_limit_enabled = true
 }
 ```
 
@@ -169,6 +170,41 @@ resource "veeam_repository" "nfs_nas" {
   name       = "NAS-NFS-Repo"
   type       = "Nfs"
   share_path = "nas.example.com:/export/veeambackup"
+}
+```
+
+### Scale-out backup repository (SOBR)
+
+```hcl
+# Aggregate two repositories into a SOBR
+resource "veeam_scale_out_repository" "sobr" {
+  name        = "SOBR-Production"
+  description = "Scale-out repository spanning two nodes"
+
+  performance_extent_ids = [
+    veeam_repository.linux.id,
+    veeam_repository.win_primary.id,
+  ]
+}
+```
+
+### Backup proxy
+
+```hcl
+# vSphere proxy
+resource "veeam_proxy" "vsphere" {
+  type           = "ViProxy"
+  description    = "Primary vSphere proxy"
+  host_id        = veeam_managed_server.linux_backup.id
+  transport_mode = "Auto"
+  max_task_count = 4
+}
+
+# Hyper-V proxy
+resource "veeam_proxy" "hyperv" {
+  type          = "HvProxy"
+  host_id       = var.hv_host_id
+  max_task_count = 2
 }
 ```
 
@@ -251,9 +287,9 @@ terraform import veeam_backup_job.vms_daily <job-id>
 | `veeam_encryption_password` | Encryption passwords for backup data-at-rest encryption |
 | `veeam_managed_server` | Managed servers: ViHost, WindowsHost, LinuxHost |
 | `veeam_protection_group` | Agent-based protection groups (IndividualComputers, CloudMachines) |
-| `veeam_proxy` | vSphere backup proxies with transport mode configuration |
-| `veeam_repository` | Backup repositories: WinLocal, LinuxLocal, Nfs, Smb |
-| `veeam_scale_out_repository` | Scale-out backup repositories (SOBR) |
+| `veeam_proxy` | Backup proxies: ViProxy (vSphere), HvProxy (Hyper-V), GeneralPurposeProxy |
+| `veeam_repository` | Backup repositories: WinLocal, LinuxLocal, Nfs, Smb with task/rate limits |
+| `veeam_scale_out_repository` | Scale-out backup repositories (SOBR) with performance extents |
 
 ## Data Sources
 
@@ -299,7 +335,11 @@ export VEEAM_USERNAME="administrator"
 export VEEAM_PASSWORD="secret"
 export VEEAM_INSECURE="true"
 
-# Additional variables required for backup job acceptance tests:
+# Required for repository and proxy acceptance tests:
+export TF_VAR_test_host_id="<uuid-of-registered-linux-host>"
+export TF_VAR_test_repo_path="/tmp/tf-acc-repo"   # optional, defaults to /tmp/tf-acc-repo
+
+# Required for backup job acceptance tests:
 export TF_VAR_test_repo_id="<uuid-of-existing-repository>"
 export TF_VAR_test_vcenter_host="vcenter.lab.example.com"
 export TF_VAR_test_vm_name="vm-display-name"
@@ -311,6 +351,9 @@ TF_ACC=1 make testacc
 Run a single resource's acceptance tests:
 
 ```bash
+TF_ACC=1 make testacc-repository
+TF_ACC=1 make testacc-proxy
+TF_ACC=1 make testacc-scale-out-repository
 TF_ACC=1 make testacc-backup-job
 ```
 

@@ -98,26 +98,32 @@ type SmbStorageSpec struct {
 
 // WindowsLocalRepositorySettings configures a Windows local path repository.
 type WindowsLocalRepositorySettings struct {
-	Path             string                      `json:"path"`
-	MaxTaskCount     int                         `json:"maxTaskCount,omitempty"`
-	ReadWriteRate    int                         `json:"readWriteRate,omitempty"`
-	AdvancedSettings *RepositoryAdvancedSettings `json:"advancedSettings,omitempty"`
+	Path                  string                      `json:"path"`
+	MaxTaskCount          int                         `json:"maxTaskCount,omitempty"`
+	TaskLimitEnabled      bool                        `json:"taskLimitEnabled,omitempty"`
+	ReadWriteRate         int                         `json:"readWriteRate,omitempty"`
+	ReadWriteLimitEnabled bool                        `json:"readWriteLimitEnabled,omitempty"`
+	AdvancedSettings      *RepositoryAdvancedSettings `json:"advancedSettings,omitempty"`
 }
 
 // LinuxLocalRepositorySettings configures a Linux local path repository.
 type LinuxLocalRepositorySettings struct {
-	Path             string                      `json:"path"`
-	MaxTaskCount     int                         `json:"maxTaskCount,omitempty"`
-	ReadWriteRate    int                         `json:"readWriteRate,omitempty"`
-	AdvancedSettings *RepositoryAdvancedSettings `json:"advancedSettings,omitempty"`
+	Path                  string                      `json:"path"`
+	MaxTaskCount          int                         `json:"maxTaskCount,omitempty"`
+	TaskLimitEnabled      bool                        `json:"taskLimitEnabled,omitempty"`
+	ReadWriteRate         int                         `json:"readWriteRate,omitempty"`
+	ReadWriteLimitEnabled bool                        `json:"readWriteLimitEnabled,omitempty"`
+	AdvancedSettings      *RepositoryAdvancedSettings `json:"advancedSettings,omitempty"`
 }
 
 // NetworkRepositorySettings configures NFS/SMB network repositories.
 type NetworkRepositorySettings struct {
-	Path             string                      `json:"path,omitempty"`
-	MaxTaskCount     int                         `json:"maxTaskCount,omitempty"`
-	ReadWriteRate    int                         `json:"readWriteRate,omitempty"`
-	AdvancedSettings *RepositoryAdvancedSettings `json:"advancedSettings,omitempty"`
+	Path                  string                      `json:"path,omitempty"`
+	MaxTaskCount          int                         `json:"maxTaskCount,omitempty"`
+	TaskLimitEnabled      bool                        `json:"taskLimitEnabled,omitempty"`
+	ReadWriteRate         int                         `json:"readWriteRate,omitempty"`
+	ReadWriteLimitEnabled bool                        `json:"readWriteLimitEnabled,omitempty"`
+	AdvancedSettings      *RepositoryAdvancedSettings `json:"advancedSettings,omitempty"`
 }
 
 // RepositoryAdvancedSettings holds advanced repository configuration.

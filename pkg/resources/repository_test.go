@@ -15,14 +15,17 @@ import (
 func TestRepository_BuildSpec_WinLocal(t *testing.T) {
 	resource := &Repository{}
 	data := &RepositoryModel{
-		Name:          types.StringValue("WinRepo"),
-		Description:   types.StringValue("Windows local repo"),
-		Type:          types.StringValue("WinLocal"),
-		HostID:        types.StringValue("host-123"),
-		Path:          types.StringValue("C:\\Backups"),
-		MaxTaskCount:  types.Int64Value(4),
-		SharePath:     types.StringNull(),
-		CredentialsID: types.StringNull(),
+		Name:                  types.StringValue("WinRepo"),
+		Description:           types.StringValue("Windows local repo"),
+		Type:                  types.StringValue("WinLocal"),
+		HostID:                types.StringValue("host-123"),
+		Path:                  types.StringValue("C:\\Backups"),
+		MaxTaskCount:          types.Int64Value(4),
+		TaskLimitEnabled:      types.BoolValue(true),
+		ReadWriteRate:         types.Int64Null(),
+		ReadWriteLimitEnabled: types.BoolNull(),
+		SharePath:             types.StringNull(),
+		CredentialsID:         types.StringNull(),
 	}
 
 	spec := resource.buildSpec(data)

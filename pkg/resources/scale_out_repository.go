@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -21,17 +22,18 @@ var (
 	_ resource.ResourceWithImportState = &ScaleOutRepository{}
 )
 
+// ScaleOutRepository implements the veeam_scale_out_repository resource.
 type ScaleOutRepository struct {
 	client client.APIClient
 }
 
+// ScaleOutRepositoryModel is the Terraform state model for veeam_scale_out_repository.
 type ScaleOutRepositoryModel struct {
-	ID                     types.String `tfsdk:"id"`
-	Name                   types.String `tfsdk:"name"`
-	Description            types.String `tfsdk:"description"`
-	CapacityTierEnabled    types.Bool   `tfsdk:"capacity_tier_enabled"`
-	MaintenanceModeEnabled types.Bool   `tfsdk:"maintenance_mode_enabled"`
-	SealedModeEnabled      types.Bool   `tfsdk:"sealed_mode_enabled"`
+	ID                   types.String `tfsdk:"id"`
+	Name                 types.String `tfsdk:"name"`
+	Description          types.String `tfsdk:"description"`
+	PerformanceExtentIDs types.List   `tfsdk:"performance_extent_ids"`
+	CapacityTierEnabled  types.Bool   `tfsdk:"capacity_tier_enabled"`
 }
 
 func (r *ScaleOutRepository) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -40,19 +42,34 @@ func (r *ScaleOutRepository) Metadata(_ context.Context, req resource.MetadataRe
 
 func (r *ScaleOutRepository) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Manages a Veeam scale-out backup repository.",
+		MarkdownDescription: "Manages a Veeam scale-out backup repository (SOBR).",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
-				Computed: true,
+				MarkdownDescription: "Scale-out repository identifier (assigned by the server).",
+				Computed:            true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
-			"name":                     schema.StringAttribute{Required: true},
-			"description":              schema.StringAttribute{Optional: true, Computed: true},
-			"capacity_tier_enabled":    schema.BoolAttribute{Optional: true, Computed: true},
-			"maintenance_mode_enabled": schema.BoolAttribute{Optional: true, Computed: true},
-			"sealed_mode_enabled":      schema.BoolAttribute{Optional: true, Computed: true},
+			"name": schema.StringAttribute{
+				MarkdownDescription: "SOBR name.",
+				Required:            true,
+			},
+			"description": schema.StringAttribute{
+				MarkdownDescription: "Optional description.",
+				Optional:            true,
+				Computed:            true,
+			},
+			"performance_extent_ids": schema.ListAttribute{
+				ElementType:         types.StringType,
+				Required:            true,
+				MarkdownDescription: "Ordered list of repository IDs to include as performance extents. At least one is required.",
+			},
+			"capacity_tier_enabled": schema.BoolAttribute{
+				Optional:            true,
+				Computed:            true,
+				MarkdownDescription: "Enable the capacity tier (requires object storage configured in Veeam).",
+			},
 		},
 	}
 }
@@ -69,6 +86,10 @@ func (r *ScaleOutRepository) Configure(_ context.Context, req resource.Configure
 	r.client = c
 }
 
+// ---------------------------------------------------------------------------
+// CRUD
+// ---------------------------------------------------------------------------
+
 func (r *ScaleOutRepository) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var data ScaleOutRepositoryModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
@@ -76,28 +97,51 @@ func (r *ScaleOutRepository) Create(ctx context.Context, req resource.CreateRequ
 		return
 	}
 
-	payload := &models.ScaleOutRepositorySpec{
-		Name: data.Name.ValueString(),
-	}
-	if !data.Description.IsNull() {
-		payload.Description = data.Description.ValueString()
-	}
-	if !data.CapacityTierEnabled.IsNull() {
-		payload.CapacityTier = data.CapacityTierEnabled.ValueBool()
+	payload, diags := r.buildSpec(ctx, &data)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
 	}
 
-	var result models.ScaleOutRepositoryModel
+	var result map[string]interface{}
 	if err := r.client.PostJSON(ctx, client.PathScaleOutRepositories, payload, &result); err != nil {
 		resp.Diagnostics.AddError("Failed to create scale-out repository", fmt.Sprintf("API error: %s", err))
 		return
 	}
 
-	data.ID = types.StringValue(result.ID)
-	r.applyModesCreate(ctx, &data, resp)
-	if resp.Diagnostics.HasError() {
-		return
+	resultID := getStringValue(result, "id")
+	resultType := getStringValue(result, "type")
+
+	// POST returns a SessionModel (async) — wait for task and resolve SOBR ID by name.
+	if resultType == "" {
+		if resultID == "" {
+			resp.Diagnostics.AddError("Failed to create scale-out repository",
+				"API response did not include a type or async session ID.")
+			return
+		}
+		if err := r.client.WaitForTask(ctx, resultID); err != nil {
+			resp.Diagnostics.AddError("Failed to create scale-out repository",
+				fmt.Sprintf("Async task %s failed: %s", resultID, err))
+			return
+		}
+		resolvedID, err := r.findSOBRIDByName(ctx, data.Name.ValueString())
+		if err != nil {
+			resp.Diagnostics.AddError("Failed to resolve created scale-out repository", err.Error())
+			return
+		}
+		data.ID = types.StringValue(resolvedID)
+	} else {
+		data.ID = types.StringValue(resultID)
 	}
-	r.syncFromAPI(&data, &result)
+
+	// Read back to populate computed fields.
+	if !data.ID.IsNull() && data.ID.ValueString() != "" {
+		var created models.ScaleOutRepositoryModel
+		endpoint := fmt.Sprintf(client.PathScaleOutRepositoryByID, data.ID.ValueString())
+		if err := r.client.GetJSON(ctx, endpoint, &created); err == nil {
+			resp.Diagnostics.Append(r.syncFromAPI(ctx, &data, &created)...)
+		}
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, data)...)
 }
 
@@ -111,11 +155,12 @@ func (r *ScaleOutRepository) Read(ctx context.Context, req resource.ReadRequest,
 	var result models.ScaleOutRepositoryModel
 	endpoint := fmt.Sprintf(client.PathScaleOutRepositoryByID, data.ID.ValueString())
 	if err := r.client.GetJSON(ctx, endpoint, &result); err != nil {
-		resp.Diagnostics.AddError("Failed to read scale-out repository", fmt.Sprintf("API error for scale-out repository %s: %s", data.ID.ValueString(), err))
+		resp.Diagnostics.AddError("Failed to read scale-out repository",
+			fmt.Sprintf("API error for SOBR %s: %s", data.ID.ValueString(), err))
 		return
 	}
 
-	r.syncFromAPI(&data, &result)
+	resp.Diagnostics.Append(r.syncFromAPI(ctx, &data, &result)...)
 	resp.Diagnostics.Append(resp.State.Set(ctx, data)...)
 }
 
@@ -126,26 +171,31 @@ func (r *ScaleOutRepository) Update(ctx context.Context, req resource.UpdateRequ
 		return
 	}
 
-	payload := &models.ScaleOutRepositorySpec{
-		Name: data.Name.ValueString(),
-	}
-	if !data.Description.IsNull() {
-		payload.Description = data.Description.ValueString()
-	}
-	if !data.CapacityTierEnabled.IsNull() {
-		payload.CapacityTier = data.CapacityTierEnabled.ValueBool()
-	}
-
-	endpoint := fmt.Sprintf(client.PathScaleOutRepositoryByID, data.ID.ValueString())
-	if err := r.client.PutJSON(ctx, endpoint, payload, nil); err != nil {
-		resp.Diagnostics.AddError("Failed to update scale-out repository", fmt.Sprintf("API error for scale-out repository %s: %s", data.ID.ValueString(), err))
-		return
-	}
-
-	r.applyModes(ctx, &data, resp)
+	payload, diags := r.buildSpec(ctx, &data)
+	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
+
+	endpoint := fmt.Sprintf(client.PathScaleOutRepositoryByID, data.ID.ValueString())
+	var result map[string]interface{}
+	if err := r.client.PutJSON(ctx, endpoint, payload, &result); err != nil {
+		resp.Diagnostics.AddError("Failed to update scale-out repository",
+			fmt.Sprintf("API error for SOBR %s: %s", data.ID.ValueString(), err))
+		return
+	}
+
+	// Handle async response from PUT.
+	resultID := getStringValue(result, "id")
+	resultType := getStringValue(result, "type")
+	if resultType == "" && resultID != "" {
+		if err := r.client.WaitForTask(ctx, resultID); err != nil {
+			resp.Diagnostics.AddError("Failed to update scale-out repository",
+				fmt.Sprintf("Async task %s failed: %s", resultID, err))
+			return
+		}
+	}
+
 	resp.Diagnostics.Append(resp.State.Set(ctx, data)...)
 }
 
@@ -158,7 +208,8 @@ func (r *ScaleOutRepository) Delete(ctx context.Context, req resource.DeleteRequ
 
 	endpoint := fmt.Sprintf(client.PathScaleOutRepositoryByID, data.ID.ValueString())
 	if err := r.client.DeleteJSON(ctx, endpoint); err != nil {
-		resp.Diagnostics.AddError("Failed to delete scale-out repository", fmt.Sprintf("API error for scale-out repository %s: %s", data.ID.ValueString(), err))
+		resp.Diagnostics.AddError("Failed to delete scale-out repository",
+			fmt.Sprintf("API error for SOBR %s: %s", data.ID.ValueString(), err))
 		return
 	}
 }
@@ -167,79 +218,97 @@ func (r *ScaleOutRepository) ImportState(ctx context.Context, req resource.Impor
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }
 
+// NewScaleOutRepository returns a new veeam_scale_out_repository resource instance.
 func NewScaleOutRepository() resource.Resource {
 	return &ScaleOutRepository{}
 }
 
-func (r *ScaleOutRepository) applyModes(ctx context.Context, data *ScaleOutRepositoryModel, resp *resource.UpdateResponse) {
-	if data.ID.IsNull() || data.ID.IsUnknown() {
-		return
-	}
-	id := data.ID.ValueString()
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
-	if !data.SealedModeEnabled.IsNull() {
-		var endpoint string
-		if data.SealedModeEnabled.ValueBool() {
-			endpoint = fmt.Sprintf(client.PathScaleOutEnableSealed, id)
-		} else {
-			endpoint = fmt.Sprintf(client.PathScaleOutDisableSealed, id)
-		}
-		if err := r.client.PostJSON(ctx, endpoint, &models.ScaleOutModeSpec{}, nil); err != nil {
-			resp.Diagnostics.AddError("Failed to apply sealed mode", fmt.Sprintf("API error for scale-out repository %s: %s", id, err))
-			return
-		}
+func (r *ScaleOutRepository) buildSpec(ctx context.Context, data *ScaleOutRepositoryModel) (*models.ScaleOutRepositorySpec, diag.Diagnostics) {
+	var diags diag.Diagnostics
+
+	var extentIDs []string
+	diags.Append(data.PerformanceExtentIDs.ElementsAs(ctx, &extentIDs, false)...)
+	if diags.HasError() {
+		return nil, diags
 	}
 
-	if !data.MaintenanceModeEnabled.IsNull() {
-		var endpoint string
-		if data.MaintenanceModeEnabled.ValueBool() {
-			endpoint = fmt.Sprintf(client.PathScaleOutEnableMaint, id)
-		} else {
-			endpoint = fmt.Sprintf(client.PathScaleOutDisableMaint, id)
-		}
-		if err := r.client.PostJSON(ctx, endpoint, &models.ScaleOutModeSpec{}, nil); err != nil {
-			resp.Diagnostics.AddError("Failed to apply maintenance mode", fmt.Sprintf("API error for scale-out repository %s: %s", id, err))
-			return
+	extents := make([]models.PerformanceExtentSpec, len(extentIDs))
+	for i, id := range extentIDs {
+		extents[i] = models.PerformanceExtentSpec{ID: id}
+	}
+
+	spec := &models.ScaleOutRepositorySpec{
+		Name: data.Name.ValueString(),
+		PerformanceTier: models.PerformanceTierSpec{
+			PerformanceExtents: extents,
+		},
+	}
+	if !data.Description.IsNull() {
+		spec.Description = data.Description.ValueString()
+	}
+	if !data.CapacityTierEnabled.IsNull() && data.CapacityTierEnabled.ValueBool() {
+		spec.CapacityTier = &models.CapacityTierSpec{
+			IsEnabled: true,
 		}
 	}
+	return spec, diags
 }
 
-func (r *ScaleOutRepository) applyModesCreate(ctx context.Context, data *ScaleOutRepositoryModel, resp *resource.CreateResponse) {
-	if data.ID.IsNull() || data.ID.IsUnknown() {
-		return
-	}
-	id := data.ID.ValueString()
+func (r *ScaleOutRepository) syncFromAPI(ctx context.Context, data *ScaleOutRepositoryModel, api *models.ScaleOutRepositoryModel) diag.Diagnostics {
+	var diags diag.Diagnostics
 
-	if !data.SealedModeEnabled.IsNull() {
-		var endpoint string
-		if data.SealedModeEnabled.ValueBool() {
-			endpoint = fmt.Sprintf(client.PathScaleOutEnableSealed, id)
-		} else {
-			endpoint = fmt.Sprintf(client.PathScaleOutDisableSealed, id)
-		}
-		if err := r.client.PostJSON(ctx, endpoint, &models.ScaleOutModeSpec{}, nil); err != nil {
-			resp.Diagnostics.AddError("Failed to apply sealed mode", fmt.Sprintf("API error for scale-out repository %s: %s", id, err))
-			return
-		}
-	}
-
-	if !data.MaintenanceModeEnabled.IsNull() {
-		var endpoint string
-		if data.MaintenanceModeEnabled.ValueBool() {
-			endpoint = fmt.Sprintf(client.PathScaleOutEnableMaint, id)
-		} else {
-			endpoint = fmt.Sprintf(client.PathScaleOutDisableMaint, id)
-		}
-		if err := r.client.PostJSON(ctx, endpoint, &models.ScaleOutModeSpec{}, nil); err != nil {
-			resp.Diagnostics.AddError("Failed to apply maintenance mode", fmt.Sprintf("API error for scale-out repository %s: %s", id, err))
-			return
-		}
-	}
-}
-
-func (r *ScaleOutRepository) syncFromAPI(data *ScaleOutRepositoryModel, api *models.ScaleOutRepositoryModel) {
 	data.Name = types.StringValue(api.Name)
 	data.Description = types.StringValue(api.Description)
-	data.SealedModeEnabled = types.BoolValue(api.IsSealedModeEnabled)
-	data.MaintenanceModeEnabled = types.BoolValue(api.IsMaintenanceModeEnabled)
+
+	// Sync capacity tier.
+	if api.CapacityTier != nil {
+		data.CapacityTierEnabled = types.BoolValue(api.CapacityTier.IsEnabled)
+	} else {
+		data.CapacityTierEnabled = types.BoolValue(false)
+	}
+
+	// Sync performance extent IDs.
+	if api.PerformanceTier != nil {
+		ids := make([]string, len(api.PerformanceTier.PerformanceExtents))
+		for i, e := range api.PerformanceTier.PerformanceExtents {
+			ids[i] = e.ID
+		}
+		list, d := types.ListValueFrom(ctx, types.StringType, ids)
+		diags.Append(d...)
+		data.PerformanceExtentIDs = list
+	} else if data.PerformanceExtentIDs.IsNull() {
+		data.PerformanceExtentIDs, _ = types.ListValueFrom(ctx, types.StringType, []string{})
+	}
+
+	return diags
+}
+
+func (r *ScaleOutRepository) findSOBRIDByName(ctx context.Context, name string) (string, error) {
+	var payload map[string]interface{}
+	if err := r.client.GetJSON(ctx, client.PathScaleOutRepositories, &payload); err != nil {
+		return "", fmt.Errorf("failed to list scale-out repositories after create: %w", err)
+	}
+
+	rawData, ok := payload["data"].([]interface{})
+	if !ok {
+		return "", fmt.Errorf("unexpected scale-out repositories list response: missing data array")
+	}
+
+	for _, item := range rawData {
+		entry, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if getStringValue(entry, "name") == name {
+			id := getStringValue(entry, "id")
+			if id != "" {
+				return id, nil
+			}
+		}
+	}
+	return "", fmt.Errorf("scale-out repository %q was created but could not be located in list", name)
 }

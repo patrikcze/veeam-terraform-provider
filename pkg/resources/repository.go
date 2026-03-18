@@ -32,15 +32,18 @@ type Repository struct {
 // RepositoryModel is the Terraform state model for veeam_repository.
 // Supports WinLocal, LinuxLocal, Nfs, and Smb types.
 type RepositoryModel struct {
-	ID            types.String `tfsdk:"id"`
-	Name          types.String `tfsdk:"name"`
-	Description   types.String `tfsdk:"description"`
-	Type          types.String `tfsdk:"type"`
-	HostID        types.String `tfsdk:"host_id"`
-	Path          types.String `tfsdk:"path"`
-	MaxTaskCount  types.Int64  `tfsdk:"max_task_count"`
-	SharePath     types.String `tfsdk:"share_path"`
-	CredentialsID types.String `tfsdk:"credentials_id"`
+	ID                    types.String `tfsdk:"id"`
+	Name                  types.String `tfsdk:"name"`
+	Description           types.String `tfsdk:"description"`
+	Type                  types.String `tfsdk:"type"`
+	HostID                types.String `tfsdk:"host_id"`
+	Path                  types.String `tfsdk:"path"`
+	MaxTaskCount          types.Int64  `tfsdk:"max_task_count"`
+	TaskLimitEnabled      types.Bool   `tfsdk:"task_limit_enabled"`
+	ReadWriteRate         types.Int64  `tfsdk:"read_write_rate"`
+	ReadWriteLimitEnabled types.Bool   `tfsdk:"read_write_limit_enabled"`
+	SharePath             types.String `tfsdk:"share_path"`
+	CredentialsID         types.String `tfsdk:"credentials_id"`
 }
 
 func (r *Repository) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -82,6 +85,22 @@ func (r *Repository) Schema(_ context.Context, _ resource.SchemaRequest, resp *r
 			"max_task_count": schema.Int64Attribute{
 				MarkdownDescription: "Maximum concurrent tasks.",
 				Optional:            true,
+				Computed:            true,
+			},
+			"task_limit_enabled": schema.BoolAttribute{
+				MarkdownDescription: "Enable the concurrent task limit. Must be `true` when `max_task_count` is set.",
+				Optional:            true,
+				Computed:            true,
+			},
+			"read_write_rate": schema.Int64Attribute{
+				MarkdownDescription: "Maximum read/write rate in MB/s.",
+				Optional:            true,
+				Computed:            true,
+			},
+			"read_write_limit_enabled": schema.BoolAttribute{
+				MarkdownDescription: "Enable the read/write rate limit. Must be `true` when `read_write_rate` is set.",
+				Optional:            true,
+				Computed:            true,
 			},
 			"share_path": schema.StringAttribute{
 				MarkdownDescription: "Network share path (Nfs or Smb types).",
@@ -213,12 +232,26 @@ func (r *Repository) Update(ctx context.Context, req resource.UpdateRequest, res
 	payload := r.buildSpec(&data)
 
 	endpoint := fmt.Sprintf(client.PathRepositoryByID, data.ID.ValueString())
-	if err := r.client.PutJSON(ctx, endpoint, payload, nil); err != nil {
+	var result map[string]interface{}
+	if err := r.client.PutJSON(ctx, endpoint, payload, &result); err != nil {
 		resp.Diagnostics.AddError(
 			"Failed to update repository",
 			fmt.Sprintf("API error for repository %s: %s", data.ID.ValueString(), err),
 		)
 		return
+	}
+
+	// Handle async response from PUT.
+	resultID := getStringValue(result, "id")
+	resultType := getStringValue(result, "type")
+	if resultType == "" && resultID != "" {
+		if err := r.client.WaitForTask(ctx, resultID); err != nil {
+			resp.Diagnostics.AddError(
+				"Failed to update repository",
+				fmt.Sprintf("Async task %s failed: %s", resultID, err),
+			)
+			return
+		}
 	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, data)...)
@@ -267,6 +300,13 @@ func (r *Repository) buildSpec(data *RepositoryModel) interface{} {
 	if !data.MaxTaskCount.IsNull() && !data.MaxTaskCount.IsUnknown() {
 		maxTasks = int(data.MaxTaskCount.ValueInt64())
 	}
+	taskLimitEnabled := !data.TaskLimitEnabled.IsNull() && data.TaskLimitEnabled.ValueBool()
+
+	readWriteRate := 0
+	if !data.ReadWriteRate.IsNull() && !data.ReadWriteRate.IsUnknown() {
+		readWriteRate = int(data.ReadWriteRate.ValueInt64())
+	}
+	readWriteLimitEnabled := !data.ReadWriteLimitEnabled.IsNull() && data.ReadWriteLimitEnabled.ValueBool()
 
 	switch repoType {
 	case models.RepositoryTypeWinLocal:
@@ -282,8 +322,11 @@ func (r *Repository) buildSpec(data *RepositoryModel) interface{} {
 			RepositorySpec: base,
 			HostID:         data.HostID.ValueString(),
 			Repository: &models.WindowsLocalRepositorySettings{
-				Path:         data.Path.ValueString(),
-				MaxTaskCount: maxTasks,
+				Path:                  data.Path.ValueString(),
+				MaxTaskCount:          maxTasks,
+				TaskLimitEnabled:      taskLimitEnabled,
+				ReadWriteRate:         readWriteRate,
+				ReadWriteLimitEnabled: readWriteLimitEnabled,
 			},
 			MountServer: mountServer,
 		}
@@ -301,8 +344,11 @@ func (r *Repository) buildSpec(data *RepositoryModel) interface{} {
 			RepositorySpec: base,
 			HostID:         data.HostID.ValueString(),
 			Repository: &models.LinuxLocalRepositorySettings{
-				Path:         data.Path.ValueString(),
-				MaxTaskCount: maxTasks,
+				Path:                  data.Path.ValueString(),
+				MaxTaskCount:          maxTasks,
+				TaskLimitEnabled:      taskLimitEnabled,
+				ReadWriteRate:         readWriteRate,
+				ReadWriteLimitEnabled: readWriteLimitEnabled,
 			},
 			MountServer: mountServer,
 		}
@@ -314,7 +360,10 @@ func (r *Repository) buildSpec(data *RepositoryModel) interface{} {
 				SharePath: data.SharePath.ValueString(),
 			},
 			Repository: &models.NetworkRepositorySettings{
-				MaxTaskCount: maxTasks,
+				MaxTaskCount:          maxTasks,
+				TaskLimitEnabled:      taskLimitEnabled,
+				ReadWriteRate:         readWriteRate,
+				ReadWriteLimitEnabled: readWriteLimitEnabled,
 			},
 		}
 
@@ -325,7 +374,10 @@ func (r *Repository) buildSpec(data *RepositoryModel) interface{} {
 				SharePath: data.SharePath.ValueString(),
 			},
 			Repository: &models.NetworkRepositorySettings{
-				MaxTaskCount: maxTasks,
+				MaxTaskCount:          maxTasks,
+				TaskLimitEnabled:      taskLimitEnabled,
+				ReadWriteRate:         readWriteRate,
+				ReadWriteLimitEnabled: readWriteLimitEnabled,
 			},
 		}
 		if !data.CredentialsID.IsNull() {
