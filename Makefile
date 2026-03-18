@@ -14,9 +14,9 @@ UNIT_PACKAGES=./internal/... ./pkg/...
 ALL_PACKAGES=./...
 ACC_TEST_PACKAGES=./tests
 
-GOLANGCI_LINT_VERSION?=v1.64.8
+GOLANGCI_LINT_VERSION?=v2.11.3
 GOLANGCI_LINT=$(GOBIN)/golangci-lint
-TFPLUGINDOCS_VERSION?=v0.23.1
+TFPLUGINDOCS_VERSION?=v0.24.0
 TFPLUGINDOCS=$(GOBIN)/tfplugindocs
 
 # Default target
@@ -96,11 +96,11 @@ lint: toolchain-check
 	@echo "Running linter..."
 	@if [ ! -x "$(GOLANGCI_LINT)" ]; then \
 		echo "golangci-lint not found, installing $(GOLANGCI_LINT_VERSION)..."; \
-		GOBIN="$(GOBIN)" $(GO) install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION); \
+		GOBIN="$(GOBIN)" $(GO) install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION); \
 	fi
 	@if ! "$(GOLANGCI_LINT)" --version | grep -q "$(GOLANGCI_LINT_VERSION)"; then \
 		echo "Updating golangci-lint to $(GOLANGCI_LINT_VERSION)..."; \
-		GOBIN="$(GOBIN)" $(GO) install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION); \
+		GOBIN="$(GOBIN)" $(GO) install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION); \
 	fi
 	@$(GOLANGCI_LINT) run $(UNIT_PACKAGES)
 
@@ -147,7 +147,7 @@ docs: toolchain-check
 		echo "tfplugindocs not found, installing $(TFPLUGINDOCS_VERSION)..."; \
 		GOBIN="$(GOBIN)" $(GO) install github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@$(TFPLUGINDOCS_VERSION); \
 	fi
-	@$(TFPLUGINDOCS)
+	@$(TFPLUGINDOCS) generate --provider-dir=./cmd/veeam --provider-name=veeam --rendered-website-dir=../../docs --website-source-dir=../../templates
 
 # Run all checks (lint, fmt-check, test)
 .PHONY: check

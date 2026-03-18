@@ -7,7 +7,7 @@ HashiCorp Terraform Plugin Framework and the Veeam REST API (v1.3-rev1).
 
 - Terraform >= 1.6
 - Veeam Backup & Replication V13 (REST API port 9419)
-- Go >= 1.24 (only for building from source)
+- Go >= 1.26 (only for building from source)
 
 ## Installation
 
@@ -98,18 +98,37 @@ resource "veeam_encryption_password" "main" {
 
 # 5. Daily backup job targeting the repository
 resource "veeam_backup_job" "vms_daily" {
-  name               = "VMs-Daily-Backup"
-  type               = "VSphereBackup"
-  repository_id      = veeam_repository.primary.id
-  retention_type     = "RestorePoints"
-  retention_quantity = 14
-  proxy_auto_select  = true
-  schedule_enabled   = true
-  schedule_kind      = "Daily"
-  schedule_time      = "22:00"
-  retry_enabled      = true
-  retry_count        = 3
-  retry_await_minutes = 10
+  name        = "VMs-Daily-Backup"
+  type        = "VSphereBackup"
+  description = "Daily backup of production VMs"
+
+  virtual_machines {
+    includes {
+      platform  = "VSphere"
+      type      = "VirtualMachine"
+      host_name = "vcenter.example.com"
+      name      = "web-prod-01"
+      object_id = "vm-101"
+    }
+    exclude_templates = false
+  }
+
+  storage {
+    repository_id      = veeam_repository.primary.id
+    proxy_auto_select  = true
+    retention_type     = "RestorePoints"
+    retention_quantity = 14
+  }
+
+  schedule {
+    run_automatically   = true
+    daily_enabled       = true
+    daily_local_time    = "22:00"
+    daily_kind          = "Weekdays"
+    retry_enabled       = true
+    retry_count         = 3
+    retry_await_minutes = 10
+  }
 }
 ```
 
@@ -225,7 +244,7 @@ terraform import veeam_backup_job.vms_daily <job-id>
 
 | Resource | Description |
 |----------|-------------|
-| `veeam_backup_job` | Backup jobs (VSphereBackup, BackupCopy, etc.) with storage, schedule, and retention |
+| `veeam_backup_job` | Backup jobs for VMware (`VSphereBackup`), Hyper-V (`HyperVBackup`), and Veeam Agent (`WindowsAgentBackup`, `LinuxAgentBackup`) with storage, schedule, and guest processing |
 | `veeam_cloud_credential` | Cloud credentials for AWS, Azure Blob, Azure Compute, Google Cloud |
 | `veeam_configuration_backup` | VBR configuration backup settings |
 | `veeam_credential` | Standard (Windows/domain) and Linux SSH credentials |
@@ -279,7 +298,20 @@ export VEEAM_HOST="veeam.lab.example.com"
 export VEEAM_USERNAME="administrator"
 export VEEAM_PASSWORD="secret"
 export VEEAM_INSECURE="true"
+
+# Additional variables required for backup job acceptance tests:
+export TF_VAR_test_repo_id="<uuid-of-existing-repository>"
+export TF_VAR_test_vcenter_host="vcenter.lab.example.com"
+export TF_VAR_test_vm_name="vm-display-name"
+export TF_VAR_test_vm_object_id="vm-101"
+
 TF_ACC=1 make testacc
+```
+
+Run a single resource's acceptance tests:
+
+```bash
+TF_ACC=1 make testacc-backup-job
 ```
 
 ## License
