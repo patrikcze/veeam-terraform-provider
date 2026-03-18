@@ -103,9 +103,10 @@ const (
 type EProxyType string
 
 const (
-	ProxyTypeViProxy   EProxyType = "ViProxy"
-	ProxyTypeHvProxy   EProxyType = "HvProxy"
-	ProxyTypeFileProxy EProxyType = "FileProxy"
+	ProxyTypeViProxy             EProxyType = "ViProxy"
+	ProxyTypeHvProxy             EProxyType = "HvProxy"
+	ProxyTypeGeneralPurposeProxy EProxyType = "GeneralPurposeProxy"
+	ProxyTypeFileProxy           EProxyType = ProxyTypeGeneralPurposeProxy // deprecated alias
 )
 
 // EBackupProxyTransportMode determines how data is transferred.
