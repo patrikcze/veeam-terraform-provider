@@ -335,7 +335,11 @@ export VEEAM_USERNAME="administrator"
 export VEEAM_PASSWORD="secret"
 export VEEAM_INSECURE="true"
 
-# Additional variables required for backup job acceptance tests:
+# Required for repository and proxy acceptance tests:
+export TF_VAR_test_host_id="<uuid-of-registered-linux-host>"
+export TF_VAR_test_repo_path="/tmp/tf-acc-repo"   # optional, defaults to /tmp/tf-acc-repo
+
+# Required for backup job acceptance tests:
 export TF_VAR_test_repo_id="<uuid-of-existing-repository>"
 export TF_VAR_test_vcenter_host="vcenter.lab.example.com"
 export TF_VAR_test_vm_name="vm-display-name"
@@ -347,6 +351,9 @@ TF_ACC=1 make testacc
 Run a single resource's acceptance tests:
 
 ```bash
+TF_ACC=1 make testacc-repository
+TF_ACC=1 make testacc-proxy
+TF_ACC=1 make testacc-scale-out-repository
 TF_ACC=1 make testacc-backup-job
 ```
 

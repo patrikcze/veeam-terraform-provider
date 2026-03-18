@@ -169,6 +169,16 @@ testacc-backup-job: toolchain-check
 	@echo "Running backup job acceptance tests..."
 	@TF_ACC=1 VEEAM_HOST=$(VEEAM_HOST) VEEAM_USERNAME=$(VEEAM_USERNAME) VEEAM_PASSWORD=$(VEEAM_PASSWORD) VEEAM_INSECURE=$(VEEAM_INSECURE) $(GO) test -v $(ACC_TEST_PACKAGES) -run TestAccBackupJob -timeout 60m
 
+.PHONY: testacc-proxy
+testacc-proxy: toolchain-check
+	@echo "Running proxy acceptance tests..."
+	@TF_ACC=1 VEEAM_HOST=$(VEEAM_HOST) VEEAM_USERNAME=$(VEEAM_USERNAME) VEEAM_PASSWORD=$(VEEAM_PASSWORD) VEEAM_INSECURE=$(VEEAM_INSECURE) $(GO) test -v $(ACC_TEST_PACKAGES) -run TestAccProxy -timeout 60m
+
+.PHONY: testacc-scale-out-repository
+testacc-scale-out-repository: toolchain-check
+	@echo "Running scale-out repository acceptance tests..."
+	@TF_ACC=1 VEEAM_HOST=$(VEEAM_HOST) VEEAM_USERNAME=$(VEEAM_USERNAME) VEEAM_PASSWORD=$(VEEAM_PASSWORD) VEEAM_INSECURE=$(VEEAM_INSECURE) $(GO) test -v $(ACC_TEST_PACKAGES) -run TestAccScaleOutRepository -timeout 60m
+
 .PHONY: testacc-workflow
 testacc-workflow: toolchain-check
 	@echo "Running workflow acceptance tests..."
@@ -196,10 +206,12 @@ help:
 	@echo "  test-all            - Run all go tests (including tests/)"
 	@echo "  test-coverage       - Run tests with coverage report"
 	@echo "  testacc             - Run acceptance tests"
-	@echo "  testacc-credential  - Run credential acceptance tests"
-	@echo "  testacc-repository  - Run repository acceptance tests"
-	@echo "  testacc-backup-job  - Run backup job acceptance tests"
-	@echo "  testacc-workflow    - Run workflow acceptance tests"
+	@echo "  testacc-credential             - Run credential acceptance tests"
+	@echo "  testacc-repository             - Run repository acceptance tests (needs TF_VAR_test_host_id)"
+	@echo "  testacc-proxy                  - Run proxy acceptance tests (needs TF_VAR_test_host_id)"
+	@echo "  testacc-scale-out-repository   - Run scale-out repository acceptance tests"
+	@echo "  testacc-backup-job             - Run backup job acceptance tests"
+	@echo "  testacc-workflow               - Run workflow acceptance tests"
 	@echo "  testall             - Run all tests"
 	@echo "  setup-test-env      - Set up test environment"
 	@echo "  lint                - Run linter"
