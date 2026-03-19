@@ -583,6 +583,13 @@ func (r *BackupJob) Create(ctx context.Context, req resource.CreateRequest, resp
 			)
 			return
 		}
+		if data.GuestProcessing != nil {
+			resp.Diagnostics.AddError(
+				"guest_processing is not supported for agent backup jobs",
+				fmt.Sprintf("Job type '%s' does not support guest_processing in this provider. Use VSphereBackup/HyperVBackup for guest processing settings.", jobType),
+			)
+			return
+		}
 		if data.AgentBackupMode.IsNull() || data.AgentBackupMode.ValueString() == "" {
 			resp.Diagnostics.AddError(
 				"Missing required agent_backup_mode",
@@ -721,6 +728,13 @@ func (r *BackupJob) Update(ctx context.Context, req resource.UpdateRequest, resp
 			resp.Diagnostics.AddError(
 				"Missing required agent_computers",
 				fmt.Sprintf("Job type '%s' requires at least one entry in agent_computers.", jobType),
+			)
+			return
+		}
+		if data.GuestProcessing != nil {
+			resp.Diagnostics.AddError(
+				"guest_processing is not supported for agent backup jobs",
+				fmt.Sprintf("Job type '%s' does not support guest_processing in this provider. Use VSphereBackup/HyperVBackup for guest processing settings.", jobType),
 			)
 			return
 		}
