@@ -35,6 +35,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -84,6 +85,21 @@ type BackupJobModel struct {
 	AgentComputers []AgentComputerEntry `tfsdk:"agent_computers"`
 	// AgentBackupMode selects the agent backup scope (EntireComputer, Volumes, FileLevel).
 	AgentBackupMode types.String `tfsdk:"agent_backup_mode"`
+	// IncludeUsbDrives includes periodically connected USB drives. WindowsAgentBackup only.
+	IncludeUsbDrives types.Bool `tfsdk:"include_usb_drives"`
+	// AgentType selects the protected computer type. WindowsAgentBackup only.
+	AgentType types.String `tfsdk:"agent_type"`
+	// UseSnapshotlessFileLevelBackup creates a crash-consistent backup without a snapshot.
+	// LinuxAgentBackup only; applies when agent_backup_mode = "FileLevel".
+	UseSnapshotlessFileLevelBackup types.Bool `tfsdk:"use_snapshotless_file_level_backup"`
+
+	// VolumesScope configures which volumes to back up.
+	// Only used for agent jobs when agent_backup_mode = "Volumes".
+	VolumesScope *AgentVolumesScope `tfsdk:"volumes_scope"`
+
+	// FilesScope configures included/excluded paths for file-level backups.
+	// Only used for agent jobs when agent_backup_mode = "FileLevel".
+	FilesScope *AgentFilesScope `tfsdk:"files_scope"`
 
 	// Storage settings (optional; recommended for all job types).
 	Storage *JobStorageSettings `tfsdk:"storage"`
@@ -129,6 +145,23 @@ type AgentComputerEntry struct {
 	ProtectionGroupID types.String `tfsdk:"protection_group_id"`
 }
 
+// AgentVolumesScope maps to AgentBackupJobVolumesModel.
+type AgentVolumesScope struct {
+	// AllVolumes backs up all local volumes when true.
+	AllVolumes types.Bool `tfsdk:"all_volumes"`
+	// VolumeNames lists specific volumes to back up (used when all_volumes = false).
+	// Examples: ["C:", "D:", "/data"].
+	VolumeNames types.List `tfsdk:"volume_names"`
+}
+
+// AgentFilesScope maps to AgentBackupJobFilesModel.
+type AgentFilesScope struct {
+	// IncludedFolders lists directory paths to include in the backup.
+	IncludedFolders types.List `tfsdk:"included_folders"`
+	// ExcludedFolders lists directory paths to exclude from the backup.
+	ExcludedFolders types.List `tfsdk:"excluded_folders"`
+}
+
 // JobStorageSettings maps to the BackupJobStorageModel / AgentBackupJobStorageModel.
 type JobStorageSettings struct {
 	// RepositoryID is the UUID of the target backup repository.
@@ -139,6 +172,32 @@ type JobStorageSettings struct {
 	RetentionType types.String `tfsdk:"retention_type"`
 	// RetentionQuantity is the number of restore points or days to retain.
 	RetentionQuantity types.Int64 `tfsdk:"retention_quantity"`
+	// GFSPolicy configures Grandfather-Father-Son long-term archival retention.
+	GFSPolicy *JobGFSPolicy `tfsdk:"gfs_policy"`
+}
+
+// JobGFSPolicy maps to GFSPolicySettingsModel.
+type JobGFSPolicy struct {
+	// IsEnabled activates the GFS long-term retention policy.
+	IsEnabled types.Bool `tfsdk:"is_enabled"`
+	// WeeklyEnabled activates weekly GFS archival.
+	WeeklyEnabled types.Bool `tfsdk:"weekly_enabled"`
+	// WeeklyKeepFor is the number of weeks to keep weekly full backups (1–9999).
+	WeeklyKeepFor types.Int64 `tfsdk:"weekly_keep_for"`
+	// WeeklyDesiredTime is the day of the week on which the weekly full is created.
+	WeeklyDesiredTime types.String `tfsdk:"weekly_desired_time"`
+	// MonthlyEnabled activates monthly GFS archival.
+	MonthlyEnabled types.Bool `tfsdk:"monthly_enabled"`
+	// MonthlyKeepFor is the number of months to keep monthly full backups (1–999).
+	MonthlyKeepFor types.Int64 `tfsdk:"monthly_keep_for"`
+	// MonthlyDesiredTime is the week-of-month on which the monthly full is created.
+	MonthlyDesiredTime types.String `tfsdk:"monthly_desired_time"`
+	// YearlyEnabled activates yearly GFS archival.
+	YearlyEnabled types.Bool `tfsdk:"yearly_enabled"`
+	// YearlyKeepFor is the number of years to keep yearly full backups (1–999).
+	YearlyKeepFor types.Int64 `tfsdk:"yearly_keep_for"`
+	// YearlyDesiredTime is the month in which the yearly full is created.
+	YearlyDesiredTime types.String `tfsdk:"yearly_desired_time"`
 }
 
 // JobGuestProcessing maps to BackupJobGuestProcessingModel.
@@ -149,6 +208,16 @@ type JobGuestProcessing struct {
 	FSIndexingEnabled types.Bool `tfsdk:"fs_indexing_enabled"`
 	// InteractionProxyAutoSelect auto-selects the guest interaction proxy.
 	InteractionProxyAutoSelect types.Bool `tfsdk:"interaction_proxy_auto_select"`
+	// GuestCredentials specifies the credentials used for guest OS interaction.
+	// Applies to VSphereBackup and HyperVBackup job types only.
+	GuestCredentials *JobGuestCredentials `tfsdk:"guest_credentials"`
+}
+
+// JobGuestCredentials maps to GuestOsCredentialsModel.
+type JobGuestCredentials struct {
+	// CredentialsID is the UUID of the credentials record.
+	// Obtain from the veeam_credentials data source or veeam_credential resource.
+	CredentialsID types.String `tfsdk:"credentials_id"`
 }
 
 // JobScheduleSettings maps to BackupScheduleModel.
@@ -248,8 +317,30 @@ Supported job types:
 			// -----------------------------------------------------------------
 			"agent_backup_mode": schema.StringAttribute{
 				MarkdownDescription: "Agent backup scope. Required for `WindowsAgentBackup` " +
-					"and `LinuxAgentBackup` job types. Allowed values: " +
-					"`EntireComputer`, `Volumes`, `FileLevel`.",
+					"and `LinuxAgentBackup` job types. Optional, Computed. " +
+					"Allowed values: `EntireComputer`, `Volumes`, `FileLevel`.",
+				Optional: true,
+				Computed: true,
+			},
+			"include_usb_drives": schema.BoolAttribute{
+				MarkdownDescription: "If `true`, periodically connected USB drives are " +
+					"included in the backup. Optional, Computed. " +
+					"Applies to `WindowsAgentBackup` job type only.",
+				Optional: true,
+				Computed: true,
+			},
+			"agent_type": schema.StringAttribute{
+				MarkdownDescription: "Protected computer type for Windows agent jobs. " +
+					"Optional, Computed. Applies to `WindowsAgentBackup` job type only. " +
+					"Allowed values: `Workstation`, `Server`, `FailoverCluster`.",
+				Optional: true,
+				Computed: true,
+			},
+			"use_snapshotless_file_level_backup": schema.BoolAttribute{
+				MarkdownDescription: "If `true`, creates a crash-consistent file-level backup " +
+					"without a snapshot. Optional, Computed. " +
+					"Applies to `LinuxAgentBackup` job type only, " +
+					"when `agent_backup_mode` = `FileLevel`.",
 				Optional: true,
 				Computed: true,
 			},
@@ -349,6 +440,58 @@ Supported job types:
 			},
 
 			// -----------------------------------------------------------------
+			// Agent volume scope (WindowsAgentBackup / LinuxAgentBackup with mode=Volumes)
+			// -----------------------------------------------------------------
+			"volumes_scope": schema.SingleNestedAttribute{
+				MarkdownDescription: "Selects which volumes to back up for agent-based jobs. " +
+					"Only used when `agent_backup_mode = \"Volumes\"` for " +
+					"`WindowsAgentBackup` and `LinuxAgentBackup` job types.",
+				Optional: true,
+				Attributes: map[string]schema.Attribute{
+					"all_volumes": schema.BoolAttribute{
+						MarkdownDescription: "If `true`, all local volumes are included in the backup. " +
+							"When `false`, the `volume_names` list determines which volumes are backed up.",
+						Required: true,
+					},
+					"volume_names": schema.ListAttribute{
+						ElementType: types.StringType,
+						MarkdownDescription: "List of volume mount-points or drive letters to back up. " +
+							"Used when `all_volumes = false`. " +
+							"Windows examples: `[\"C:\\\\\", \"D:\\\\\"]`. Linux examples: `[\"/\", \"/data\"]`.",
+						Optional: true,
+						Computed: true,
+					},
+				},
+			},
+
+			// -----------------------------------------------------------------
+			// Agent file-level scope (WindowsAgentBackup / LinuxAgentBackup with mode=FileLevel)
+			// -----------------------------------------------------------------
+			"files_scope": schema.SingleNestedAttribute{
+				MarkdownDescription: "Selects which directories to include or exclude for agent file-level backups. " +
+					"Only used when `agent_backup_mode = \"FileLevel\"` for " +
+					"`WindowsAgentBackup` and `LinuxAgentBackup` job types.",
+				Optional: true,
+				Attributes: map[string]schema.Attribute{
+					"included_folders": schema.ListAttribute{
+						ElementType: types.StringType,
+						MarkdownDescription: "List of directory paths to include in the backup. " +
+							"Windows example: `[\"C:\\\\Users\", \"D:\\\\Data\"]`. " +
+							"Linux example: `[\"/home\", \"/etc\"]`.",
+						Optional: true,
+						Computed: true,
+					},
+					"excluded_folders": schema.ListAttribute{
+						ElementType: types.StringType,
+						MarkdownDescription: "List of directory paths to exclude from the backup. " +
+							"Exclusions are applied after inclusions.",
+						Optional: true,
+						Computed: true,
+					},
+				},
+			},
+
+			// -----------------------------------------------------------------
 			// Storage settings
 			// -----------------------------------------------------------------
 			"storage": schema.SingleNestedAttribute{
@@ -380,6 +523,77 @@ Supported job types:
 							"(must be greater than zero).",
 						Optional: true,
 						Computed: true,
+					},
+					"gfs_policy": schema.SingleNestedAttribute{
+						MarkdownDescription: "Grandfather-Father-Son (GFS) long-term archival retention policy. " +
+							"When configured, Veeam preserves selected weekly, monthly, and yearly " +
+							"full backups beyond the standard retention window.",
+						Optional: true,
+						Attributes: map[string]schema.Attribute{
+							"is_enabled": schema.BoolAttribute{
+								MarkdownDescription: "Master switch that activates the GFS retention policy.",
+								Required:            true,
+							},
+							"weekly_enabled": schema.BoolAttribute{
+								MarkdownDescription: "Activate weekly GFS archival. " +
+									"Preserves one full backup per week for the configured duration.",
+								Optional: true,
+								Computed: true,
+								Default:  booldefault.StaticBool(false),
+							},
+							"weekly_keep_for": schema.Int64Attribute{
+								MarkdownDescription: "Number of weeks to retain weekly full backups (1\u20139999). " +
+									"Only evaluated when `weekly_enabled = true`.",
+								Optional: true,
+								Computed: true,
+							},
+							"weekly_desired_time": schema.StringAttribute{
+								MarkdownDescription: "Day of the week on which the weekly full backup is created. " +
+									"Allowed values: `Monday`, `Tuesday`, `Wednesday`, `Thursday`, " +
+									"`Friday`, `Saturday`, `Sunday`.",
+								Optional: true,
+								Computed: true,
+							},
+							"monthly_enabled": schema.BoolAttribute{
+								MarkdownDescription: "Activate monthly GFS archival. " +
+									"Preserves one full backup per month for the configured duration.",
+								Optional: true,
+								Computed: true,
+								Default:  booldefault.StaticBool(false),
+							},
+							"monthly_keep_for": schema.Int64Attribute{
+								MarkdownDescription: "Number of months to retain monthly full backups (1\u2013999). " +
+									"Only evaluated when `monthly_enabled = true`.",
+								Optional: true,
+								Computed: true,
+							},
+							"monthly_desired_time": schema.StringAttribute{
+								MarkdownDescription: "Week of the month on which the monthly full backup is created. " +
+									"Allowed values: `First`, `Second`, `Third`, `Fourth`, `Last`.",
+								Optional: true,
+								Computed: true,
+							},
+							"yearly_enabled": schema.BoolAttribute{
+								MarkdownDescription: "Activate yearly GFS archival. " +
+									"Preserves one full backup per year for the configured duration.",
+								Optional: true,
+								Computed: true,
+								Default:  booldefault.StaticBool(false),
+							},
+							"yearly_keep_for": schema.Int64Attribute{
+								MarkdownDescription: "Number of years to retain yearly full backups (1\u2013999). " +
+									"Only evaluated when `yearly_enabled = true`.",
+								Optional: true,
+								Computed: true,
+							},
+							"yearly_desired_time": schema.StringAttribute{
+								MarkdownDescription: "Month of the year in which the yearly full backup is created. " +
+									"Allowed values: `January`, `February`, `March`, `April`, `May`, " +
+									"`June`, `July`, `August`, `September`, `October`, `November`, `December`.",
+								Optional: true,
+								Computed: true,
+							},
+						},
 					},
 				},
 			},
@@ -413,6 +627,19 @@ Supported job types:
 						Optional: true,
 						Computed: true,
 						Default:  booldefault.StaticBool(true),
+					},
+					"guest_credentials": schema.SingleNestedAttribute{
+						MarkdownDescription: "Guest OS credentials used for application-aware processing. " +
+							"When omitted, Veeam uses the credentials configured on the managed server. " +
+							"Applies to `VSphereBackup` and `HyperVBackup` job types only.",
+						Optional: true,
+						Attributes: map[string]schema.Attribute{
+							"credentials_id": schema.StringAttribute{
+								MarkdownDescription: "UUID of the credentials record to use for guest OS interaction. " +
+									"Obtain from the `veeam_credentials` data source or `veeam_credential` resource.",
+								Required: true,
+							},
+						},
 					},
 				},
 			},
@@ -599,14 +826,16 @@ func (r *BackupJob) Create(ctx context.Context, req resource.CreateRequest, resp
 		}
 
 		spec := r.buildAgentJobSpec(&data)
-		var result models.BackupJobModel
+		var result map[string]interface{}
 		if err := r.client.PostJSON(ctx, client.PathJobs, spec, &result); err != nil {
 			resp.Diagnostics.AddError("Failed to create agent backup job",
 				fmt.Sprintf("POST %s: %s", client.PathJobs, err))
 			return
 		}
-		data.ID = types.StringValue(result.ID)
-		r.syncAgentJobFromAPI(&data, &result)
+		if id, ok := result["id"].(string); ok && id != "" {
+			data.ID = types.StringValue(id)
+		}
+		r.syncAgentJobFromAPIMap(&data, result)
 
 	default:
 		resp.Diagnostics.AddError(
@@ -648,13 +877,13 @@ func (r *BackupJob) Read(ctx context.Context, req resource.ReadRequest, resp *re
 		r.syncVMJobFromAPI(&data, &result)
 
 	case models.JobTypeWindowsAgentBackup, models.JobTypeLinuxAgentBackup:
-		var result models.BackupJobModel
+		var result map[string]interface{}
 		if err := r.client.GetJSON(ctx, endpoint, &result); err != nil {
 			resp.Diagnostics.AddError("Failed to read agent backup job",
 				fmt.Sprintf("GET %s: %s", endpoint, err))
 			return
 		}
-		r.syncAgentJobFromAPI(&data, &result)
+		r.syncAgentJobFromAPIMap(&data, result)
 
 	default:
 		// For unknown/unsupported types encountered during import, fall back to
@@ -749,14 +978,14 @@ func (r *BackupJob) Update(ctx context.Context, req resource.UpdateRequest, resp
 			}
 		}
 
-		var result models.BackupJobModel
+		var result map[string]interface{}
 		if err := r.client.PutJSON(ctx, endpoint, payload, &result); err != nil {
 			resp.Diagnostics.AddError("Failed to update agent backup job",
 				fmt.Sprintf("PUT %s: %s", endpoint, err))
 			return
 		}
-		if result.ID != "" {
-			r.syncAgentJobFromAPI(&data, &result)
+		if id, ok := result["id"].(string); ok && id != "" {
+			r.syncAgentJobFromAPIMap(&data, result)
 		}
 
 	default:
@@ -884,8 +1113,33 @@ func (r *BackupJob) buildAgentJobSpec(data *BackupJobModel) map[string]any {
 		spec["isHighPriority"] = data.IsHighPriority.ValueBool()
 	}
 
+	jobType := models.EJobType(data.Type.ValueString())
+
+	if jobType == models.JobTypeWindowsAgentBackup {
+		if !data.IncludeUsbDrives.IsNull() && !data.IncludeUsbDrives.IsUnknown() {
+			spec["includeUsbDrives"] = data.IncludeUsbDrives.ValueBool()
+		}
+		if !data.AgentType.IsNull() && !data.AgentType.IsUnknown() && data.AgentType.ValueString() != "" {
+			spec["agentType"] = data.AgentType.ValueString()
+		}
+	}
+
+	if jobType == models.JobTypeLinuxAgentBackup {
+		if !data.UseSnapshotlessFileLevelBackup.IsNull() && !data.UseSnapshotlessFileLevelBackup.IsUnknown() {
+			spec["useSnapshotlessFileLevelBackup"] = data.UseSnapshotlessFileLevelBackup.ValueBool()
+		}
+	}
+
 	if data.Storage != nil {
 		spec["storage"] = r.buildAgentStorageModel(data.Storage)
+	}
+
+	if data.VolumesScope != nil {
+		spec["volumes"] = buildAgentVolumesScopeModel(data.VolumesScope)
+	}
+
+	if data.FilesScope != nil {
+		spec["files"] = buildAgentFilesScopeModel(data.FilesScope)
 	}
 
 	if data.Schedule != nil {
@@ -911,8 +1165,33 @@ func (r *BackupJob) buildAgentJobModel(data *BackupJobModel, isDisabled bool) ma
 		m["isHighPriority"] = data.IsHighPriority.ValueBool()
 	}
 
+	jobType := models.EJobType(data.Type.ValueString())
+
+	if jobType == models.JobTypeWindowsAgentBackup {
+		if !data.IncludeUsbDrives.IsNull() && !data.IncludeUsbDrives.IsUnknown() {
+			m["includeUsbDrives"] = data.IncludeUsbDrives.ValueBool()
+		}
+		if !data.AgentType.IsNull() && !data.AgentType.IsUnknown() && data.AgentType.ValueString() != "" {
+			m["agentType"] = data.AgentType.ValueString()
+		}
+	}
+
+	if jobType == models.JobTypeLinuxAgentBackup {
+		if !data.UseSnapshotlessFileLevelBackup.IsNull() && !data.UseSnapshotlessFileLevelBackup.IsUnknown() {
+			m["useSnapshotlessFileLevelBackup"] = data.UseSnapshotlessFileLevelBackup.ValueBool()
+		}
+	}
+
 	if data.Storage != nil {
 		m["storage"] = r.buildAgentStorageModel(data.Storage)
+	}
+
+	if data.VolumesScope != nil {
+		m["volumes"] = buildAgentVolumesScopeModel(data.VolumesScope)
+	}
+
+	if data.FilesScope != nil {
+		m["files"] = buildAgentFilesScopeModel(data.FilesScope)
 	}
 
 	if data.Schedule != nil {
@@ -1027,6 +1306,8 @@ func (r *BackupJob) buildStorageModel(s *JobStorageSettings) *models.BackupJobSt
 		}
 	}
 
+	m.GFSPolicy = buildGFSPolicyModel(s.GFSPolicy)
+
 	return m
 }
 
@@ -1050,6 +1331,144 @@ func (r *BackupJob) buildAgentStorageModel(s *JobStorageSettings) *models.AgentB
 		}
 	}
 
+	m.GFSPolicy = buildGFSPolicyModel(s.GFSPolicy)
+
+	return m
+}
+
+// buildGFSPolicyModel converts a JobGFSPolicy Terraform model into an API GFSPolicySettingsModel.
+// Returns nil when gfs is nil so the API field is omitted entirely.
+func buildGFSPolicyModel(gfs *JobGFSPolicy) *models.GFSPolicySettingsModel {
+	if gfs == nil {
+		return nil
+	}
+
+	m := &models.GFSPolicySettingsModel{
+		IsEnabled: gfs.IsEnabled.ValueBool(),
+	}
+
+	if !gfs.WeeklyEnabled.IsNull() && gfs.WeeklyEnabled.ValueBool() {
+		w := &models.GFSPolicySettingsWeeklyModel{IsEnabled: true}
+		if !gfs.WeeklyKeepFor.IsNull() && !gfs.WeeklyKeepFor.IsUnknown() {
+			w.KeepForNumberOfWeeks = int(gfs.WeeklyKeepFor.ValueInt64())
+		}
+		if !gfs.WeeklyDesiredTime.IsNull() {
+			w.DesiredTime = models.EDayOfWeek(gfs.WeeklyDesiredTime.ValueString())
+		}
+		m.Weekly = w
+	}
+
+	if !gfs.MonthlyEnabled.IsNull() && gfs.MonthlyEnabled.ValueBool() {
+		mo := &models.GFSPolicySettingsMonthlyModel{IsEnabled: true}
+		if !gfs.MonthlyKeepFor.IsNull() && !gfs.MonthlyKeepFor.IsUnknown() {
+			mo.KeepForNumberOfMonths = int(gfs.MonthlyKeepFor.ValueInt64())
+		}
+		if !gfs.MonthlyDesiredTime.IsNull() {
+			mo.DesiredTime = models.ESennightOfMonth(gfs.MonthlyDesiredTime.ValueString())
+		}
+		m.Monthly = mo
+	}
+
+	if !gfs.YearlyEnabled.IsNull() && gfs.YearlyEnabled.ValueBool() {
+		y := &models.GFSPolicySettingsYearlyModel{IsEnabled: true}
+		if !gfs.YearlyKeepFor.IsNull() && !gfs.YearlyKeepFor.IsUnknown() {
+			y.KeepForNumberOfYears = int(gfs.YearlyKeepFor.ValueInt64())
+		}
+		if !gfs.YearlyDesiredTime.IsNull() {
+			y.DesiredTime = models.EMonth(gfs.YearlyDesiredTime.ValueString())
+		}
+		m.Yearly = y
+	}
+
+	return m
+}
+
+// syncGFSPolicyFromAPI converts an API GFSPolicySettingsModel into a JobGFSPolicy.
+// Returns nil when the API returns no GFS policy, leaving the Terraform attribute null.
+func syncGFSPolicyFromAPI(api *models.GFSPolicySettingsModel) *JobGFSPolicy {
+	if api == nil {
+		return nil
+	}
+
+	gfs := &JobGFSPolicy{
+		IsEnabled:          types.BoolValue(api.IsEnabled),
+		WeeklyEnabled:      types.BoolValue(false),
+		WeeklyKeepFor:      types.Int64Null(),
+		WeeklyDesiredTime:  types.StringNull(),
+		MonthlyEnabled:     types.BoolValue(false),
+		MonthlyKeepFor:     types.Int64Null(),
+		MonthlyDesiredTime: types.StringNull(),
+		YearlyEnabled:      types.BoolValue(false),
+		YearlyKeepFor:      types.Int64Null(),
+		YearlyDesiredTime:  types.StringNull(),
+	}
+
+	if api.Weekly != nil {
+		gfs.WeeklyEnabled = types.BoolValue(api.Weekly.IsEnabled)
+		if api.Weekly.KeepForNumberOfWeeks > 0 {
+			gfs.WeeklyKeepFor = types.Int64Value(int64(api.Weekly.KeepForNumberOfWeeks))
+		}
+		if api.Weekly.DesiredTime != "" {
+			gfs.WeeklyDesiredTime = types.StringValue(string(api.Weekly.DesiredTime))
+		}
+	}
+
+	if api.Monthly != nil {
+		gfs.MonthlyEnabled = types.BoolValue(api.Monthly.IsEnabled)
+		if api.Monthly.KeepForNumberOfMonths > 0 {
+			gfs.MonthlyKeepFor = types.Int64Value(int64(api.Monthly.KeepForNumberOfMonths))
+		}
+		if api.Monthly.DesiredTime != "" {
+			gfs.MonthlyDesiredTime = types.StringValue(string(api.Monthly.DesiredTime))
+		}
+	}
+
+	if api.Yearly != nil {
+		gfs.YearlyEnabled = types.BoolValue(api.Yearly.IsEnabled)
+		if api.Yearly.KeepForNumberOfYears > 0 {
+			gfs.YearlyKeepFor = types.Int64Value(int64(api.Yearly.KeepForNumberOfYears))
+		}
+		if api.Yearly.DesiredTime != "" {
+			gfs.YearlyDesiredTime = types.StringValue(string(api.Yearly.DesiredTime))
+		}
+	}
+
+	return gfs
+}
+
+// buildAgentVolumesScopeModel converts AgentVolumesScope into the API volumes model.
+func buildAgentVolumesScopeModel(vs *AgentVolumesScope) *models.AgentBackupJobVolumesModel {
+	if vs == nil {
+		return nil
+	}
+	m := &models.AgentBackupJobVolumesModel{
+		AllVolumes: vs.AllVolumes.ValueBool(),
+	}
+	if !vs.VolumeNames.IsNull() && !vs.VolumeNames.IsUnknown() {
+		var names []string
+		// Ignore conversion error — an empty list is valid.
+		_ = vs.VolumeNames.ElementsAs(context.Background(), &names, false)
+		m.VolumeNames = names
+	}
+	return m
+}
+
+// buildAgentFilesScopeModel converts AgentFilesScope into the API files model.
+func buildAgentFilesScopeModel(fs *AgentFilesScope) *models.AgentBackupJobFilesModel {
+	if fs == nil {
+		return nil
+	}
+	m := &models.AgentBackupJobFilesModel{}
+	if !fs.IncludedFolders.IsNull() && !fs.IncludedFolders.IsUnknown() {
+		var folders []string
+		_ = fs.IncludedFolders.ElementsAs(context.Background(), &folders, false)
+		m.IncludedFolders = folders
+	}
+	if !fs.ExcludedFolders.IsNull() && !fs.ExcludedFolders.IsUnknown() {
+		var folders []string
+		_ = fs.ExcludedFolders.ElementsAs(context.Background(), &folders, false)
+		m.ExcludedFolders = folders
+	}
 	return m
 }
 
@@ -1071,6 +1490,13 @@ func (r *BackupJob) buildGuestProcessingModel(gp *JobGuestProcessing) *models.Ba
 	if !gp.InteractionProxyAutoSelect.IsNull() {
 		m.GuestInteractionProxies = &models.GuestInteractionProxiesSettingsModel{
 			AutoSelectEnabled: gp.InteractionProxyAutoSelect.ValueBool(),
+		}
+	}
+
+	if gp.GuestCredentials != nil && !gp.GuestCredentials.CredentialsID.IsNull() &&
+		gp.GuestCredentials.CredentialsID.ValueString() != "" {
+		m.GuestCredentials = &models.GuestOsCredentialsModel{
+			CredentialsID: gp.GuestCredentials.CredentialsID.ValueString(),
 		}
 	}
 
@@ -1195,6 +1621,7 @@ func (r *BackupJob) syncVMJobFromAPI(data *BackupJobModel, api *models.BackupJob
 			s.RetentionType = types.StringValue(string(api.Storage.RetentionPolicy.Type))
 			s.RetentionQuantity = types.Int64Value(int64(api.Storage.RetentionPolicy.Quantity))
 		}
+		s.GFSPolicy = syncGFSPolicyFromAPI(api.Storage.GFSPolicy)
 		data.Storage = s
 	}
 
@@ -1215,6 +1642,11 @@ func (r *BackupJob) syncVMJobFromAPI(data *BackupJobModel, api *models.BackupJob
 			gp.InteractionProxyAutoSelect = types.BoolValue(
 				api.GuestProcessing.GuestInteractionProxies.AutoSelectEnabled)
 		}
+		if api.GuestProcessing.GuestCredentials != nil {
+			gp.GuestCredentials = &JobGuestCredentials{
+				CredentialsID: types.StringValue(api.GuestProcessing.GuestCredentials.CredentialsID),
+			}
+		}
 		data.GuestProcessing = gp
 	}
 
@@ -1224,25 +1656,154 @@ func (r *BackupJob) syncVMJobFromAPI(data *BackupJobModel, api *models.BackupJob
 	}
 }
 
-// syncAgentJobFromAPI merges a BackupJobModel (agent type) API response into state.
-// Agent job models use a subset of BackupJobModel fields on the response.
-func (r *BackupJob) syncAgentJobFromAPI(data *BackupJobModel, api *models.BackupJobModel) {
-	data.Name = types.StringValue(api.Name)
-	data.Type = types.StringValue(string(api.Type))
-	data.IsDisabled = types.BoolValue(api.IsDisabled)
-	data.IsHighPriority = types.BoolValue(api.IsHighPriority)
-
-	if api.Description != "" {
-		data.Description = types.StringValue(api.Description)
+// syncAgentJobFromAPIMap merges an agent job API response (raw map) into Terraform state.
+// Agent jobs are decoded into map[string]interface{} because BackupJobModel does not carry
+// the agent-specific fields (backupMode, computers, includeUsbDrives, agentType, etc.).
+func (r *BackupJob) syncAgentJobFromAPIMap(data *BackupJobModel, api map[string]interface{}) {
+	if v, ok := api["name"].(string); ok && v != "" {
+		data.Name = types.StringValue(v)
+	}
+	if v, ok := api["type"].(string); ok && v != "" {
+		data.Type = types.StringValue(v)
+	}
+	if v, ok := api["isDisabled"].(bool); ok {
+		data.IsDisabled = types.BoolValue(v)
+	}
+	if v, ok := api["isHighPriority"].(bool); ok {
+		data.IsHighPriority = types.BoolValue(v)
+	}
+	if v, ok := api["description"].(string); ok && v != "" {
+		data.Description = types.StringValue(v)
+	}
+	if v, ok := api["backupMode"].(string); ok && v != "" {
+		data.AgentBackupMode = types.StringValue(v)
 	}
 
-	// Agent-specific fields are not in BackupJobModel directly — the API returns
-	// them in the top-level body.  The generic map-based approach used in
-	// buildAgentJobSpec / buildAgentJobModel means those fields are not parsed
-	// back automatically.  We preserve whatever the user configured in the plan
-	// for agent_computers / agent_backup_mode, and only update the computed fields.
-	// TODO: Switch to a typed WindowsAgentBackupJobModel / LinuxAgentBackupJobModel
-	//       response parser when stronger validation of agent job round-trips is needed.
+	jobTypeStr := data.Type.ValueString()
+
+	// Windows-agent-specific fields.
+	if jobTypeStr == string(models.JobTypeWindowsAgentBackup) {
+		if v, ok := api["includeUsbDrives"].(bool); ok {
+			data.IncludeUsbDrives = types.BoolValue(v)
+		}
+		if v, ok := api["agentType"].(string); ok {
+			data.AgentType = types.StringValue(v)
+		}
+	}
+
+	// Linux-agent-specific fields.
+	if jobTypeStr == string(models.JobTypeLinuxAgentBackup) {
+		if v, ok := api["useSnapshotlessFileLevelBackup"].(bool); ok {
+			data.UseSnapshotlessFileLevelBackup = types.BoolValue(v)
+		}
+	}
+
+	// Sync computers list when present in the response.
+	if computersRaw, ok := api["computers"].([]interface{}); ok {
+		computers := make([]AgentComputerEntry, 0, len(computersRaw))
+		for _, raw := range computersRaw {
+			c, ok := raw.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			entry := AgentComputerEntry{
+				ID:                types.StringValue(""),
+				Name:              types.StringValue(""),
+				Type:              types.StringValue(""),
+				ProtectionGroupID: types.StringValue(""),
+			}
+			if v, ok := c["id"].(string); ok {
+				entry.ID = types.StringValue(v)
+			}
+			if v, ok := c["name"].(string); ok {
+				entry.Name = types.StringValue(v)
+			}
+			if v, ok := c["type"].(string); ok {
+				entry.Type = types.StringValue(v)
+			}
+			if v, ok := c["protectionGroupId"].(string); ok {
+				entry.ProtectionGroupID = types.StringValue(v)
+			}
+			computers = append(computers, entry)
+		}
+		if len(computers) > 0 {
+			data.AgentComputers = computers
+		}
+	}
+
+	// Sync storage when present.
+	if storageRaw, ok := api["storage"].(map[string]interface{}); ok {
+		s := &JobStorageSettings{
+			RepositoryID:    types.StringValue(""),
+			ProxyAutoSelect: types.BoolValue(false),
+		}
+		if v, ok := storageRaw["backupRepositoryId"].(string); ok {
+			s.RepositoryID = types.StringValue(v)
+		}
+		if retRaw, ok := storageRaw["retentionPolicy"].(map[string]interface{}); ok {
+			if v, ok := retRaw["type"].(string); ok {
+				s.RetentionType = types.StringValue(v)
+			}
+			if v, ok := retRaw["quantity"].(float64); ok {
+				s.RetentionQuantity = types.Int64Value(int64(v))
+			}
+		}
+		data.Storage = s
+	}
+
+	// Sync volumes scope when present (agent jobs with backupMode=Volumes).
+	if volRaw, ok := api["volumes"].(map[string]interface{}); ok {
+		vs := &AgentVolumesScope{
+			AllVolumes:  types.BoolValue(false),
+			VolumeNames: types.ListValueMust(types.StringType, []attr.Value{}),
+		}
+		if v, ok := volRaw["allVolumes"].(bool); ok {
+			vs.AllVolumes = types.BoolValue(v)
+		}
+		if namesRaw, ok := volRaw["volumeNames"].([]interface{}); ok {
+			attrVals := make([]attr.Value, 0, len(namesRaw))
+			for _, n := range namesRaw {
+				if s, ok := n.(string); ok {
+					attrVals = append(attrVals, types.StringValue(s))
+				}
+			}
+			vs.VolumeNames = types.ListValueMust(types.StringType, attrVals)
+		}
+		data.VolumesScope = vs
+	}
+
+	// Sync files scope when present (agent jobs with backupMode=FileLevel).
+	if filesRaw, ok := api["files"].(map[string]interface{}); ok {
+		fs := &AgentFilesScope{
+			IncludedFolders: types.ListValueMust(types.StringType, []attr.Value{}),
+			ExcludedFolders: types.ListValueMust(types.StringType, []attr.Value{}),
+		}
+		if inclRaw, ok := filesRaw["includedFolders"].([]interface{}); ok {
+			attrVals := make([]attr.Value, 0, len(inclRaw))
+			for _, n := range inclRaw {
+				if s, ok := n.(string); ok {
+					attrVals = append(attrVals, types.StringValue(s))
+				}
+			}
+			fs.IncludedFolders = types.ListValueMust(types.StringType, attrVals)
+		}
+		if exclRaw, ok := filesRaw["excludedFolders"].([]interface{}); ok {
+			attrVals := make([]attr.Value, 0, len(exclRaw))
+			for _, n := range exclRaw {
+				if s, ok := n.(string); ok {
+					attrVals = append(attrVals, types.StringValue(s))
+				}
+			}
+			fs.ExcludedFolders = types.ListValueMust(types.StringType, attrVals)
+		}
+		data.FilesScope = fs
+	}
+
+	// Sync schedule when present.
+	if schedRaw, ok := api["schedule"].(map[string]interface{}); ok {
+		sched := r.syncScheduleFromAPIMap(data.Schedule, schedRaw)
+		data.Schedule = sched
+	}
 }
 
 // syncScheduleFromAPI updates a JobScheduleSettings from an API BackupScheduleModel.
@@ -1413,4 +1974,86 @@ func (r *BackupJob) normalizeUnknownScheduleFields(schedule *JobScheduleSettings
 	if schedule.RetryAwaitMinutes.IsUnknown() {
 		schedule.RetryAwaitMinutes = types.Int64Null()
 	}
+}
+
+// syncScheduleFromAPIMap updates a JobScheduleSettings from a raw map API response.
+// Used for agent job types where the response is decoded as map[string]interface{}.
+func (r *BackupJob) syncScheduleFromAPIMap(existing *JobScheduleSettings, api map[string]interface{}) *JobScheduleSettings {
+	s := &JobScheduleSettings{}
+	if existing != nil {
+		*s = *existing
+	}
+
+	if v, ok := api["runAutomatically"].(bool); ok {
+		s.RunAutomatically = types.BoolValue(v)
+	}
+
+	if dailyRaw, ok := api["daily"].(map[string]interface{}); ok {
+		if v, ok := dailyRaw["isEnabled"].(bool); ok {
+			s.DailyEnabled = types.BoolValue(v)
+		}
+		if v, ok := dailyRaw["localTime"].(string); ok {
+			s.DailyLocalTime = types.StringValue(v)
+		}
+		if v, ok := dailyRaw["dailyKind"].(string); ok {
+			s.DailyKind = types.StringValue(v)
+		}
+	} else {
+		s.DailyEnabled = types.BoolValue(false)
+	}
+
+	if monthlyRaw, ok := api["monthly"].(map[string]interface{}); ok {
+		if v, ok := monthlyRaw["isEnabled"].(bool); ok {
+			s.MonthlyEnabled = types.BoolValue(v)
+		}
+		if v, ok := monthlyRaw["localTime"].(string); ok {
+			s.MonthlyLocalTime = types.StringValue(v)
+		}
+		if v, ok := monthlyRaw["dayOfMonth"].(float64); ok && v > 0 {
+			s.MonthlyDayOfMonth = types.Int64Value(int64(v))
+		}
+	} else {
+		s.MonthlyEnabled = types.BoolValue(false)
+	}
+
+	if periodRaw, ok := api["periodically"].(map[string]interface{}); ok {
+		if v, ok := periodRaw["isEnabled"].(bool); ok {
+			s.PeriodicallyEnabled = types.BoolValue(v)
+		}
+		if v, ok := periodRaw["periodicallyKind"].(string); ok {
+			s.PeriodicallyKind = types.StringValue(v)
+		}
+		if v, ok := periodRaw["frequency"].(float64); ok {
+			s.PeriodicallyFrequency = types.Int64Value(int64(v))
+		}
+	} else {
+		s.PeriodicallyEnabled = types.BoolValue(false)
+	}
+
+	if afterRaw, ok := api["afterThisJob"].(map[string]interface{}); ok {
+		if v, ok := afterRaw["isEnabled"].(bool); ok {
+			s.AfterJobEnabled = types.BoolValue(v)
+		}
+		if v, ok := afterRaw["jobName"].(string); ok {
+			s.AfterJobName = types.StringValue(v)
+		}
+	} else {
+		s.AfterJobEnabled = types.BoolValue(false)
+	}
+
+	if retryRaw, ok := api["retry"].(map[string]interface{}); ok {
+		if v, ok := retryRaw["isEnabled"].(bool); ok {
+			s.RetryEnabled = types.BoolValue(v)
+		}
+		if v, ok := retryRaw["retryCount"].(float64); ok {
+			s.RetryCount = types.Int64Value(int64(v))
+		}
+		if v, ok := retryRaw["awaitMinutes"].(float64); ok {
+			s.RetryAwaitMinutes = types.Int64Value(int64(v))
+		}
+	} else {
+		s.RetryEnabled = types.BoolValue(false)
+	}
+
+	return s
 }

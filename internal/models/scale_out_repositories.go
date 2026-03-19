@@ -33,12 +33,34 @@ type CapacityTierSpec struct {
 	ObjectStorageID   string `json:"objectStorageId,omitempty"`
 }
 
+// EPlacementPolicyType is the data placement policy for a SOBR.
+// Controls how Veeam distributes backup data across performance extents.
+type EPlacementPolicyType string
+
+const (
+	// PlacementPolicyDataLocality places backup chains on the same extent
+	// as previous restore points to improve deduplication and restore speed.
+	PlacementPolicyDataLocality EPlacementPolicyType = "DataLocality"
+	// PlacementPolicyPerformance distributes backup chains across all extents
+	// to maximise parallel throughput.
+	PlacementPolicyPerformance EPlacementPolicyType = "Performance"
+)
+
+// PlacementPolicyModel configures how backup data is distributed across SOBR extents.
+// Corresponds to API schema PlacementPolicyModel.
+type PlacementPolicyModel struct {
+	// Type selects the placement strategy.
+	// Allowed values: DataLocality, Performance.
+	Type EPlacementPolicyType `json:"type"`
+}
+
 // ScaleOutRepositorySpec is the request body for POST/PUT scale-out repository endpoints.
 type ScaleOutRepositorySpec struct {
-	Name            string              `json:"name"`
-	Description     string              `json:"description,omitempty"`
-	PerformanceTier PerformanceTierSpec `json:"performanceTier"`
-	CapacityTier    *CapacityTierSpec   `json:"capacityTier,omitempty"`
+	Name            string                `json:"name"`
+	Description     string                `json:"description,omitempty"`
+	PerformanceTier PerformanceTierSpec   `json:"performanceTier"`
+	CapacityTier    *CapacityTierSpec     `json:"capacityTier,omitempty"`
+	PlacementPolicy *PlacementPolicyModel `json:"placementPolicy,omitempty"`
 }
 
 // ---------------------------------------------------------------------------
@@ -72,6 +94,7 @@ type ScaleOutRepositoryModel struct {
 	Description     string                `json:"description,omitempty"`
 	PerformanceTier *PerformanceTierModel `json:"performanceTier,omitempty"`
 	CapacityTier    *CapacityTierModel    `json:"capacityTier,omitempty"`
+	PlacementPolicy *PlacementPolicyModel `json:"placementPolicy,omitempty"`
 }
 
 // ScaleOutModeSpec is used when toggling sealed/maintenance mode for extents.

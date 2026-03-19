@@ -113,7 +113,10 @@ type LinuxLocalRepositorySettings struct {
 	TaskLimitEnabled      bool                        `json:"taskLimitEnabled,omitempty"`
 	ReadWriteRate         int                         `json:"readWriteRate,omitempty"`
 	ReadWriteLimitEnabled bool                        `json:"readWriteLimitEnabled,omitempty"`
-	AdvancedSettings      *RepositoryAdvancedSettings `json:"advancedSettings,omitempty"`
+	// UseFastCloningOnXFSVolumes enables fast cloning when the repository path is
+	// on an XFS filesystem. Corresponds to API field useFastCloningOnXFSVolumes.
+	UseFastCloningOnXFSVolumes bool                        `json:"useFastCloningOnXFSVolumes,omitempty"`
+	AdvancedSettings           *RepositoryAdvancedSettings `json:"advancedSettings,omitempty"`
 }
 
 // NetworkRepositorySettings configures NFS/SMB network repositories.

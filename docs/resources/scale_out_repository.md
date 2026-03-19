@@ -50,7 +50,7 @@ resource "veeam_scale_out_repository" "sobr_with_capacity" {
 ### Optional
 
 - `description` (String) Human-readable description.
-- `capacity_tier_enabled` (Boolean) Enable the capacity tier. Requires object storage configured in the Veeam console before enabling. Defaults to `false`.
+- `capacity_tier_enabled` (Boolean) Enable the capacity tier. Requires object storage configured in the Veeam console before enabling. Defaults to `false` (returned by API when not set).
 
 ### Read-Only
 
@@ -70,6 +70,6 @@ terraform import veeam_scale_out_repository.example <sobr-id>
 
 - Performance extents (standard repositories) must already exist in Veeam before they can be added to a SOBR. Create them first using `veeam_repository`.
 - The order of `performance_extent_ids` is preserved and sent to the API as-is. Reordering IDs in the list triggers an update.
-- `capacity_tier_enabled = true` requires that an object storage repository has been configured in the Veeam console and linked to the SOBR separately. The API only sets a flag — it does not configure the storage target.
+- `capacity_tier_enabled = true` sets the capacity tier flag on the SOBR. This is a provider simplification — the full capacity tier configuration (extent assignment, copy and move policies, object storage target) is not yet exposed by this resource. Configure those details via the Veeam console after enabling the flag.
 - Deleting a SOBR removes the logical container but does not delete the underlying performance extent repositories or their data.
 - Sealed mode and maintenance mode for individual extents must be managed via the Veeam console or separate API calls — they are not modelled as Terraform attributes.
