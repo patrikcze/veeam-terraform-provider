@@ -610,6 +610,8 @@ func (r *BackupJob) Create(ctx context.Context, req resource.CreateRequest, resp
 		return
 	}
 
+	r.normalizeUnknownStorageFields(&data)
+
 	resp.Diagnostics.Append(resp.State.Set(ctx, data)...)
 }
 
@@ -663,6 +665,8 @@ func (r *BackupJob) Read(ctx context.Context, req resource.ReadRequest, resp *re
 			data.Description = types.StringValue(result.Description)
 		}
 	}
+
+	r.normalizeUnknownStorageFields(&data)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, data)...)
 }
@@ -738,6 +742,8 @@ func (r *BackupJob) Update(ctx context.Context, req resource.UpdateRequest, resp
 		)
 		return
 	}
+
+	r.normalizeUnknownStorageFields(&data)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, data)...)
 }
@@ -1268,4 +1274,25 @@ func (r *BackupJob) syncScheduleFromAPI(existing *JobScheduleSettings, api *mode
 	}
 
 	return s
+}
+
+// normalizeUnknownStorageFields converts unknown storage fields to known nulls
+// before persisting state. Terraform requires all values to be known after apply.
+func (r *BackupJob) normalizeUnknownStorageFields(data *BackupJobModel) {
+	if data == nil || data.Storage == nil {
+		return
+	}
+
+	if data.Storage.RepositoryID.IsUnknown() {
+		data.Storage.RepositoryID = types.StringNull()
+	}
+	if data.Storage.ProxyAutoSelect.IsUnknown() {
+		data.Storage.ProxyAutoSelect = types.BoolNull()
+	}
+	if data.Storage.RetentionType.IsUnknown() {
+		data.Storage.RetentionType = types.StringNull()
+	}
+	if data.Storage.RetentionQuantity.IsUnknown() {
+		data.Storage.RetentionQuantity = types.Int64Null()
+	}
 }
