@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -188,10 +189,10 @@ func (r *Repository) Create(ctx context.Context, req resource.CreateRequest, res
 
 	// Read the created repository to sync computed fields while preserving plan values.
 	if !data.ID.IsNull() && data.ID.ValueString() != "" {
-		var created models.RepositoryModel
 		endpoint := fmt.Sprintf(client.PathRepositoryByID, data.ID.ValueString())
+		var created map[string]interface{}
 		if err := r.client.GetJSON(ctx, endpoint, &created); err == nil {
-			r.syncFromAPI(&data, &created)
+			r.syncFromAPI(&data, created)
 		}
 	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, data)...)
@@ -204,7 +205,7 @@ func (r *Repository) Read(ctx context.Context, req resource.ReadRequest, resp *r
 		return
 	}
 
-	var result models.RepositoryModel
+	var result map[string]interface{}
 	endpoint := fmt.Sprintf(client.PathRepositoryByID, data.ID.ValueString())
 	if err := r.client.GetJSON(ctx, endpoint, &result); err != nil {
 		if isRepositoryNotFound(err) {
@@ -218,7 +219,7 @@ func (r *Repository) Read(ctx context.Context, req resource.ReadRequest, resp *r
 		return
 	}
 
-	r.syncFromAPI(&data, &result)
+	r.syncFromAPI(&data, result)
 	resp.Diagnostics.Append(resp.State.Set(ctx, data)...)
 }
 
@@ -251,6 +252,14 @@ func (r *Repository) Update(ctx context.Context, req resource.UpdateRequest, res
 				fmt.Sprintf("Async task %s failed: %s", resultID, err),
 			)
 			return
+		}
+	}
+
+	// Read back to populate computed fields (task limits, throughput, etc.).
+	if !data.ID.IsNull() && data.ID.ValueString() != "" {
+		var updated map[string]interface{}
+		if err := r.client.GetJSON(ctx, endpoint, &updated); err == nil {
+			r.syncFromAPI(&data, updated)
 		}
 	}
 
@@ -391,15 +400,91 @@ func (r *Repository) buildSpec(data *RepositoryModel) interface{} {
 	}
 }
 
-func (r *Repository) syncFromAPI(data *RepositoryModel, api *models.RepositoryModel) {
-	if api.Name != "" {
-		data.Name = types.StringValue(api.Name)
+func (r *Repository) syncFromAPI(data *RepositoryModel, api map[string]interface{}) {
+	// Ensure known defaults for computed fields.
+	data.MaxTaskCount = types.Int64Value(0)
+	data.TaskLimitEnabled = types.BoolValue(false)
+	data.ReadWriteRate = types.Int64Value(0)
+	data.ReadWriteLimitEnabled = types.BoolValue(false)
+	data.SharePath = types.StringNull()
+	data.CredentialsID = types.StringNull()
+	data.HostID = types.StringNull()
+	data.Path = types.StringNull()
+
+	if name := getStringValue(api, "name"); name != "" {
+		data.Name = types.StringValue(name)
 	}
-	if api.Description != "" {
-		data.Description = types.StringValue(api.Description)
+	if desc := getStringValue(api, "description"); desc != "" {
+		data.Description = types.StringValue(desc)
 	}
-	if string(api.Type) != "" {
-		data.Type = types.StringValue(string(api.Type))
+
+	repoType := models.ERepositoryType(getStringValue(api, "type"))
+	if repoType != "" {
+		data.Type = types.StringValue(string(repoType))
+	}
+
+	raw, err := json.Marshal(api)
+	if err != nil {
+		return
+	}
+
+	switch repoType {
+	case models.RepositoryTypeWinLocal:
+		var m models.WindowsLocalStorageModel
+		if err := json.Unmarshal(raw, &m); err == nil {
+			data.HostID = types.StringValue(m.HostID)
+			if m.Repository != nil {
+				data.Path = types.StringValue(m.Repository.Path)
+				data.MaxTaskCount = types.Int64Value(int64(m.Repository.MaxTaskCount))
+				data.TaskLimitEnabled = types.BoolValue(m.Repository.TaskLimitEnabled)
+				data.ReadWriteRate = types.Int64Value(int64(m.Repository.ReadWriteRate))
+				data.ReadWriteLimitEnabled = types.BoolValue(m.Repository.ReadWriteLimitEnabled)
+			}
+		}
+
+	case models.RepositoryTypeLinuxLocal:
+		var m models.LinuxLocalStorageModel
+		if err := json.Unmarshal(raw, &m); err == nil {
+			data.HostID = types.StringValue(m.HostID)
+			if m.Repository != nil {
+				data.Path = types.StringValue(m.Repository.Path)
+				data.MaxTaskCount = types.Int64Value(int64(m.Repository.MaxTaskCount))
+				data.TaskLimitEnabled = types.BoolValue(m.Repository.TaskLimitEnabled)
+				data.ReadWriteRate = types.Int64Value(int64(m.Repository.ReadWriteRate))
+				data.ReadWriteLimitEnabled = types.BoolValue(m.Repository.ReadWriteLimitEnabled)
+			}
+		}
+
+	case models.RepositoryTypeNfs:
+		var m models.NfsStorageModel
+		if err := json.Unmarshal(raw, &m); err == nil {
+			if m.Share != nil {
+				data.SharePath = types.StringValue(m.Share.SharePath)
+			}
+			if m.Repository != nil {
+				data.MaxTaskCount = types.Int64Value(int64(m.Repository.MaxTaskCount))
+				data.TaskLimitEnabled = types.BoolValue(m.Repository.TaskLimitEnabled)
+				data.ReadWriteRate = types.Int64Value(int64(m.Repository.ReadWriteRate))
+				data.ReadWriteLimitEnabled = types.BoolValue(m.Repository.ReadWriteLimitEnabled)
+			}
+		}
+
+	case models.RepositoryTypeSmb:
+		var m models.SmbStorageModel
+		if err := json.Unmarshal(raw, &m); err == nil {
+			if m.Share != nil {
+				data.SharePath = types.StringValue(m.Share.SharePath)
+				if m.Share.CredentialsID != "" {
+					data.CredentialsID = types.StringValue(m.Share.CredentialsID)
+				}
+			}
+			if m.Repository != nil {
+				data.MaxTaskCount = types.Int64Value(int64(m.Repository.MaxTaskCount))
+				data.TaskLimitEnabled = types.BoolValue(m.Repository.TaskLimitEnabled)
+				data.ReadWriteRate = types.Int64Value(int64(m.Repository.ReadWriteRate))
+				data.ReadWriteLimitEnabled = types.BoolValue(m.Repository.ReadWriteLimitEnabled)
+			}
+		}
 	}
 }
 

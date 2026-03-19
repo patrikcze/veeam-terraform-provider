@@ -426,7 +426,6 @@ Supported job types:
 				MarkdownDescription: "Job scheduling configuration. When omitted, the job " +
 					"must be started manually.",
 				Optional: true,
-				Computed: true,
 				Attributes: map[string]schema.Attribute{
 					"run_automatically": schema.BoolAttribute{
 						MarkdownDescription: "If `true`, the job runs on the configured " +
