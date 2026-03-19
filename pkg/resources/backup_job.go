@@ -725,6 +725,16 @@ func (r *BackupJob) Update(ctx context.Context, req resource.UpdateRequest, resp
 			return
 		}
 		payload := r.buildAgentJobModel(&data, state.IsDisabled.ValueBool())
+
+		// Agent job PUT expects immutable discriminator fields to be preserved.
+		// Fetch the current model and carry forward agentType when present.
+		var current map[string]any
+		if err := r.client.GetJSON(ctx, endpoint, &current); err == nil {
+			if agentType, ok := current["agentType"].(string); ok && agentType != "" {
+				payload["agentType"] = agentType
+			}
+		}
+
 		var result models.BackupJobModel
 		if err := r.client.PutJSON(ctx, endpoint, payload, &result); err != nil {
 			resp.Diagnostics.AddError("Failed to update agent backup job",
