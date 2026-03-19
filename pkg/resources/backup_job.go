@@ -355,7 +355,6 @@ Supported job types:
 				MarkdownDescription: "Backup storage configuration. When omitted, Veeam " +
 					"applies server defaults. **Strongly recommended** to set explicitly.",
 				Optional: true,
-				Computed: true,
 				Attributes: map[string]schema.Attribute{
 					"repository_id": schema.StringAttribute{
 						MarkdownDescription: "UUID of the target backup repository. " +
@@ -392,7 +391,6 @@ Supported job types:
 				MarkdownDescription: "Application-aware processing and guest OS file indexing. " +
 					"Applies to `VSphereBackup` and `HyperVBackup` job types only.",
 				Optional: true,
-				Computed: true,
 				Attributes: map[string]schema.Attribute{
 					"app_aware_enabled": schema.BoolAttribute{
 						MarkdownDescription: "If `true`, application-aware processing is " +
@@ -988,7 +986,7 @@ func (r *BackupJob) buildStorageModel(s *JobStorageSettings) *models.BackupJobSt
 		},
 	}
 
-	if !s.RetentionType.IsNull() {
+	if !s.RetentionType.IsNull() && !s.RetentionType.IsUnknown() {
 		qty := 14 // safe default — matches Veeam console default
 		if !s.RetentionQuantity.IsNull() && !s.RetentionQuantity.IsUnknown() {
 			qty = int(s.RetentionQuantity.ValueInt64())
@@ -1011,7 +1009,7 @@ func (r *BackupJob) buildAgentStorageModel(s *JobStorageSettings) *models.AgentB
 		BackupRepositoryID: s.RepositoryID.ValueString(),
 	}
 
-	if !s.RetentionType.IsNull() {
+	if !s.RetentionType.IsNull() && !s.RetentionType.IsUnknown() {
 		qty := 14
 		if !s.RetentionQuantity.IsNull() && !s.RetentionQuantity.IsUnknown() {
 			qty = int(s.RetentionQuantity.ValueInt64())
