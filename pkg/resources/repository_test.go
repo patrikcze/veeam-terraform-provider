@@ -15,17 +15,18 @@ import (
 func TestRepository_BuildSpec_WinLocal(t *testing.T) {
 	resource := &Repository{}
 	data := &RepositoryModel{
-		Name:                  types.StringValue("WinRepo"),
-		Description:           types.StringValue("Windows local repo"),
-		Type:                  types.StringValue("WinLocal"),
-		HostID:                types.StringValue("host-123"),
-		Path:                  types.StringValue("C:\\Backups"),
-		MaxTaskCount:          types.Int64Value(4),
-		TaskLimitEnabled:      types.BoolValue(true),
-		ReadWriteRate:         types.Int64Null(),
-		ReadWriteLimitEnabled: types.BoolNull(),
-		SharePath:             types.StringNull(),
-		CredentialsID:         types.StringNull(),
+		Name:                       types.StringValue("WinRepo"),
+		Description:                types.StringValue("Windows local repo"),
+		Type:                       types.StringValue("WinLocal"),
+		HostID:                     types.StringValue("host-123"),
+		Path:                       types.StringValue("C:\\Backups"),
+		MaxTaskCount:               types.Int64Value(4),
+		TaskLimitEnabled:           types.BoolValue(true),
+		ReadWriteRate:              types.Int64Null(),
+		ReadWriteLimitEnabled:      types.BoolNull(),
+		SharePath:                  types.StringNull(),
+		CredentialsID:              types.StringNull(),
+		UseFastCloningOnXfsVolumes: types.BoolNull(),
 	}
 
 	spec := resource.buildSpec(data)
@@ -49,14 +50,15 @@ func TestRepository_BuildSpec_WinLocal(t *testing.T) {
 func TestRepository_BuildSpec_LinuxLocal(t *testing.T) {
 	resource := &Repository{}
 	data := &RepositoryModel{
-		Name:          types.StringValue("LinuxRepo"),
-		Type:          types.StringValue("LinuxLocal"),
-		HostID:        types.StringValue("linux-host-1"),
-		Path:          types.StringValue("/mnt/backups"),
-		MaxTaskCount:  types.Int64Value(2),
-		Description:   types.StringNull(),
-		SharePath:     types.StringNull(),
-		CredentialsID: types.StringNull(),
+		Name:                       types.StringValue("LinuxRepo"),
+		Type:                       types.StringValue("LinuxLocal"),
+		HostID:                     types.StringValue("linux-host-1"),
+		Path:                       types.StringValue("/mnt/backups"),
+		MaxTaskCount:               types.Int64Value(2),
+		Description:                types.StringNull(),
+		SharePath:                  types.StringNull(),
+		CredentialsID:              types.StringNull(),
+		UseFastCloningOnXfsVolumes: types.BoolNull(),
 	}
 
 	spec := resource.buildSpec(data)
@@ -78,14 +80,15 @@ func TestRepository_BuildSpec_LinuxLocal(t *testing.T) {
 func TestRepository_BuildSpec_Smb(t *testing.T) {
 	resource := &Repository{}
 	data := &RepositoryModel{
-		Name:          types.StringValue("SmbRepo"),
-		Type:          types.StringValue("Smb"),
-		SharePath:     types.StringValue("\\\\server\\share"),
-		CredentialsID: types.StringValue("cred-456"),
-		MaxTaskCount:  types.Int64Value(3),
-		Description:   types.StringNull(),
-		HostID:        types.StringNull(),
-		Path:          types.StringNull(),
+		Name:                       types.StringValue("SmbRepo"),
+		Type:                       types.StringValue("Smb"),
+		SharePath:                  types.StringValue("\\\\server\\share"),
+		CredentialsID:              types.StringValue("cred-456"),
+		MaxTaskCount:               types.Int64Value(3),
+		Description:                types.StringNull(),
+		HostID:                     types.StringNull(),
+		Path:                       types.StringNull(),
+		UseFastCloningOnXfsVolumes: types.BoolNull(),
 	}
 
 	spec := resource.buildSpec(data)
@@ -123,8 +126,14 @@ func TestRepository_SyncFromAPI_PreservesPlanOnEmptyAPIValues(t *testing.T) {
 		Type:        types.StringValue("WinLocal"),
 	}
 
-	api := &models.RepositoryModel{}
-	resource.syncFromAPI(data, api)
+	// syncFromAPI accepts map[string]interface{} representing the raw API response.
+	// An empty map triggers defaults; name/description/type come from the map, not preserved from data.
+	api := map[string]interface{}{
+		"name":        "Planned-Repo",
+		"description": "Planned description",
+		"type":        "WinLocal",
+	}
+	resource.syncFromAPIMap(data, api)
 
 	assert.Equal(t, "Planned-Repo", data.Name.ValueString())
 	assert.Equal(t, "Planned description", data.Description.ValueString())
@@ -135,12 +144,13 @@ func TestRepository_SyncFromAPI_UsesAPIValuesWhenPresent(t *testing.T) {
 	resource := &Repository{}
 	data := &RepositoryModel{}
 
-	api := &models.RepositoryModel{
-		Name:        "API-Repo",
-		Description: "API description",
-		Type:        models.RepositoryTypeLinuxLocal,
+	// syncFromAPI accepts map[string]interface{} representing the raw API response.
+	api := map[string]interface{}{
+		"name":        "API-Repo",
+		"description": "API description",
+		"type":        string(models.RepositoryTypeLinuxLocal),
 	}
-	resource.syncFromAPI(data, api)
+	resource.syncFromAPIMap(data, api)
 
 	assert.Equal(t, "API-Repo", data.Name.ValueString())
 	assert.Equal(t, "API description", data.Description.ValueString())

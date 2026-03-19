@@ -41,7 +41,7 @@ resource "veeam_backup_job" "vsphere" {
     run_automatically = true
     daily_enabled     = true
     daily_local_time  = "22:00"
-    daily_kind        = "Weekdays"
+    daily_kind        = "WeekDays"
     retry_enabled     = true
     retry_count       = 3
     retry_await_minutes = 10
@@ -145,10 +145,13 @@ resource "veeam_backup_job" "secondary" {
 
 ### Optional
 
-- `is_high_priority` (Boolean) If `true`, the resource scheduler prioritises this job over other jobs of the same type.
+- `is_high_priority` (Boolean) If `true`, the resource scheduler prioritises this job over other jobs of the same type. Optional, Computed. Defaults to `false`.
 - `virtual_machines` (Block) Defines which VMs or containers are protected. Required for `VSphereBackup` and `HyperVBackup`. See [virtual\_machines](#nested-virtual_machines) below.
 - `agent_computers` (List of Blocks) Agent-managed computers or protection groups to include. Required for `WindowsAgentBackup` and `LinuxAgentBackup`. See [agent\_computers](#nested-agent_computers) below.
-- `agent_backup_mode` (String) Agent backup scope. Required for agent job types. Supported values: `EntireComputer`, `Volumes`, `FileLevel`.
+- `agent_backup_mode` (String) Agent backup scope. Optional, Computed. Required in practice for agent job types. Supported values: `EntireComputer`, `Volumes`, `FileLevel`.
+- `include_usb_drives` (Boolean) If `true`, periodically connected USB drives are included in the backup. Optional, Computed. Applies to `WindowsAgentBackup` job type only.
+- `agent_type` (String) Protected computer type for Windows agent jobs. Optional, Computed. Supported values: `Workstation`, `Server`, `FailoverCluster`. Applies to `WindowsAgentBackup` job type only.
+- `use_snapshotless_file_level_backup` (Boolean) If `true`, creates a crash-consistent file-level backup without a snapshot. Optional, Computed. Applies to `LinuxAgentBackup` job type only, when `agent_backup_mode = "FileLevel"`.
 - `storage` (Block) Backup storage configuration. Strongly recommended to set explicitly. See [storage](#nested-storage) below.
 - `guest_processing` (Block) Application-aware processing and guest file indexing. Applies to `VSphereBackup` and `HyperVBackup` only. See [guest\_processing](#nested-guest_processing) below.
 - `schedule` (Block) Job scheduling configuration. When omitted, the job must be started manually. See [schedule](#nested-schedule) below.
@@ -168,11 +171,11 @@ Defines which inventory objects (VMs, folders, datastores, clusters) are include
 #### Required
 
 - `includes` (List of Blocks) One or more inventory objects to protect. Each block supports:
-  - `platform` (String) Hypervisor platform: `VSphere` or `HyperV`.
-  - `type` (String) Inventory object type. Common values: `VirtualMachine`, `Datastore`, `Folder`, `ResourcePool`, `Cluster`, `Host`, `Tag`.
-  - `host_name` (String) Hostname or FQDN of the vCenter / Hyper-V host that owns the object.
-  - `name` (String) Display name of the inventory object as shown in the hypervisor console.
-  - `object_id` (String) Managed object reference ID (for example `vm-101` for vSphere, or GUID for Hyper-V).
+  - `platform` (String, Required) Hypervisor platform: `VSphere` or `HyperV`.
+  - `name` (String, Required) Display name of the inventory object as shown in the hypervisor console.
+  - `type` (String, Optional, Computed) Inventory object type. Common values: `VirtualMachine`, `Datastore`, `Folder`, `ResourcePool`, `Cluster`, `Host`, `Tag`.
+  - `host_name` (String, Optional, Computed) Hostname or FQDN of the vCenter / Hyper-V host that owns the object.
+  - `object_id` (String, Optional, Computed) Managed object reference ID (for example `vm-101` for vSphere, or GUID for Hyper-V).
 
 #### Optional
 
@@ -231,10 +234,10 @@ Configures when the job runs automatically. When this block is omitted the job m
 - `run_automatically` (Boolean) Master switch to enable automatic scheduling.
 - `daily_enabled` (Boolean) Run on a daily schedule.
 - `daily_local_time` (String) Daily start time in `HH:MM` format (server local time).
-- `daily_kind` (String) Which days to run. Supported values: `Everyday`, `Weekdays`, `SelectedDays`.
+- `daily_kind` (String) Which days to run. Supported values: `Everyday`, `WeekDays`, `SelectedDays`.
 - `monthly_enabled` (Boolean) Run on a monthly schedule.
 - `monthly_local_time` (String) Monthly start time in `HH:MM` format.
-- `monthly_day_of_month` (Number) Day of the month (1–28) on which the job runs.
+- `monthly_day_of_month` (Number) Day of the month (1–28) on which the job runs. Note: `monthly_day_of_week`, `monthly_day_number_in_month`, and `monthly_months` are not yet exposed by the provider; configure those via the Veeam console.
 - `periodically_enabled` (Boolean) Run at a repeating interval.
 - `periodically_kind` (String) Interval unit. Supported values: `Hours`, `Minutes`.
 - `periodically_frequency` (Number) Interval value (for example `4` with `Hours` = every 4 hours).

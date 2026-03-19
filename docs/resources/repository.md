@@ -67,12 +67,12 @@ resource "veeam_repository" "smb" {
 ### Required
 
 - `name` (String) Unique repository name.
-- `type` (String) Repository type: `WinLocal`, `LinuxLocal`, `Nfs`, or `Smb`.
+- `type` (String) Repository type. Supported values: `WinLocal`, `LinuxLocal`, `Nfs`, `Smb`. Other repository types visible in the Veeam console (such as `LinuxHardened`, `AzureBlob`, `AmazonS3`) are not supported by this resource and will produce a validation error if specified.
 
 ### Optional
 
 - `description` (String) Optional repository description.
-- `host_id` (String) Managed server ID. Required for `WinLocal` and `LinuxLocal` types.
+- `host_id` (String) Managed server ID. Required for `WinLocal` and `LinuxLocal` types. The provider uses this value for both the backup repository host and the mount server host (provider simplification — separate mount server configuration is not yet exposed).
 - `path` (String) Filesystem path on the managed server. Required for `WinLocal` and `LinuxLocal`.
 - `max_task_count` (Number) Maximum concurrent backup tasks. Set `task_limit_enabled = true` to activate this limit.
 - `task_limit_enabled` (Boolean) Enable the concurrent task limit. Must be `true` when `max_task_count` is set.
@@ -80,6 +80,7 @@ resource "veeam_repository" "smb" {
 - `read_write_limit_enabled` (Boolean) Enable the read/write rate limit. Must be `true` when `read_write_rate` is set.
 - `share_path` (String) Network share path. Required for `Nfs` and `Smb` types.
 - `credentials_id` (String) Credential ID for authenticated SMB share access.
+- `use_fast_cloning_on_xfs_volumes` (Boolean) If `true`, enables XFS fast cloning for improved copy-on-write performance when the repository path resides on an XFS filesystem. Optional, Computed. Applies to `LinuxLocal` repository type only.
 
 ### Read-Only
 
@@ -97,7 +98,7 @@ terraform import veeam_repository.example <repository-id>
 
 ## Notes
 
-- `host_id` and `path` are required for `WinLocal` and `LinuxLocal` repositories. The provider uses them to populate the mount-server settings that VBR requires for local repository types.
+- `host_id` and `path` are required for `WinLocal` and `LinuxLocal` repositories. The provider uses `host_id` to populate both the repository host and the mount server host fields that VBR requires for local repository types. This is a provider simplification — if you need different hosts for the repository and mount server, configure that via the Veeam console after creation.
 - `share_path` is required for `Nfs` and `Smb` types.
 - `credentials_id` is required for SMB shares that need authentication.
 - `task_limit_enabled` must be `true` for `max_task_count` to take effect in VBR. Sending only `max_task_count` without the enable flag is ignored by the API.

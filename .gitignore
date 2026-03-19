@@ -77,3 +77,4 @@ coverage.html
 # Swagger spec — contains full API structure; never commit to public repos
 Veeam13_swagger.json
 *.swagger.json
+.claude/worktrees/

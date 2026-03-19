@@ -364,6 +364,15 @@ type BackupJobGuestProcessingModel struct {
 	GuestFSIndexing *GuestFileSystemIndexingModel `json:"guestFSIndexing"`
 	// GuestInteractionProxies configures which proxies deploy the runtime process.
 	GuestInteractionProxies *GuestInteractionProxiesSettingsModel `json:"guestInteractionProxies,omitempty"`
+	// GuestCredentials specifies OS-level credentials used for guest interaction.
+	GuestCredentials *GuestOsCredentialsModel `json:"guestCredentials,omitempty"`
+}
+
+// GuestOsCredentialsModel identifies the credential record used for guest OS interaction.
+// The credential must already exist; create it via the veeam_credential resource.
+type GuestOsCredentialsModel struct {
+	// CredentialsID is the UUID of the credential record.
+	CredentialsID string `json:"credentialsId"`
 }
 
 // BackupApplicationAwareProcessingModel controls application-aware processing.
@@ -497,6 +506,8 @@ type WindowsAgentBackupJobSpec struct {
 	BackupMode EAgentBackupJobMode `json:"backupMode"`
 	// IncludeUsbDrives includes periodically connected USB drives in the backup.
 	IncludeUsbDrives bool `json:"includeUsbDrives,omitempty"`
+	// AgentType selects the protected computer type (Workstation, Server, FailoverCluster).
+	AgentType string `json:"agentType,omitempty"`
 	// Storage configures the backup destination repository.
 	Storage *AgentBackupJobStorageModel `json:"storage,omitempty"`
 	// Schedule configures when the job runs.
@@ -511,6 +522,7 @@ type WindowsAgentBackupJobModel struct {
 	Computers        []AgentObjectSpec           `json:"computers,omitempty"`
 	BackupMode       EAgentBackupJobMode         `json:"backupMode,omitempty"`
 	IncludeUsbDrives bool                        `json:"includeUsbDrives,omitempty"`
+	AgentType        string                      `json:"agentType,omitempty"`
 	Storage          *AgentBackupJobStorageModel `json:"storage,omitempty"`
 	Schedule         *BackupScheduleModel        `json:"schedule,omitempty"`
 }
@@ -553,6 +565,25 @@ type AgentBackupJobStorageModel struct {
 	RetentionPolicy *BackupJobRetentionPolicySettings `json:"retentionPolicy,omitempty"`
 	// GFSPolicy optionally configures Grandfather-Father-Son long-term retention.
 	GFSPolicy *GFSPolicySettingsModel `json:"gfsPolicy,omitempty"`
+}
+
+// AgentBackupJobVolumesModel configures which volumes to back up for agent jobs.
+// Used when BackupMode = "Volumes".
+type AgentBackupJobVolumesModel struct {
+	// AllVolumes backs up every local volume when true.
+	AllVolumes bool `json:"allVolumes"`
+	// VolumeNames lists specific volumes to include when AllVolumes is false.
+	// Windows: drive letters (e.g. "C:", "D:"). Linux: mount points (e.g. "/", "/data").
+	VolumeNames []string `json:"volumeNames,omitempty"`
+}
+
+// AgentBackupJobFilesModel configures which directories to include or exclude
+// for agent file-level backup jobs (BackupMode = "FileLevel").
+type AgentBackupJobFilesModel struct {
+	// IncludedFolders lists directory paths to include in the backup.
+	IncludedFolders []string `json:"includedFolders,omitempty"`
+	// ExcludedFolders lists directory paths to exclude from the backup.
+	ExcludedFolders []string `json:"excludedFolders,omitempty"`
 }
 
 // ---------------------------------------------------------------------------

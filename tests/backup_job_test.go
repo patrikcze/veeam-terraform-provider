@@ -116,7 +116,7 @@ func TestAccBackupJob_WithSchedule(t *testing.T) {
 					resource.TestCheckResourceAttr("veeam_backup_job.scheduled", "schedule.run_automatically", "true"),
 					resource.TestCheckResourceAttr("veeam_backup_job.scheduled", "schedule.daily_enabled", "true"),
 					resource.TestCheckResourceAttr("veeam_backup_job.scheduled", "schedule.daily_local_time", "22:00"),
-					resource.TestCheckResourceAttr("veeam_backup_job.scheduled", "schedule.daily_kind", "Weekdays"),
+					resource.TestCheckResourceAttr("veeam_backup_job.scheduled", "schedule.daily_kind", "WeekDays"),
 				),
 			},
 		},
@@ -336,7 +336,7 @@ resource "veeam_backup_job" "scheduled" {
     run_automatically = true
     daily_enabled     = true
     daily_local_time  = "22:00"
-    daily_kind        = "Weekdays"
+    daily_kind        = "WeekDays"
     retry_enabled     = true
     retry_count       = 3
     retry_await_minutes = 10

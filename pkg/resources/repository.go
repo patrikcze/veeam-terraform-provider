@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -11,11 +12,45 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/patrikcze/terraform-provider-veeam/internal/client"
 	"github.com/patrikcze/terraform-provider-veeam/internal/models"
 )
+
+// ---------------------------------------------------------------------------
+// repositoryTypeValidator enforces that type is one of the supported values.
+// ---------------------------------------------------------------------------
+
+type repositoryTypeValidator struct{}
+
+func (v repositoryTypeValidator) Description(_ context.Context) string {
+	return "Repository type must be one of: WinLocal, LinuxLocal, Nfs, Smb"
+}
+
+func (v repositoryTypeValidator) MarkdownDescription(_ context.Context) string {
+	return "Repository type must be one of: `WinLocal`, `LinuxLocal`, `Nfs`, `Smb`"
+}
+
+func (v repositoryTypeValidator) ValidateString(_ context.Context, req validator.StringRequest, resp *validator.StringResponse) {
+	if req.ConfigValue.IsNull() || req.ConfigValue.IsUnknown() {
+		return
+	}
+	val := req.ConfigValue.ValueString()
+	allowed := []string{"WinLocal", "LinuxLocal", "Nfs", "Smb"}
+	for _, a := range allowed {
+		if val == a {
+			return
+		}
+	}
+	resp.Diagnostics.AddAttributeError(
+		req.Path,
+		"Invalid repository type",
+		fmt.Sprintf("Expected one of %v, got: %q. Other repository types (LinuxHardened, AzureBlob, etc.) "+
+			"are not supported by this resource.", allowed, val),
+	)
+}
 
 // Compile-time interface checks.
 var (
@@ -44,6 +79,8 @@ type RepositoryModel struct {
 	ReadWriteLimitEnabled types.Bool   `tfsdk:"read_write_limit_enabled"`
 	SharePath             types.String `tfsdk:"share_path"`
 	CredentialsID         types.String `tfsdk:"credentials_id"`
+	// UseFastCloningOnXfsVolumes enables XFS fast cloning. LinuxLocal only.
+	UseFastCloningOnXfsVolumes types.Bool `tfsdk:"use_fast_cloning_on_xfs_volumes"`
 }
 
 func (r *Repository) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -71,16 +108,23 @@ func (r *Repository) Schema(_ context.Context, _ resource.SchemaRequest, resp *r
 				Computed:            true,
 			},
 			"type": schema.StringAttribute{
-				MarkdownDescription: "Repository type: `WinLocal`, `LinuxLocal`, `Nfs`, or `Smb`.",
-				Required:            true,
+				MarkdownDescription: "Repository type. Supported values: `WinLocal`, `LinuxLocal`, `Nfs`, `Smb`. " +
+					"Other types visible in the Veeam console (LinuxHardened, AzureBlob, etc.) " +
+					"are not supported by this resource.",
+				Required: true,
+				Validators: []validator.String{
+					repositoryTypeValidator{},
+				},
 			},
 			"host_id": schema.StringAttribute{
 				MarkdownDescription: "Managed server host ID (WinLocal and LinuxLocal types).",
 				Optional:            true,
+				Computed:            true,
 			},
 			"path": schema.StringAttribute{
 				MarkdownDescription: "Folder path on the host (WinLocal / LinuxLocal).",
 				Optional:            true,
+				Computed:            true,
 			},
 			"max_task_count": schema.Int64Attribute{
 				MarkdownDescription: "Maximum concurrent tasks.",
@@ -105,10 +149,18 @@ func (r *Repository) Schema(_ context.Context, _ resource.SchemaRequest, resp *r
 			"share_path": schema.StringAttribute{
 				MarkdownDescription: "Network share path (Nfs or Smb types).",
 				Optional:            true,
+				Computed:            true,
 			},
 			"credentials_id": schema.StringAttribute{
 				MarkdownDescription: "Credential ID for SMB share access.",
 				Optional:            true,
+				Computed:            true,
+			},
+			"use_fast_cloning_on_xfs_volumes": schema.BoolAttribute{
+				MarkdownDescription: "If `true`, enables XFS fast cloning for improved copy-on-write performance. " +
+					"Optional, Computed. Applies to `LinuxLocal` repository type only.",
+				Optional: true,
+				Computed: true,
 			},
 		},
 	}
@@ -188,10 +240,10 @@ func (r *Repository) Create(ctx context.Context, req resource.CreateRequest, res
 
 	// Read the created repository to sync computed fields while preserving plan values.
 	if !data.ID.IsNull() && data.ID.ValueString() != "" {
-		var created models.RepositoryModel
 		endpoint := fmt.Sprintf(client.PathRepositoryByID, data.ID.ValueString())
+		var created map[string]interface{}
 		if err := r.client.GetJSON(ctx, endpoint, &created); err == nil {
-			r.syncFromAPI(&data, &created)
+			r.syncFromAPIMap(&data, created)
 		}
 	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, data)...)
@@ -204,8 +256,11 @@ func (r *Repository) Read(ctx context.Context, req resource.ReadRequest, resp *r
 		return
 	}
 
-	var result models.RepositoryModel
 	endpoint := fmt.Sprintf(client.PathRepositoryByID, data.ID.ValueString())
+
+	// Decode into a raw map so type-specific nested fields (e.g. repository.useFastCloningOnXFSVolumes)
+	// can be extracted in addition to the base fields.
+	var result map[string]interface{}
 	if err := r.client.GetJSON(ctx, endpoint, &result); err != nil {
 		if isRepositoryNotFound(err) {
 			resp.State.RemoveResource(ctx)
@@ -218,7 +273,7 @@ func (r *Repository) Read(ctx context.Context, req resource.ReadRequest, resp *r
 		return
 	}
 
-	r.syncFromAPI(&data, &result)
+	r.syncFromAPIMap(&data, result)
 	resp.Diagnostics.Append(resp.State.Set(ctx, data)...)
 }
 
@@ -251,6 +306,14 @@ func (r *Repository) Update(ctx context.Context, req resource.UpdateRequest, res
 				fmt.Sprintf("Async task %s failed: %s", resultID, err),
 			)
 			return
+		}
+	}
+
+	// Read back to populate computed fields (task limits, throughput, etc.).
+	if !data.ID.IsNull() && data.ID.ValueString() != "" {
+		var updated map[string]interface{}
+		if err := r.client.GetJSON(ctx, endpoint, &updated); err == nil {
+			r.syncFromAPIMap(&data, updated)
 		}
 	}
 
@@ -340,15 +403,19 @@ func (r *Repository) buildSpec(data *RepositoryModel) interface{} {
 				VPowerNFSEnabled: false,
 			},
 		}
+		useFastCloning := !data.UseFastCloningOnXfsVolumes.IsNull() &&
+			!data.UseFastCloningOnXfsVolumes.IsUnknown() &&
+			data.UseFastCloningOnXfsVolumes.ValueBool()
 		return &models.LinuxLocalStorageSpec{
 			RepositorySpec: base,
 			HostID:         data.HostID.ValueString(),
 			Repository: &models.LinuxLocalRepositorySettings{
-				Path:                  data.Path.ValueString(),
-				MaxTaskCount:          maxTasks,
-				TaskLimitEnabled:      taskLimitEnabled,
-				ReadWriteRate:         readWriteRate,
-				ReadWriteLimitEnabled: readWriteLimitEnabled,
+				Path:                       data.Path.ValueString(),
+				MaxTaskCount:               maxTasks,
+				TaskLimitEnabled:           taskLimitEnabled,
+				ReadWriteRate:              readWriteRate,
+				ReadWriteLimitEnabled:      readWriteLimitEnabled,
+				UseFastCloningOnXFSVolumes: useFastCloning,
 			},
 			MountServer: mountServer,
 		}
@@ -391,15 +458,92 @@ func (r *Repository) buildSpec(data *RepositoryModel) interface{} {
 	}
 }
 
-func (r *Repository) syncFromAPI(data *RepositoryModel, api *models.RepositoryModel) {
-	if api.Name != "" {
-		data.Name = types.StringValue(api.Name)
+func (r *Repository) syncFromAPIMap(data *RepositoryModel, api map[string]interface{}) {
+	// Ensure known defaults for computed fields.
+	data.MaxTaskCount = types.Int64Value(0)
+	data.TaskLimitEnabled = types.BoolValue(false)
+	data.ReadWriteRate = types.Int64Value(0)
+	data.ReadWriteLimitEnabled = types.BoolValue(false)
+	data.SharePath = types.StringNull()
+	data.CredentialsID = types.StringNull()
+	data.HostID = types.StringNull()
+	data.Path = types.StringNull()
+
+	if name := getStringValue(api, "name"); name != "" {
+		data.Name = types.StringValue(name)
 	}
-	if api.Description != "" {
-		data.Description = types.StringValue(api.Description)
+	if desc := getStringValue(api, "description"); desc != "" {
+		data.Description = types.StringValue(desc)
 	}
-	if string(api.Type) != "" {
-		data.Type = types.StringValue(string(api.Type))
+
+	repoType := models.ERepositoryType(getStringValue(api, "type"))
+	if repoType != "" {
+		data.Type = types.StringValue(string(repoType))
+	}
+
+	raw, err := json.Marshal(api)
+	if err != nil {
+		return
+	}
+
+	switch repoType {
+	case models.RepositoryTypeWinLocal:
+		var m models.WindowsLocalStorageModel
+		if err := json.Unmarshal(raw, &m); err == nil {
+			data.HostID = types.StringValue(m.HostID)
+			if m.Repository != nil {
+				data.Path = types.StringValue(m.Repository.Path)
+				data.MaxTaskCount = types.Int64Value(int64(m.Repository.MaxTaskCount))
+				data.TaskLimitEnabled = types.BoolValue(m.Repository.TaskLimitEnabled)
+				data.ReadWriteRate = types.Int64Value(int64(m.Repository.ReadWriteRate))
+				data.ReadWriteLimitEnabled = types.BoolValue(m.Repository.ReadWriteLimitEnabled)
+			}
+		}
+
+	case models.RepositoryTypeLinuxLocal:
+		var m models.LinuxLocalStorageModel
+		if err := json.Unmarshal(raw, &m); err == nil {
+			data.HostID = types.StringValue(m.HostID)
+			if m.Repository != nil {
+				data.Path = types.StringValue(m.Repository.Path)
+				data.MaxTaskCount = types.Int64Value(int64(m.Repository.MaxTaskCount))
+				data.TaskLimitEnabled = types.BoolValue(m.Repository.TaskLimitEnabled)
+				data.ReadWriteRate = types.Int64Value(int64(m.Repository.ReadWriteRate))
+				data.ReadWriteLimitEnabled = types.BoolValue(m.Repository.ReadWriteLimitEnabled)
+				data.UseFastCloningOnXfsVolumes = types.BoolValue(m.Repository.UseFastCloningOnXFSVolumes)
+			}
+		}
+
+	case models.RepositoryTypeNfs:
+		var m models.NfsStorageModel
+		if err := json.Unmarshal(raw, &m); err == nil {
+			if m.Share != nil {
+				data.SharePath = types.StringValue(m.Share.SharePath)
+			}
+			if m.Repository != nil {
+				data.MaxTaskCount = types.Int64Value(int64(m.Repository.MaxTaskCount))
+				data.TaskLimitEnabled = types.BoolValue(m.Repository.TaskLimitEnabled)
+				data.ReadWriteRate = types.Int64Value(int64(m.Repository.ReadWriteRate))
+				data.ReadWriteLimitEnabled = types.BoolValue(m.Repository.ReadWriteLimitEnabled)
+			}
+		}
+
+	case models.RepositoryTypeSmb:
+		var m models.SmbStorageModel
+		if err := json.Unmarshal(raw, &m); err == nil {
+			if m.Share != nil {
+				data.SharePath = types.StringValue(m.Share.SharePath)
+				if m.Share.CredentialsID != "" {
+					data.CredentialsID = types.StringValue(m.Share.CredentialsID)
+				}
+			}
+			if m.Repository != nil {
+				data.MaxTaskCount = types.Int64Value(int64(m.Repository.MaxTaskCount))
+				data.TaskLimitEnabled = types.BoolValue(m.Repository.TaskLimitEnabled)
+				data.ReadWriteRate = types.Int64Value(int64(m.Repository.ReadWriteRate))
+				data.ReadWriteLimitEnabled = types.BoolValue(m.Repository.ReadWriteLimitEnabled)
+			}
+		}
 	}
 }
 

@@ -29,11 +29,19 @@ type ScaleOutRepository struct {
 
 // ScaleOutRepositoryModel is the Terraform state model for veeam_scale_out_repository.
 type ScaleOutRepositoryModel struct {
-	ID                   types.String `tfsdk:"id"`
-	Name                 types.String `tfsdk:"name"`
-	Description          types.String `tfsdk:"description"`
-	PerformanceExtentIDs types.List   `tfsdk:"performance_extent_ids"`
-	CapacityTierEnabled  types.Bool   `tfsdk:"capacity_tier_enabled"`
+	ID                   types.String         `tfsdk:"id"`
+	Name                 types.String         `tfsdk:"name"`
+	Description          types.String         `tfsdk:"description"`
+	PerformanceExtentIDs types.List           `tfsdk:"performance_extent_ids"`
+	CapacityTierEnabled  types.Bool           `tfsdk:"capacity_tier_enabled"`
+	PlacementPolicy      *SOBRPlacementPolicy `tfsdk:"placement_policy"`
+}
+
+// SOBRPlacementPolicy maps to PlacementPolicyModel.
+type SOBRPlacementPolicy struct {
+	// Type is the placement strategy for distributing data across SOBR extents.
+	// Allowed values: DataLocality, Performance.
+	Type types.String `tfsdk:"type"`
 }
 
 func (r *ScaleOutRepository) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -69,6 +77,21 @@ func (r *ScaleOutRepository) Schema(_ context.Context, _ resource.SchemaRequest,
 				Optional:            true,
 				Computed:            true,
 				MarkdownDescription: "Enable the capacity tier (requires object storage configured in Veeam).",
+			},
+			"placement_policy": schema.SingleNestedAttribute{
+				MarkdownDescription: "Data placement policy that controls how Veeam distributes " +
+					"backup data across the SOBR performance extents. " +
+					"When omitted, the server applies its default placement strategy.",
+				Optional: true,
+				Attributes: map[string]schema.Attribute{
+					"type": schema.StringAttribute{
+						MarkdownDescription: "Placement strategy. " +
+							"Allowed values: `DataLocality` (keeps backup chains on the same extent " +
+							"as previous restore points to improve deduplication), " +
+							"`Performance` (distributes chains across all extents for maximum throughput).",
+						Required: true,
+					},
+				},
 			},
 		},
 	}
@@ -155,6 +178,10 @@ func (r *ScaleOutRepository) Read(ctx context.Context, req resource.ReadRequest,
 	var result models.ScaleOutRepositoryModel
 	endpoint := fmt.Sprintf(client.PathScaleOutRepositoryByID, data.ID.ValueString())
 	if err := r.client.GetJSON(ctx, endpoint, &result); err != nil {
+		if isRepositoryNotFound(err) {
+			resp.State.RemoveResource(ctx)
+			return
+		}
 		resp.Diagnostics.AddError("Failed to read scale-out repository",
 			fmt.Sprintf("API error for SOBR %s: %s", data.ID.ValueString(), err))
 		return
@@ -193,6 +220,14 @@ func (r *ScaleOutRepository) Update(ctx context.Context, req resource.UpdateRequ
 			resp.Diagnostics.AddError("Failed to update scale-out repository",
 				fmt.Sprintf("Async task %s failed: %s", resultID, err))
 			return
+		}
+	}
+
+	// Read back to pick up any server-side computed changes after the PUT.
+	if !data.ID.IsNull() && data.ID.ValueString() != "" {
+		var updated models.ScaleOutRepositoryModel
+		if err := r.client.GetJSON(ctx, endpoint, &updated); err == nil {
+			resp.Diagnostics.Append(r.syncFromAPI(ctx, &data, &updated)...)
 		}
 	}
 
@@ -255,6 +290,12 @@ func (r *ScaleOutRepository) buildSpec(ctx context.Context, data *ScaleOutReposi
 			IsEnabled: true,
 		}
 	}
+	if data.PlacementPolicy != nil && !data.PlacementPolicy.Type.IsNull() &&
+		data.PlacementPolicy.Type.ValueString() != "" {
+		spec.PlacementPolicy = &models.PlacementPolicyModel{
+			Type: models.EPlacementPolicyType(data.PlacementPolicy.Type.ValueString()),
+		}
+	}
 	return spec, diags
 }
 
@@ -282,6 +323,13 @@ func (r *ScaleOutRepository) syncFromAPI(ctx context.Context, data *ScaleOutRepo
 		data.PerformanceExtentIDs = list
 	} else if data.PerformanceExtentIDs.IsNull() {
 		data.PerformanceExtentIDs, _ = types.ListValueFrom(ctx, types.StringType, []string{})
+	}
+
+	// Sync placement policy.
+	if api.PlacementPolicy != nil && api.PlacementPolicy.Type != "" {
+		data.PlacementPolicy = &SOBRPlacementPolicy{
+			Type: types.StringValue(string(api.PlacementPolicy.Type)),
+		}
 	}
 
 	return diags
