@@ -114,7 +114,7 @@ resource "veeam_backup_job" "daily_backup" {
   retention_quantity = 14
   schedule_enabled   = true
   schedule_time      = "22:00"
-  schedule_kind      = "Weekdays"
+  schedule_kind      = "WeekDays"
   retry_enabled      = true
   retry_count        = 3
   retry_await_minutes = 10

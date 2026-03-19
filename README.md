@@ -124,7 +124,7 @@ resource "veeam_backup_job" "vms_daily" {
     run_automatically   = true
     daily_enabled       = true
     daily_local_time    = "22:00"
-    daily_kind          = "Weekdays"
+    daily_kind          = "WeekDays"
     retry_enabled       = true
     retry_count         = 3
     retry_await_minutes = 10

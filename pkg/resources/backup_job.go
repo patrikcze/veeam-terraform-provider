@@ -159,7 +159,7 @@ type JobScheduleSettings struct {
 	// --- Daily schedule ---
 	DailyEnabled   types.Bool   `tfsdk:"daily_enabled"`
 	DailyLocalTime types.String `tfsdk:"daily_local_time"`
-	// DailyKind selects which days: Everyday, Weekdays, or SelectedDays.
+	// DailyKind selects which days: Everyday, WeekDays, or SelectedDays.
 	DailyKind types.String `tfsdk:"daily_kind"`
 
 	// --- Monthly schedule ---
@@ -446,7 +446,7 @@ Supported job types:
 					},
 					"daily_kind": schema.StringAttribute{
 						MarkdownDescription: "Which days to run. " +
-							"Allowed values: `Everyday`, `Weekdays`, `SelectedDays`.",
+							"Allowed values: `Everyday`, `WeekDays`, `SelectedDays`.",
 						Optional: true,
 						Computed: true,
 					},

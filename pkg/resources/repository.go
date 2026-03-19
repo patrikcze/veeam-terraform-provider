@@ -78,10 +78,12 @@ func (r *Repository) Schema(_ context.Context, _ resource.SchemaRequest, resp *r
 			"host_id": schema.StringAttribute{
 				MarkdownDescription: "Managed server host ID (WinLocal and LinuxLocal types).",
 				Optional:            true,
+				Computed:            true,
 			},
 			"path": schema.StringAttribute{
 				MarkdownDescription: "Folder path on the host (WinLocal / LinuxLocal).",
 				Optional:            true,
+				Computed:            true,
 			},
 			"max_task_count": schema.Int64Attribute{
 				MarkdownDescription: "Maximum concurrent tasks.",
@@ -106,10 +108,12 @@ func (r *Repository) Schema(_ context.Context, _ resource.SchemaRequest, resp *r
 			"share_path": schema.StringAttribute{
 				MarkdownDescription: "Network share path (Nfs or Smb types).",
 				Optional:            true,
+				Computed:            true,
 			},
 			"credentials_id": schema.StringAttribute{
 				MarkdownDescription: "Credential ID for SMB share access.",
 				Optional:            true,
+				Computed:            true,
 			},
 		},
 	}

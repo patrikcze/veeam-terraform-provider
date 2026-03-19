@@ -90,7 +90,7 @@ func TestBackupJob_BuildVMSpec(t *testing.T) {
 			RunAutomatically:  types.BoolValue(true),
 			DailyEnabled:      types.BoolValue(true),
 			DailyLocalTime:    types.StringValue("22:00"),
-			DailyKind:         types.StringValue("Weekdays"),
+			DailyKind:         types.StringValue("WeekDays"),
 			RetryEnabled:      types.BoolValue(true),
 			RetryCount:        types.Int64Value(3),
 			RetryAwaitMinutes: types.Int64Value(10),
@@ -345,7 +345,7 @@ func TestBackupJob_SyncVMFromAPI(t *testing.T) {
 	assert.True(t, data.Schedule.RunAutomatically.ValueBool())
 	assert.True(t, data.Schedule.DailyEnabled.ValueBool())
 	assert.Equal(t, "22:00", data.Schedule.DailyLocalTime.ValueString())
-	assert.Equal(t, "Weekdays", data.Schedule.DailyKind.ValueString())
+	assert.Equal(t, "WeekDays", data.Schedule.DailyKind.ValueString())
 	assert.True(t, data.Schedule.RetryEnabled.ValueBool())
 	assert.Equal(t, int64(3), data.Schedule.RetryCount.ValueInt64())
 	assert.Equal(t, int64(10), data.Schedule.RetryAwaitMinutes.ValueInt64())

@@ -192,7 +192,7 @@ type EDailyKinds string
 
 const (
 	DailyKindsEveryday    EDailyKinds = "Everyday"
-	DailyKindsWeekdays    EDailyKinds = "Weekdays"
+	DailyKindsWeekdays    EDailyKinds = "WeekDays"
 	DailyKindsSelectedDay EDailyKinds = "SelectedDays"
 )
 

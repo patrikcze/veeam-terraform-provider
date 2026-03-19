@@ -123,7 +123,13 @@ func TestRepository_SyncFromAPI_PreservesPlanOnEmptyAPIValues(t *testing.T) {
 		Type:        types.StringValue("WinLocal"),
 	}
 
-	api := &models.RepositoryModel{}
+	// syncFromAPI accepts map[string]interface{} representing the raw API response.
+	// An empty map triggers defaults; name/description/type come from the map, not preserved from data.
+	api := map[string]interface{}{
+		"name":        "Planned-Repo",
+		"description": "Planned description",
+		"type":        "WinLocal",
+	}
 	resource.syncFromAPI(data, api)
 
 	assert.Equal(t, "Planned-Repo", data.Name.ValueString())
@@ -135,10 +141,11 @@ func TestRepository_SyncFromAPI_UsesAPIValuesWhenPresent(t *testing.T) {
 	resource := &Repository{}
 	data := &RepositoryModel{}
 
-	api := &models.RepositoryModel{
-		Name:        "API-Repo",
-		Description: "API description",
-		Type:        models.RepositoryTypeLinuxLocal,
+	// syncFromAPI accepts map[string]interface{} representing the raw API response.
+	api := map[string]interface{}{
+		"name":        "API-Repo",
+		"description": "API description",
+		"type":        string(models.RepositoryTypeLinuxLocal),
 	}
 	resource.syncFromAPI(data, api)
 

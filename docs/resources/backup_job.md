@@ -41,7 +41,7 @@ resource "veeam_backup_job" "vsphere" {
     run_automatically = true
     daily_enabled     = true
     daily_local_time  = "22:00"
-    daily_kind        = "Weekdays"
+    daily_kind        = "WeekDays"
     retry_enabled     = true
     retry_count       = 3
     retry_await_minutes = 10
@@ -231,7 +231,7 @@ Configures when the job runs automatically. When this block is omitted the job m
 - `run_automatically` (Boolean) Master switch to enable automatic scheduling.
 - `daily_enabled` (Boolean) Run on a daily schedule.
 - `daily_local_time` (String) Daily start time in `HH:MM` format (server local time).
-- `daily_kind` (String) Which days to run. Supported values: `Everyday`, `Weekdays`, `SelectedDays`.
+- `daily_kind` (String) Which days to run. Supported values: `Everyday`, `WeekDays`, `SelectedDays`.
 - `monthly_enabled` (Boolean) Run on a monthly schedule.
 - `monthly_local_time` (String) Monthly start time in `HH:MM` format.
 - `monthly_day_of_month` (Number) Day of the month (1–28) on which the job runs.

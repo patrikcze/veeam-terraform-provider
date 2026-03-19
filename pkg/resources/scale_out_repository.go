@@ -155,6 +155,10 @@ func (r *ScaleOutRepository) Read(ctx context.Context, req resource.ReadRequest,
 	var result models.ScaleOutRepositoryModel
 	endpoint := fmt.Sprintf(client.PathScaleOutRepositoryByID, data.ID.ValueString())
 	if err := r.client.GetJSON(ctx, endpoint, &result); err != nil {
+		if isRepositoryNotFound(err) {
+			resp.State.RemoveResource(ctx)
+			return
+		}
 		resp.Diagnostics.AddError("Failed to read scale-out repository",
 			fmt.Sprintf("API error for SOBR %s: %s", data.ID.ValueString(), err))
 		return
@@ -193,6 +197,14 @@ func (r *ScaleOutRepository) Update(ctx context.Context, req resource.UpdateRequ
 			resp.Diagnostics.AddError("Failed to update scale-out repository",
 				fmt.Sprintf("Async task %s failed: %s", resultID, err))
 			return
+		}
+	}
+
+	// Read back to pick up any server-side computed changes after the PUT.
+	if !data.ID.IsNull() && data.ID.ValueString() != "" {
+		var updated models.ScaleOutRepositoryModel
+		if err := r.client.GetJSON(ctx, endpoint, &updated); err == nil {
+			resp.Diagnostics.Append(r.syncFromAPI(ctx, &data, &updated)...)
 		}
 	}
 
