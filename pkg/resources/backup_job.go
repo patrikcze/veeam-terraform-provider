@@ -610,7 +610,7 @@ func (r *BackupJob) Create(ctx context.Context, req resource.CreateRequest, resp
 		return
 	}
 
-	r.normalizeUnknownStorageFields(&data)
+	r.normalizeUnknownStateFields(&data)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, data)...)
 }
@@ -666,7 +666,7 @@ func (r *BackupJob) Read(ctx context.Context, req resource.ReadRequest, resp *re
 		}
 	}
 
-	r.normalizeUnknownStorageFields(&data)
+	r.normalizeUnknownStateFields(&data)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, data)...)
 }
@@ -743,7 +743,7 @@ func (r *BackupJob) Update(ctx context.Context, req resource.UpdateRequest, resp
 		return
 	}
 
-	r.normalizeUnknownStorageFields(&data)
+	r.normalizeUnknownStateFields(&data)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, data)...)
 }
@@ -1238,6 +1238,8 @@ func (r *BackupJob) syncScheduleFromAPI(existing *JobScheduleSettings, api *mode
 		s.DailyKind = types.StringValue(string(api.Daily.DailyKind))
 	} else {
 		s.DailyEnabled = types.BoolValue(false)
+		s.DailyLocalTime = types.StringNull()
+		s.DailyKind = types.StringNull()
 	}
 
 	if api.Monthly != nil {
@@ -1245,9 +1247,13 @@ func (r *BackupJob) syncScheduleFromAPI(existing *JobScheduleSettings, api *mode
 		s.MonthlyLocalTime = types.StringValue(api.Monthly.LocalTime)
 		if api.Monthly.DayOfMonth > 0 {
 			s.MonthlyDayOfMonth = types.Int64Value(int64(api.Monthly.DayOfMonth))
+		} else {
+			s.MonthlyDayOfMonth = types.Int64Null()
 		}
 	} else {
 		s.MonthlyEnabled = types.BoolValue(false)
+		s.MonthlyLocalTime = types.StringNull()
+		s.MonthlyDayOfMonth = types.Int64Null()
 	}
 
 	if api.Periodically != nil {
@@ -1256,6 +1262,8 @@ func (r *BackupJob) syncScheduleFromAPI(existing *JobScheduleSettings, api *mode
 		s.PeriodicallyFrequency = types.Int64Value(int64(api.Periodically.Frequency))
 	} else {
 		s.PeriodicallyEnabled = types.BoolValue(false)
+		s.PeriodicallyKind = types.StringNull()
+		s.PeriodicallyFrequency = types.Int64Null()
 	}
 
 	if api.AfterThisJob != nil {
@@ -1263,6 +1271,7 @@ func (r *BackupJob) syncScheduleFromAPI(existing *JobScheduleSettings, api *mode
 		s.AfterJobName = types.StringValue(api.AfterThisJob.JobName)
 	} else {
 		s.AfterJobEnabled = types.BoolValue(false)
+		s.AfterJobName = types.StringNull()
 	}
 
 	if api.Retry != nil {
@@ -1271,28 +1280,113 @@ func (r *BackupJob) syncScheduleFromAPI(existing *JobScheduleSettings, api *mode
 		s.RetryAwaitMinutes = types.Int64Value(int64(api.Retry.AwaitMinutes))
 	} else {
 		s.RetryEnabled = types.BoolValue(false)
+		s.RetryCount = types.Int64Null()
+		s.RetryAwaitMinutes = types.Int64Null()
 	}
 
 	return s
 }
 
-// normalizeUnknownStorageFields converts unknown storage fields to known nulls
-// before persisting state. Terraform requires all values to be known after apply.
-func (r *BackupJob) normalizeUnknownStorageFields(data *BackupJobModel) {
-	if data == nil || data.Storage == nil {
+// normalizeUnknownStateFields converts unknown nested/computed fields to known
+// nulls before persisting state. Terraform requires all values to be known
+// after apply.
+func (r *BackupJob) normalizeUnknownStateFields(data *BackupJobModel) {
+	if data == nil {
 		return
 	}
 
-	if data.Storage.RepositoryID.IsUnknown() {
-		data.Storage.RepositoryID = types.StringNull()
+	if data.AgentBackupMode.IsUnknown() {
+		data.AgentBackupMode = types.StringNull()
 	}
-	if data.Storage.ProxyAutoSelect.IsUnknown() {
-		data.Storage.ProxyAutoSelect = types.BoolNull()
+
+	r.normalizeUnknownStorageFields(data.Storage)
+	r.normalizeUnknownGuestProcessingFields(data.GuestProcessing)
+	r.normalizeUnknownScheduleFields(data.Schedule)
+}
+
+func (r *BackupJob) normalizeUnknownStorageFields(storage *JobStorageSettings) {
+	if storage == nil {
+		return
 	}
-	if data.Storage.RetentionType.IsUnknown() {
-		data.Storage.RetentionType = types.StringNull()
+
+	if storage.RepositoryID.IsUnknown() {
+		storage.RepositoryID = types.StringNull()
 	}
-	if data.Storage.RetentionQuantity.IsUnknown() {
-		data.Storage.RetentionQuantity = types.Int64Null()
+	if storage.ProxyAutoSelect.IsUnknown() {
+		storage.ProxyAutoSelect = types.BoolNull()
+	}
+	if storage.RetentionType.IsUnknown() {
+		storage.RetentionType = types.StringNull()
+	}
+	if storage.RetentionQuantity.IsUnknown() {
+		storage.RetentionQuantity = types.Int64Null()
+	}
+}
+
+func (r *BackupJob) normalizeUnknownGuestProcessingFields(guestProcessing *JobGuestProcessing) {
+	if guestProcessing == nil {
+		return
+	}
+
+	if guestProcessing.AppAwareEnabled.IsUnknown() {
+		guestProcessing.AppAwareEnabled = types.BoolNull()
+	}
+	if guestProcessing.FSIndexingEnabled.IsUnknown() {
+		guestProcessing.FSIndexingEnabled = types.BoolNull()
+	}
+	if guestProcessing.InteractionProxyAutoSelect.IsUnknown() {
+		guestProcessing.InteractionProxyAutoSelect = types.BoolNull()
+	}
+}
+
+func (r *BackupJob) normalizeUnknownScheduleFields(schedule *JobScheduleSettings) {
+	if schedule == nil {
+		return
+	}
+
+	if schedule.RunAutomatically.IsUnknown() {
+		schedule.RunAutomatically = types.BoolNull()
+	}
+	if schedule.DailyEnabled.IsUnknown() {
+		schedule.DailyEnabled = types.BoolNull()
+	}
+	if schedule.DailyLocalTime.IsUnknown() {
+		schedule.DailyLocalTime = types.StringNull()
+	}
+	if schedule.DailyKind.IsUnknown() {
+		schedule.DailyKind = types.StringNull()
+	}
+	if schedule.MonthlyEnabled.IsUnknown() {
+		schedule.MonthlyEnabled = types.BoolNull()
+	}
+	if schedule.MonthlyLocalTime.IsUnknown() {
+		schedule.MonthlyLocalTime = types.StringNull()
+	}
+	if schedule.MonthlyDayOfMonth.IsUnknown() {
+		schedule.MonthlyDayOfMonth = types.Int64Null()
+	}
+	if schedule.PeriodicallyEnabled.IsUnknown() {
+		schedule.PeriodicallyEnabled = types.BoolNull()
+	}
+	if schedule.PeriodicallyKind.IsUnknown() {
+		schedule.PeriodicallyKind = types.StringNull()
+	}
+	if schedule.PeriodicallyFrequency.IsUnknown() {
+		schedule.PeriodicallyFrequency = types.Int64Null()
+	}
+	if schedule.AfterJobEnabled.IsUnknown() {
+		schedule.AfterJobEnabled = types.BoolNull()
+	}
+	if schedule.AfterJobName.IsUnknown() {
+		schedule.AfterJobName = types.StringNull()
+	}
+	if schedule.RetryEnabled.IsUnknown() {
+		schedule.RetryEnabled = types.BoolNull()
+	}
+	if schedule.RetryCount.IsUnknown() {
+		schedule.RetryCount = types.Int64Null()
+	}
+	if schedule.RetryAwaitMinutes.IsUnknown() {
+		schedule.RetryAwaitMinutes = types.Int64Null()
 	}
 }

@@ -350,3 +350,71 @@ func TestBackupJob_SyncVMFromAPI(t *testing.T) {
 	assert.Equal(t, int64(3), data.Schedule.RetryCount.ValueInt64())
 	assert.Equal(t, int64(10), data.Schedule.RetryAwaitMinutes.ValueInt64())
 }
+
+func TestBackupJob_NormalizeUnknownStateFields(t *testing.T) {
+	r := &BackupJob{}
+
+	data := &BackupJobModel{
+		AgentBackupMode: types.StringUnknown(),
+		Storage: &JobStorageSettings{
+			RepositoryID:      types.StringUnknown(),
+			ProxyAutoSelect:   types.BoolUnknown(),
+			RetentionType:     types.StringUnknown(),
+			RetentionQuantity: types.Int64Unknown(),
+		},
+		GuestProcessing: &JobGuestProcessing{
+			AppAwareEnabled:            types.BoolUnknown(),
+			FSIndexingEnabled:          types.BoolUnknown(),
+			InteractionProxyAutoSelect: types.BoolUnknown(),
+		},
+		Schedule: &JobScheduleSettings{
+			RunAutomatically:      types.BoolUnknown(),
+			DailyEnabled:          types.BoolUnknown(),
+			DailyLocalTime:        types.StringUnknown(),
+			DailyKind:             types.StringUnknown(),
+			MonthlyEnabled:        types.BoolUnknown(),
+			MonthlyLocalTime:      types.StringUnknown(),
+			MonthlyDayOfMonth:     types.Int64Unknown(),
+			PeriodicallyEnabled:   types.BoolUnknown(),
+			PeriodicallyKind:      types.StringUnknown(),
+			PeriodicallyFrequency: types.Int64Unknown(),
+			AfterJobEnabled:       types.BoolUnknown(),
+			AfterJobName:          types.StringUnknown(),
+			RetryEnabled:          types.BoolUnknown(),
+			RetryCount:            types.Int64Unknown(),
+			RetryAwaitMinutes:     types.Int64Unknown(),
+		},
+	}
+
+	r.normalizeUnknownStateFields(data)
+
+	assert.True(t, data.AgentBackupMode.IsNull())
+
+	require.NotNil(t, data.Storage)
+	assert.True(t, data.Storage.RepositoryID.IsNull())
+	assert.True(t, data.Storage.ProxyAutoSelect.IsNull())
+	assert.True(t, data.Storage.RetentionType.IsNull())
+	assert.True(t, data.Storage.RetentionQuantity.IsNull())
+
+	require.NotNil(t, data.GuestProcessing)
+	assert.True(t, data.GuestProcessing.AppAwareEnabled.IsNull())
+	assert.True(t, data.GuestProcessing.FSIndexingEnabled.IsNull())
+	assert.True(t, data.GuestProcessing.InteractionProxyAutoSelect.IsNull())
+
+	require.NotNil(t, data.Schedule)
+	assert.True(t, data.Schedule.RunAutomatically.IsNull())
+	assert.True(t, data.Schedule.DailyEnabled.IsNull())
+	assert.True(t, data.Schedule.DailyLocalTime.IsNull())
+	assert.True(t, data.Schedule.DailyKind.IsNull())
+	assert.True(t, data.Schedule.MonthlyEnabled.IsNull())
+	assert.True(t, data.Schedule.MonthlyLocalTime.IsNull())
+	assert.True(t, data.Schedule.MonthlyDayOfMonth.IsNull())
+	assert.True(t, data.Schedule.PeriodicallyEnabled.IsNull())
+	assert.True(t, data.Schedule.PeriodicallyKind.IsNull())
+	assert.True(t, data.Schedule.PeriodicallyFrequency.IsNull())
+	assert.True(t, data.Schedule.AfterJobEnabled.IsNull())
+	assert.True(t, data.Schedule.AfterJobName.IsNull())
+	assert.True(t, data.Schedule.RetryEnabled.IsNull())
+	assert.True(t, data.Schedule.RetryCount.IsNull())
+	assert.True(t, data.Schedule.RetryAwaitMinutes.IsNull())
+}
