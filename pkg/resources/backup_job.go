@@ -1735,8 +1735,8 @@ func (r *BackupJob) syncAgentJobFromAPIMap(data *BackupJobModel, api map[string]
 		}
 	}
 
-	// Sync storage when present.
-	if storageRaw, ok := api["storage"].(map[string]interface{}); ok {
+	// Sync storage when present only if the storage block exists in plan/state.
+	if storageRaw, ok := api["storage"].(map[string]interface{}); ok && data.Storage != nil {
 		s := &JobStorageSettings{
 			RepositoryID:    types.StringValue(""),
 			ProxyAutoSelect: types.BoolValue(false),
@@ -1803,8 +1803,8 @@ func (r *BackupJob) syncAgentJobFromAPIMap(data *BackupJobModel, api map[string]
 		data.FilesScope = fs
 	}
 
-	// Sync schedule when present.
-	if schedRaw, ok := api["schedule"].(map[string]interface{}); ok {
+	// Sync schedule when present only if the schedule block exists in plan/state.
+	if schedRaw, ok := api["schedule"].(map[string]interface{}); ok && data.Schedule != nil {
 		sched := r.syncScheduleFromAPIMap(data.Schedule, schedRaw)
 		data.Schedule = sched
 	}
@@ -2055,13 +2055,14 @@ func (r *BackupJob) syncScheduleFromAPIMap(existing *JobScheduleSettings, api ma
 	}
 
 	if retryRaw, ok := api["retry"].(map[string]interface{}); ok {
-		if v, ok := retryRaw["isEnabled"].(bool); ok {
+		if v, ok := retryRaw["isEnabled"].(bool); ok && (s.RetryEnabled.IsNull() || s.RetryEnabled.IsUnknown()) {
 			s.RetryEnabled = types.BoolValue(v)
 		}
-		if v, ok := retryRaw["retryCount"].(float64); ok {
+		allowRetryDetails := s.RetryEnabled.IsNull() || s.RetryEnabled.IsUnknown() || s.RetryEnabled.ValueBool()
+		if v, ok := retryRaw["retryCount"].(float64); ok && allowRetryDetails && (s.RetryCount.IsNull() || s.RetryCount.IsUnknown()) {
 			s.RetryCount = types.Int64Value(int64(v))
 		}
-		if v, ok := retryRaw["awaitMinutes"].(float64); ok {
+		if v, ok := retryRaw["awaitMinutes"].(float64); ok && allowRetryDetails && (s.RetryAwaitMinutes.IsNull() || s.RetryAwaitMinutes.IsUnknown()) {
 			s.RetryAwaitMinutes = types.Int64Value(int64(v))
 		}
 	} else {
