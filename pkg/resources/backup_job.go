@@ -1660,6 +1660,10 @@ func (r *BackupJob) syncVMJobFromAPI(data *BackupJobModel, api *models.BackupJob
 // Agent jobs are decoded into map[string]interface{} because BackupJobModel does not carry
 // the agent-specific fields (backupMode, computers, includeUsbDrives, agentType, etc.).
 func (r *BackupJob) syncAgentJobFromAPIMap(data *BackupJobModel, api map[string]interface{}) {
+	data.IncludeUsbDrives = types.BoolNull()
+	data.AgentType = types.StringNull()
+	data.UseSnapshotlessFileLevelBackup = types.BoolNull()
+
 	if v, ok := api["name"].(string); ok && v != "" {
 		data.Name = types.StringValue(v)
 	}
@@ -1882,6 +1886,15 @@ func (r *BackupJob) normalizeUnknownStateFields(data *BackupJobModel) {
 
 	if data.AgentBackupMode.IsUnknown() {
 		data.AgentBackupMode = types.StringNull()
+	}
+	if data.IncludeUsbDrives.IsUnknown() {
+		data.IncludeUsbDrives = types.BoolNull()
+	}
+	if data.AgentType.IsUnknown() {
+		data.AgentType = types.StringNull()
+	}
+	if data.UseSnapshotlessFileLevelBackup.IsUnknown() {
+		data.UseSnapshotlessFileLevelBackup = types.BoolNull()
 	}
 
 	r.normalizeUnknownStorageFields(data.Storage)

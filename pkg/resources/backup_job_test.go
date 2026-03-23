@@ -355,7 +355,10 @@ func TestBackupJob_NormalizeUnknownStateFields(t *testing.T) {
 	r := &BackupJob{}
 
 	data := &BackupJobModel{
-		AgentBackupMode: types.StringUnknown(),
+		AgentBackupMode:                types.StringUnknown(),
+		IncludeUsbDrives:               types.BoolUnknown(),
+		AgentType:                      types.StringUnknown(),
+		UseSnapshotlessFileLevelBackup: types.BoolUnknown(),
 		Storage: &JobStorageSettings{
 			RepositoryID:      types.StringUnknown(),
 			ProxyAutoSelect:   types.BoolUnknown(),
@@ -389,6 +392,9 @@ func TestBackupJob_NormalizeUnknownStateFields(t *testing.T) {
 	r.normalizeUnknownStateFields(data)
 
 	assert.True(t, data.AgentBackupMode.IsNull())
+	assert.True(t, data.IncludeUsbDrives.IsNull())
+	assert.True(t, data.AgentType.IsNull())
+	assert.True(t, data.UseSnapshotlessFileLevelBackup.IsNull())
 
 	require.NotNil(t, data.Storage)
 	assert.True(t, data.Storage.RepositoryID.IsNull())
