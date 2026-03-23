@@ -123,6 +123,9 @@ tests/                          — acceptance tests (require TF_ACC=1)
 - Keep Terraform state stable for `ssh_fingerprint` (do not overwrite configured value with internally resolved value), otherwise Terraform may report inconsistent apply results.
 - Managed server delete must be treated as eventually consistent: poll GET-by-ID until NotFound before allowing dependent credential deletion.
 - CloudMachines protection groups require pre-existing cloud compute credentials (e.g., AzureCompute/Amazon) and may also depend on distribution infrastructure/repository settings when agent package deployment options are enabled.
+- Linux agent backup job apply/destroy has been validated in real VBR runs with Terraform-managed `WinLocal` repository binding via `storage.repository_id`.
+- For agent backup jobs, preserve Terraform state values for `storage.proxy_auto_select` when API responses omit proxy fields; otherwise Terraform may report inconsistent apply results.
+- For optional+computed job/repository attributes, normalize non-applicable discriminator fields to known `null`/default values after create/read to avoid unknown-after-apply errors.
 
 ## What NOT to Do
 - Do not guess API schemas. Always verify against the swagger.
