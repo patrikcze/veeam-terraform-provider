@@ -449,6 +449,37 @@ func TestBackupJob_SyncAgentFromAPI_DoesNotMaterializeStorageWhenOmitted(t *test
 	assert.Nil(t, data.Storage)
 }
 
+func TestBackupJob_SyncAgentFromAPI_PreservesProxyAutoSelect(t *testing.T) {
+	r := &BackupJob{}
+	data := &BackupJobModel{
+		Type: types.StringValue("LinuxAgentBackup"),
+		Storage: &JobStorageSettings{
+			RepositoryID:      types.StringValue("planned-repo-id"),
+			ProxyAutoSelect:   types.BoolValue(true),
+			RetentionType:     types.StringValue("Days"),
+			RetentionQuantity: types.Int64Value(7),
+		},
+	}
+
+	api := map[string]interface{}{
+		"name": "linux-agent-schedule",
+		"type": "LinuxAgentBackup",
+		"storage": map[string]interface{}{
+			"backupRepositoryId": "api-repo-id",
+			"retentionPolicy": map[string]interface{}{
+				"type":     "Days",
+				"quantity": float64(7),
+			},
+		},
+	}
+
+	r.syncAgentJobFromAPIMap(data, api)
+
+	require.NotNil(t, data.Storage)
+	assert.Equal(t, "api-repo-id", data.Storage.RepositoryID.ValueString())
+	assert.True(t, data.Storage.ProxyAutoSelect.ValueBool())
+}
+
 func TestBackupJob_SyncScheduleFromAPIMap_PreservesPlannedRetryValues(t *testing.T) {
 	r := &BackupJob{}
 	existing := &JobScheduleSettings{

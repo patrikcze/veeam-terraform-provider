@@ -1737,9 +1737,13 @@ func (r *BackupJob) syncAgentJobFromAPIMap(data *BackupJobModel, api map[string]
 
 	// Sync storage when present only if the storage block exists in plan/state.
 	if storageRaw, ok := api["storage"].(map[string]interface{}); ok && data.Storage != nil {
+		proxyAutoSelect := data.Storage.ProxyAutoSelect
+		if proxyAutoSelect.IsNull() || proxyAutoSelect.IsUnknown() {
+			proxyAutoSelect = types.BoolNull()
+		}
 		s := &JobStorageSettings{
 			RepositoryID:    types.StringValue(""),
-			ProxyAutoSelect: types.BoolValue(false),
+			ProxyAutoSelect: proxyAutoSelect,
 		}
 		if v, ok := storageRaw["backupRepositoryId"].(string); ok {
 			s.RepositoryID = types.StringValue(v)
