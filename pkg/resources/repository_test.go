@@ -156,3 +156,17 @@ func TestRepository_SyncFromAPI_UsesAPIValuesWhenPresent(t *testing.T) {
 	assert.Equal(t, "API description", data.Description.ValueString())
 	assert.Equal(t, "LinuxLocal", data.Type.ValueString())
 }
+
+func TestRepository_SyncFromAPI_NonLinuxSetsFastCloningKnownNull(t *testing.T) {
+	resource := &Repository{}
+	data := &RepositoryModel{UseFastCloningOnXfsVolumes: types.BoolUnknown()}
+
+	api := map[string]interface{}{
+		"name": "API-Repo",
+		"type": "WinLocal",
+	}
+
+	resource.syncFromAPIMap(data, api)
+
+	assert.True(t, data.UseFastCloningOnXfsVolumes.IsNull())
+}

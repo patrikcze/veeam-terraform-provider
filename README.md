@@ -3,6 +3,8 @@
 Terraform provider for [Veeam Backup & Replication V13](https://www.veeam.com/), built on the
 HashiCorp Terraform Plugin Framework and the Veeam REST API (v1.3-rev1).
 
+See [CHANGELOG.md](CHANGELOG.md) for release notes.
+
 ## Requirements
 
 - Terraform >= 1.6

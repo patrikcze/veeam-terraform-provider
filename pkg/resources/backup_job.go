@@ -1660,6 +1660,10 @@ func (r *BackupJob) syncVMJobFromAPI(data *BackupJobModel, api *models.BackupJob
 // Agent jobs are decoded into map[string]interface{} because BackupJobModel does not carry
 // the agent-specific fields (backupMode, computers, includeUsbDrives, agentType, etc.).
 func (r *BackupJob) syncAgentJobFromAPIMap(data *BackupJobModel, api map[string]interface{}) {
+	data.IncludeUsbDrives = types.BoolNull()
+	data.AgentType = types.StringNull()
+	data.UseSnapshotlessFileLevelBackup = types.BoolNull()
+
 	if v, ok := api["name"].(string); ok && v != "" {
 		data.Name = types.StringValue(v)
 	}
@@ -1731,11 +1735,15 @@ func (r *BackupJob) syncAgentJobFromAPIMap(data *BackupJobModel, api map[string]
 		}
 	}
 
-	// Sync storage when present.
-	if storageRaw, ok := api["storage"].(map[string]interface{}); ok {
+	// Sync storage when present only if the storage block exists in plan/state.
+	if storageRaw, ok := api["storage"].(map[string]interface{}); ok && data.Storage != nil {
+		proxyAutoSelect := data.Storage.ProxyAutoSelect
+		if proxyAutoSelect.IsNull() || proxyAutoSelect.IsUnknown() {
+			proxyAutoSelect = types.BoolNull()
+		}
 		s := &JobStorageSettings{
 			RepositoryID:    types.StringValue(""),
-			ProxyAutoSelect: types.BoolValue(false),
+			ProxyAutoSelect: proxyAutoSelect,
 		}
 		if v, ok := storageRaw["backupRepositoryId"].(string); ok {
 			s.RepositoryID = types.StringValue(v)
@@ -1799,8 +1807,8 @@ func (r *BackupJob) syncAgentJobFromAPIMap(data *BackupJobModel, api map[string]
 		data.FilesScope = fs
 	}
 
-	// Sync schedule when present.
-	if schedRaw, ok := api["schedule"].(map[string]interface{}); ok {
+	// Sync schedule when present only if the schedule block exists in plan/state.
+	if schedRaw, ok := api["schedule"].(map[string]interface{}); ok && data.Schedule != nil {
 		sched := r.syncScheduleFromAPIMap(data.Schedule, schedRaw)
 		data.Schedule = sched
 	}
@@ -1882,6 +1890,15 @@ func (r *BackupJob) normalizeUnknownStateFields(data *BackupJobModel) {
 
 	if data.AgentBackupMode.IsUnknown() {
 		data.AgentBackupMode = types.StringNull()
+	}
+	if data.IncludeUsbDrives.IsUnknown() {
+		data.IncludeUsbDrives = types.BoolNull()
+	}
+	if data.AgentType.IsUnknown() {
+		data.AgentType = types.StringNull()
+	}
+	if data.UseSnapshotlessFileLevelBackup.IsUnknown() {
+		data.UseSnapshotlessFileLevelBackup = types.BoolNull()
 	}
 
 	r.normalizeUnknownStorageFields(data.Storage)
@@ -2042,13 +2059,14 @@ func (r *BackupJob) syncScheduleFromAPIMap(existing *JobScheduleSettings, api ma
 	}
 
 	if retryRaw, ok := api["retry"].(map[string]interface{}); ok {
-		if v, ok := retryRaw["isEnabled"].(bool); ok {
+		if v, ok := retryRaw["isEnabled"].(bool); ok && (s.RetryEnabled.IsNull() || s.RetryEnabled.IsUnknown()) {
 			s.RetryEnabled = types.BoolValue(v)
 		}
-		if v, ok := retryRaw["retryCount"].(float64); ok {
+		allowRetryDetails := s.RetryEnabled.IsNull() || s.RetryEnabled.IsUnknown() || s.RetryEnabled.ValueBool()
+		if v, ok := retryRaw["retryCount"].(float64); ok && allowRetryDetails && (s.RetryCount.IsNull() || s.RetryCount.IsUnknown()) {
 			s.RetryCount = types.Int64Value(int64(v))
 		}
-		if v, ok := retryRaw["awaitMinutes"].(float64); ok {
+		if v, ok := retryRaw["awaitMinutes"].(float64); ok && allowRetryDetails && (s.RetryAwaitMinutes.IsNull() || s.RetryAwaitMinutes.IsUnknown()) {
 			s.RetryAwaitMinutes = types.Int64Value(int64(v))
 		}
 	} else {

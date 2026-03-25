@@ -355,7 +355,10 @@ func TestBackupJob_NormalizeUnknownStateFields(t *testing.T) {
 	r := &BackupJob{}
 
 	data := &BackupJobModel{
-		AgentBackupMode: types.StringUnknown(),
+		AgentBackupMode:                types.StringUnknown(),
+		IncludeUsbDrives:               types.BoolUnknown(),
+		AgentType:                      types.StringUnknown(),
+		UseSnapshotlessFileLevelBackup: types.BoolUnknown(),
 		Storage: &JobStorageSettings{
 			RepositoryID:      types.StringUnknown(),
 			ProxyAutoSelect:   types.BoolUnknown(),
@@ -389,6 +392,9 @@ func TestBackupJob_NormalizeUnknownStateFields(t *testing.T) {
 	r.normalizeUnknownStateFields(data)
 
 	assert.True(t, data.AgentBackupMode.IsNull())
+	assert.True(t, data.IncludeUsbDrives.IsNull())
+	assert.True(t, data.AgentType.IsNull())
+	assert.True(t, data.UseSnapshotlessFileLevelBackup.IsNull())
 
 	require.NotNil(t, data.Storage)
 	assert.True(t, data.Storage.RepositoryID.IsNull())
@@ -417,4 +423,92 @@ func TestBackupJob_NormalizeUnknownStateFields(t *testing.T) {
 	assert.True(t, data.Schedule.RetryEnabled.IsNull())
 	assert.True(t, data.Schedule.RetryCount.IsNull())
 	assert.True(t, data.Schedule.RetryAwaitMinutes.IsNull())
+}
+
+func TestBackupJob_SyncAgentFromAPI_DoesNotMaterializeStorageWhenOmitted(t *testing.T) {
+	r := &BackupJob{}
+	data := &BackupJobModel{
+		Type:    types.StringValue("LinuxAgentBackup"),
+		Storage: nil,
+	}
+
+	api := map[string]interface{}{
+		"name": "linux-agent-schedule",
+		"type": "LinuxAgentBackup",
+		"storage": map[string]interface{}{
+			"backupRepositoryId": "repo-123",
+			"retentionPolicy": map[string]interface{}{
+				"type":     "Days",
+				"quantity": float64(7),
+			},
+		},
+	}
+
+	r.syncAgentJobFromAPIMap(data, api)
+
+	assert.Nil(t, data.Storage)
+}
+
+func TestBackupJob_SyncAgentFromAPI_PreservesProxyAutoSelect(t *testing.T) {
+	r := &BackupJob{}
+	data := &BackupJobModel{
+		Type: types.StringValue("LinuxAgentBackup"),
+		Storage: &JobStorageSettings{
+			RepositoryID:      types.StringValue("planned-repo-id"),
+			ProxyAutoSelect:   types.BoolValue(true),
+			RetentionType:     types.StringValue("Days"),
+			RetentionQuantity: types.Int64Value(7),
+		},
+	}
+
+	api := map[string]interface{}{
+		"name": "linux-agent-schedule",
+		"type": "LinuxAgentBackup",
+		"storage": map[string]interface{}{
+			"backupRepositoryId": "api-repo-id",
+			"retentionPolicy": map[string]interface{}{
+				"type":     "Days",
+				"quantity": float64(7),
+			},
+		},
+	}
+
+	r.syncAgentJobFromAPIMap(data, api)
+
+	require.NotNil(t, data.Storage)
+	assert.Equal(t, "api-repo-id", data.Storage.RepositoryID.ValueString())
+	assert.True(t, data.Storage.ProxyAutoSelect.ValueBool())
+}
+
+func TestBackupJob_SyncScheduleFromAPIMap_PreservesPlannedRetryValues(t *testing.T) {
+	r := &BackupJob{}
+	existing := &JobScheduleSettings{
+		RunAutomatically:  types.BoolValue(true),
+		DailyEnabled:      types.BoolValue(true),
+		DailyLocalTime:    types.StringValue("20:00"),
+		DailyKind:         types.StringValue("Everyday"),
+		RetryEnabled:      types.BoolValue(false),
+		RetryCount:        types.Int64Null(),
+		RetryAwaitMinutes: types.Int64Null(),
+	}
+
+	api := map[string]interface{}{
+		"runAutomatically": true,
+		"daily": map[string]interface{}{
+			"isEnabled": true,
+			"localTime": "20:00",
+			"dailyKind": "Everyday",
+		},
+		"retry": map[string]interface{}{
+			"isEnabled":    true,
+			"retryCount":   float64(3),
+			"awaitMinutes": float64(10),
+		},
+	}
+
+	synced := r.syncScheduleFromAPIMap(existing, api)
+
+	assert.False(t, synced.RetryEnabled.ValueBool())
+	assert.True(t, synced.RetryCount.IsNull())
+	assert.True(t, synced.RetryAwaitMinutes.IsNull())
 }

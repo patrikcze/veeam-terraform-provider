@@ -266,3 +266,6 @@ terraform import veeam_backup_job.example <job-id>
 - `after_job_name` must be the **display name** of the preceding job, not its UUID — this is an API requirement in Veeam REST API v1.3.
 - The `is_disabled` attribute is read-only. Use the Veeam console or the REST API enable/disable endpoints to toggle job state.
 - Deleting a backup job does not delete existing backups or restore points stored in the repository.
+- For agent jobs, set `storage.repository_id` explicitly when you need a specific repository; otherwise Veeam may use the server default backup repository.
+- For agent jobs, `storage.proxy_auto_select` is preserved from Terraform configuration/state because agent storage API responses do not include backup proxy selection fields.
+- Veeam can display retry interval defaults in UI even when retry is disabled; in Terraform, `schedule.retry_enabled = false` remains authoritative for behavior.

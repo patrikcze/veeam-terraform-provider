@@ -162,6 +162,26 @@ For `veeam_managed_server` (`LinuxHost`) in real VBR runs:
 
 ---
 
+## 4.1 Terraform State Stability Pattern (Optional + Computed)
+
+Terraform requires all applied state values to be known. For discriminator-based
+resources (for example agent vs hypervisor job variants), do not leave
+non-applicable `Optional: true` + `Computed: true` attributes as unknown.
+
+Use these rules:
+- Normalize unknown scalar fields to known `null` (or explicit default where required)
+    before `resp.State.Set`.
+- For optional nested blocks omitted in config (for example `storage` / `schedule`),
+    do not materialize API defaults into state unless the block exists in plan/state.
+- If API responses omit a configured field (for example agent storage proxy selection),
+    preserve the planned/state value instead of overwriting with an inferred default.
+
+This avoids:
+- `Provider returned invalid result object after apply` (unknown values remaining)
+- `Provider produced inconsistent result after apply` (planned false/true changed by sync)
+
+---
+
 ## 5. Polymorphic Type Pattern
 
 V13 uses `oneOf` with `discriminator` on the `type` field. Example:

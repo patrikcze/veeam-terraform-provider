@@ -468,6 +468,7 @@ func (r *Repository) syncFromAPIMap(data *RepositoryModel, api map[string]interf
 	data.CredentialsID = types.StringNull()
 	data.HostID = types.StringNull()
 	data.Path = types.StringNull()
+	data.UseFastCloningOnXfsVolumes = types.BoolNull()
 
 	if name := getStringValue(api, "name"); name != "" {
 		data.Name = types.StringValue(name)
