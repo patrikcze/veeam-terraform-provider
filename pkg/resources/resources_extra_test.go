@@ -1263,11 +1263,11 @@ func TestBackupJob_BuildAgentJobSpec_Windows(t *testing.T) {
 func TestBackupJob_BuildAgentJobSpec_Linux(t *testing.T) {
 	r := &BackupJob{}
 	data := &BackupJobModel{
-		Name:                          types.StringValue("Linux Backup"),
-		Type:                          types.StringValue("LinuxAgentBackup"),
-		AgentBackupMode:               types.StringValue("EntireComputer"),
+		Name:                           types.StringValue("Linux Backup"),
+		Type:                           types.StringValue("LinuxAgentBackup"),
+		AgentBackupMode:                types.StringValue("EntireComputer"),
 		UseSnapshotlessFileLevelBackup: types.BoolValue(true),
-		AgentComputers:                []AgentComputerEntry{},
+		AgentComputers:                 []AgentComputerEntry{},
 	}
 	spec := r.buildAgentJobSpec(data)
 	assert.Equal(t, true, spec["useSnapshotlessFileLevelBackup"])
@@ -1298,9 +1298,9 @@ func TestSyncScheduleFromAPIMap_Monthly(t *testing.T) {
 	r := &BackupJob{}
 	api := map[string]interface{}{
 		"monthly": map[string]interface{}{
-			"isEnabled":    true,
-			"localTime":    "23:00",
-			"dayOfMonth":   float64(15),
+			"isEnabled":  true,
+			"localTime":  "23:00",
+			"dayOfMonth": float64(15),
 		},
 	}
 	s := r.syncScheduleFromAPIMap(nil, api)
@@ -1313,7 +1313,7 @@ func TestSyncScheduleFromAPIMap_Periodically(t *testing.T) {
 	r := &BackupJob{}
 	api := map[string]interface{}{
 		"periodically": map[string]interface{}{
-			"isEnabled":       true,
+			"isEnabled":        true,
 			"periodicallyKind": "Hours",
 			"frequency":        float64(4),
 		},
@@ -1510,8 +1510,8 @@ func TestBackupJob_Create_AgentWithGuestProcessing(t *testing.T) {
 func TestProtectionGroup_SyncFromAPIIndividual_WithOptions(t *testing.T) {
 	r := &ProtectionGroup{}
 	data := &ProtectionGroupModel{
-		Name: types.StringValue("old"),
-		Type: types.StringValue("IndividualComputers"),
+		Name:    types.StringValue("old"),
+		Type:    types.StringValue("IndividualComputers"),
 		Options: []ProtectionGroupOptionsModel{{}}, // non-empty → triggers options sync
 	}
 
@@ -1521,10 +1521,10 @@ func TestProtectionGroup_SyncFromAPIIndividual_WithOptions(t *testing.T) {
 			Type: models.ProtectionGroupTypeIndividualComputers,
 		},
 		Options: &models.ProtectionGroupOptions{
-			InstallBackupAgent:        true,
-			DistributionServerID:      "dist-srv-1",
-			DistributionRepositoryID:  "dist-repo-1",
-			ApplicationPlugins:        []string{"SQL"},
+			InstallBackupAgent:       true,
+			DistributionServerID:     "dist-srv-1",
+			DistributionRepositoryID: "dist-repo-1",
+			ApplicationPlugins:       []string{"SQL"},
 		},
 	}
 
@@ -1672,8 +1672,7 @@ func TestProtectionGroup_ReadProtectionGroup_CloudMachines(t *testing.T) {
 
 	mockClient.On("GetJSON", mock.Anything, mock.AnythingOfType("string"), mock.Anything).
 		Run(func(args mock.Arguments) {
-			switch v := args.Get(2).(type) {
-			case *models.CloudMachinesProtectionGroupModel:
+			if v, ok := args.Get(2).(*models.CloudMachinesProtectionGroupModel); ok {
 				v.ID = "pg-1"
 				v.Name = "Cloud PG"
 				v.Type = models.ProtectionGroupTypeCloudMachines
@@ -1819,8 +1818,8 @@ func TestSyncAgentJobFromAPIMap_Linux(t *testing.T) {
 		Type: types.StringValue("LinuxAgentBackup"),
 	}
 	api := map[string]interface{}{
-		"name":                          "Linux Backup",
-		"type":                          "LinuxAgentBackup",
+		"name":                           "Linux Backup",
+		"type":                           "LinuxAgentBackup",
 		"useSnapshotlessFileLevelBackup": true,
 	}
 	r.syncAgentJobFromAPIMap(data, api)
@@ -1902,7 +1901,6 @@ func TestManagedServer_Delete_WaitTimeout(t *testing.T) {
 	// 404 during poll → resource is gone → no error.
 	assert.False(t, resp.Diagnostics.HasError())
 }
-
 
 // ---------------------------------------------------------------------------
 // ManagedServer — buildSpec branches
@@ -2209,4 +2207,3 @@ func TestProxy_FindID_MissingDataArray(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "missing data array")
 }
-

@@ -129,7 +129,7 @@ func testConfigureValid(t *testing.T, r resource.ResourceWithConfigure) {
 
 func TestCredential_Configure_Nil(t *testing.T)         { testConfigureNil(t, &Credential{}) }
 func TestCredential_Configure_InvalidType(t *testing.T) { testConfigureInvalidType(t, &Credential{}) }
-func TestCredential_Configure_Valid(t *testing.T)        { testConfigureValid(t, &Credential{}) }
+func TestCredential_Configure_Valid(t *testing.T)       { testConfigureValid(t, &Credential{}) }
 
 // ---------------------------------------------------------------------------
 // Credential — Read
@@ -460,7 +460,7 @@ func TestEncryptionPassword_Delete_Error(t *testing.T) {
 
 func TestProxy_Configure_Nil(t *testing.T)         { testConfigureNil(t, &Proxy{}) }
 func TestProxy_Configure_InvalidType(t *testing.T) { testConfigureInvalidType(t, &Proxy{}) }
-func TestProxy_Configure_Valid(t *testing.T)        { testConfigureValid(t, &Proxy{}) }
+func TestProxy_Configure_Valid(t *testing.T)       { testConfigureValid(t, &Proxy{}) }
 
 func TestProxy_Read_Success(t *testing.T) {
 	mockClient := new(MockVeeamClient)
@@ -577,7 +577,7 @@ func TestProxy_Delete_Error(t *testing.T) {
 
 func TestRepository_Configure_Nil(t *testing.T)         { testConfigureNil(t, &Repository{}) }
 func TestRepository_Configure_InvalidType(t *testing.T) { testConfigureInvalidType(t, &Repository{}) }
-func TestRepository_Configure_Valid(t *testing.T)        { testConfigureValid(t, &Repository{}) }
+func TestRepository_Configure_Valid(t *testing.T)       { testConfigureValid(t, &Repository{}) }
 
 func TestRepository_Read_Success(t *testing.T) {
 	mockClient := new(MockVeeamClient)
@@ -724,9 +724,11 @@ func TestRepository_Delete_Error(t *testing.T) {
 // ManagedServer — Configure + Read + Delete
 // ---------------------------------------------------------------------------
 
-func TestManagedServer_Configure_Nil(t *testing.T)         { testConfigureNil(t, &ManagedServer{}) }
-func TestManagedServer_Configure_InvalidType(t *testing.T) { testConfigureInvalidType(t, &ManagedServer{}) }
-func TestManagedServer_Configure_Valid(t *testing.T)        { testConfigureValid(t, &ManagedServer{}) }
+func TestManagedServer_Configure_Nil(t *testing.T) { testConfigureNil(t, &ManagedServer{}) }
+func TestManagedServer_Configure_InvalidType(t *testing.T) {
+	testConfigureInvalidType(t, &ManagedServer{})
+}
+func TestManagedServer_Configure_Valid(t *testing.T) { testConfigureValid(t, &ManagedServer{}) }
 
 func TestManagedServer_Read_Success(t *testing.T) {
 	mockClient := new(MockVeeamClient)
@@ -791,9 +793,11 @@ func TestManagedServer_Read_Error(t *testing.T) {
 // CloudCredential — Configure + Read + Delete
 // ---------------------------------------------------------------------------
 
-func TestCloudCredential_Configure_Nil(t *testing.T)         { testConfigureNil(t, &CloudCredential{}) }
-func TestCloudCredential_Configure_InvalidType(t *testing.T) { testConfigureInvalidType(t, &CloudCredential{}) }
-func TestCloudCredential_Configure_Valid(t *testing.T)        { testConfigureValid(t, &CloudCredential{}) }
+func TestCloudCredential_Configure_Nil(t *testing.T) { testConfigureNil(t, &CloudCredential{}) }
+func TestCloudCredential_Configure_InvalidType(t *testing.T) {
+	testConfigureInvalidType(t, &CloudCredential{})
+}
+func TestCloudCredential_Configure_Valid(t *testing.T) { testConfigureValid(t, &CloudCredential{}) }
 
 func TestCloudCredential_Read_Success(t *testing.T) {
 	mockClient := new(MockVeeamClient)
@@ -985,7 +989,7 @@ func TestConfigurationBackup_Read_Error(t *testing.T) {
 
 func TestBackupJob_Configure_Nil(t *testing.T)         { testConfigureNil(t, &BackupJob{}) }
 func TestBackupJob_Configure_InvalidType(t *testing.T) { testConfigureInvalidType(t, &BackupJob{}) }
-func TestBackupJob_Configure_Valid(t *testing.T)        { testConfigureValid(t, &BackupJob{}) }
+func TestBackupJob_Configure_Valid(t *testing.T)       { testConfigureValid(t, &BackupJob{}) }
 
 // ---------------------------------------------------------------------------
 // ProtectionGroup — Configure

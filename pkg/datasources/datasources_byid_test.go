@@ -42,28 +42,6 @@ func buildConfigWithStrings(ds datasource.DataSource, fields map[string]string) 
 	}
 }
 
-// buildStateWithStrings builds a tfsdk.State with specific string fields set.
-func buildStateWithStrings(ds datasource.DataSource, fields map[string]string) tfsdk.State {
-	var schemaResp datasource.SchemaResponse
-	ds.Schema(context.Background(), datasource.SchemaRequest{}, &schemaResp)
-	schemaType := schemaResp.Schema.Type().TerraformType(context.Background())
-
-	objType := schemaType.(tftypes.Object)
-	attrs := make(map[string]tftypes.Value, len(objType.AttributeTypes))
-	for k, attrType := range objType.AttributeTypes {
-		if strVal, ok := fields[k]; ok {
-			attrs[k] = tftypes.NewValue(attrType, strVal)
-		} else {
-			attrs[k] = nullValueForType(attrType)
-		}
-	}
-
-	return tfsdk.State{
-		Schema: schemaResp.Schema,
-		Raw:    tftypes.NewValue(objType, attrs),
-	}
-}
-
 // ---------------------------------------------------------------------------
 // Sessions — Read by session_id
 // ---------------------------------------------------------------------------

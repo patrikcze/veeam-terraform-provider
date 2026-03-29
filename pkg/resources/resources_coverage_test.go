@@ -254,14 +254,14 @@ func TestBackupJob_BuildAgentJobModel_Windows(t *testing.T) {
 	r := &BackupJob{}
 
 	data := &BackupJobModel{
-		ID:              types.StringValue("agent-job-1"),
-		Name:            types.StringValue("WinAgent-Backup"),
-		Type:            types.StringValue("WindowsAgentBackup"),
-		Description:     types.StringValue("Windows agent backup"),
-		IsHighPriority:  types.BoolValue(false),
-		AgentBackupMode: types.StringValue("EntireComputer"),
+		ID:               types.StringValue("agent-job-1"),
+		Name:             types.StringValue("WinAgent-Backup"),
+		Type:             types.StringValue("WindowsAgentBackup"),
+		Description:      types.StringValue("Windows agent backup"),
+		IsHighPriority:   types.BoolValue(false),
+		AgentBackupMode:  types.StringValue("EntireComputer"),
 		IncludeUsbDrives: types.BoolValue(true),
-		AgentType:       types.StringValue("Workstation"),
+		AgentType:        types.StringValue("Workstation"),
 		AgentComputers: []AgentComputerEntry{
 			{
 				ID:                types.StringValue("comp-1"),
@@ -297,21 +297,21 @@ func TestBackupJob_BuildAgentJobModel_Linux(t *testing.T) {
 	r := &BackupJob{}
 
 	data := &BackupJobModel{
-		ID:              types.StringValue("linux-agent-1"),
-		Name:            types.StringValue("Linux-Agent-Backup"),
-		Type:            types.StringValue("LinuxAgentBackup"),
-		Description:     types.StringValue("Linux agent backup"),
-		IsHighPriority:  types.BoolValue(false),
-		AgentBackupMode: types.StringValue("EntireComputer"),
+		ID:                             types.StringValue("linux-agent-1"),
+		Name:                           types.StringValue("Linux-Agent-Backup"),
+		Type:                           types.StringValue("LinuxAgentBackup"),
+		Description:                    types.StringValue("Linux agent backup"),
+		IsHighPriority:                 types.BoolValue(false),
+		AgentBackupMode:                types.StringValue("EntireComputer"),
 		UseSnapshotlessFileLevelBackup: types.BoolValue(true),
-		AgentComputers: []AgentComputerEntry{},
+		AgentComputers:                 []AgentComputerEntry{},
 		Storage: &JobStorageSettings{
 			RepositoryID:      types.StringValue("repo-linux"),
 			RetentionType:     types.StringValue("Days"),
 			RetentionQuantity: types.Int64Value(7),
 		},
 		VolumesScope: &AgentVolumesScope{
-			AllVolumes: types.BoolValue(true),
+			AllVolumes:  types.BoolValue(true),
 			VolumeNames: types.ListValueMust(types.StringType, []attr.Value{}),
 		},
 	}
@@ -1039,8 +1039,8 @@ func TestProtectionGroup_SyncFromAPICloud(t *testing.T) {
 func TestCloudCredential_BuildSpec_GCP(t *testing.T) {
 	resource := &CloudCredential{}
 	data := &CloudCredentialModel{
-		Name:          types.StringValue("gcp-project"),
-		Description:   types.StringValue("GCP service account"),
+		Name:           types.StringValue("gcp-project"),
+		Description:    types.StringValue("GCP service account"),
 		Type:           types.StringValue("GoogleService"),
 		ServiceAccount: types.StringValue(`{"type":"service_account"}`),
 	}

@@ -631,8 +631,7 @@ func TestLicenseDataSource_ReadHelperLogic(t *testing.T) {
 	// Mock license endpoint.
 	mockClient.On("GetJSON", mock.Anything, client.PathLicense, mock.Anything).Run(func(args mock.Arguments) {
 		dest := args.Get(2)
-		switch v := dest.(type) {
-		case *map[string]interface{}:
+		if v, ok := dest.(*map[string]interface{}); ok {
 			*v = map[string]interface{}{
 				"type":       "Perpetual",
 				"status":     "Valid",
