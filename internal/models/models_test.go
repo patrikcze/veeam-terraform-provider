@@ -3,6 +3,7 @@ package models
 import (
 	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -374,6 +375,48 @@ func TestEncryptionPasswordSpec_RoundTrip(t *testing.T) {
 	var decoded EncryptionPasswordSpec
 	require.NoError(t, json.Unmarshal(data, &decoded))
 	assert.Equal(t, "backup encryption", decoded.Hint)
+}
+
+// ---------------------------------------------------------------------------
+// Auth / TokenInfo
+// ---------------------------------------------------------------------------
+
+func TestTokenInfo_IsExpired(t *testing.T) {
+	expired := &TokenInfo{ExpiresAt: time.Now().Add(-time.Minute)}
+	assert.True(t, expired.IsExpired(), "token expired in the past should return true")
+
+	valid := &TokenInfo{ExpiresAt: time.Now().Add(time.Minute)}
+	assert.False(t, valid.IsExpired(), "token expiring in the future should return false")
+}
+
+func TestTokenInfo_WillExpireSoon(t *testing.T) {
+	expiringSoon := &TokenInfo{ExpiresAt: time.Now().Add(30 * time.Second)}
+	assert.True(t, expiringSoon.WillExpireSoon(time.Minute), "token expiring within buffer should return true")
+
+	notSoon := &TokenInfo{ExpiresAt: time.Now().Add(10 * time.Minute)}
+	assert.False(t, notSoon.WillExpireSoon(time.Minute), "token expiring well beyond buffer should return false")
+}
+
+func TestTokenInfo_String(t *testing.T) {
+	expiry := time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC)
+	token := &TokenInfo{ExpiresAt: expiry}
+	s := token.String()
+	assert.Contains(t, s, "2024-01-01T12:00:00Z")
+	assert.Contains(t, s, "Expired:")
+}
+
+func TestAPIError_Error(t *testing.T) {
+	// All fields set
+	e := &APIError{ErrorCode: "E001", Message: "something failed", Details: "detail info"}
+	assert.Equal(t, "E001: something failed (detail info)", e.Error())
+
+	// No details
+	e2 := &APIError{ErrorCode: "E002", Message: "partial error"}
+	assert.Equal(t, "E002: partial error", e2.Error())
+
+	// Code only
+	e3 := &APIError{ErrorCode: "E003"}
+	assert.Equal(t, "E003", e3.Error())
 }
 
 // ---------------------------------------------------------------------------

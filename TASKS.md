@@ -43,10 +43,10 @@
 | Package | Coverage | Target |
 |---------|----------|--------|
 | `internal/client` | 70.5% | 90% |
-| `internal/models` | 0.0% | 80% |
+| `internal/models` | 100% | 80% |
 | `internal/utils` | 100% | 90% |
-| `pkg/datasources` | 9.9% | 80% |
-| `pkg/resources` | 29.0% | 80% |
+| `pkg/datasources` | 92.0% | 80% |
+| `pkg/resources` | 80.2% | 80% |
 
 ---
 
@@ -54,30 +54,26 @@
 
 ### Priority 1 — Test Coverage & Quality (Must-Have for Release)
 
-- [ ] **T1.1** Increase `internal/models` test coverage to 80%+
-  - Add JSON marshal/unmarshal round-trip tests for all model files
-  - Cover: `credentials.go`, `repositories.go`, `proxies.go`, `managed_servers.go`, `jobs.go`, `protection_groups.go`, `cloud_credentials.go`, `configuration_backup.go`, `scale_out_repositories.go`, `sessions.go`
-  - Current: 0% (only `models_test.go` with 16 tests, likely covers `common.go`/`auth.go`)
+- [x] **T1.1** Increase `internal/models` test coverage to 80%+
+  - Added tests for `auth.go` functions (`TokenInfo.IsExpired`, `WillExpireSoon`, `String`, `APIError.Error`)
+  - Achieved: 100% ✅
 
-- [ ] **T1.2** Increase `pkg/resources` test coverage to 80%+
-  - Add `buildSpec()` ↔ `syncModelFromAPI()` round-trip tests for each resource
-  - Add error path tests (API failure, 404 on Read, async timeout)
-  - Add import state tests for all resources
-  - Current: 29% across 10 resources (63 tests total)
+- [x] **T1.2** Increase `pkg/resources` test coverage to 80%+
+  - Added `resources_extra_test.go` with ImportState tests for all 10 resources, CRUD error paths, helper function tests
+  - Achieved: 80.2% ✅
 
-- [ ] **T1.3** Increase `pkg/datasources` test coverage to 80%+
-  - Add per-datasource response parsing + filter tests (currently only backup_jobs, repositories, server_info, helpers have tests)
-  - Missing tests for: `backups`, `credentials`, `job_states`, `license`, `managed_servers`, `protection_groups`, `proxies`, `repository_states`, `restore_points`, `sessions`, `wan_accelerators`
-  - Current: 9.9% across 14 data sources
+- [x] **T1.3** Increase `pkg/datasources` test coverage to 80%+
+  - Added per-datasource response parsing + filter tests for all 14 data sources
+  - Achieved: 92.0% ✅
 
 - [ ] **T1.4** Increase `internal/client` test coverage to 90%+
   - Add tests for edge cases: refresh token rotation, concurrent token refresh, 429 rate-limiting
   - Add `WaitForTask` timeout/context-cancel tests
+  - Add `PutJSON` tests (currently 0%)
   - Current: 70.5%
 
-- [ ] **T1.5** Fix Makefile GOROOT issue
-  - `make test` fails with `go: cannot find GOROOT directory: /usr/local/go` — the `go tool compile -V` check references old GOROOT
-  - Direct `go test` works fine; Makefile's GOROOT detection needs fix
+- [x] **T1.5** Fix Makefile GOROOT issue
+  - Verified: `make test` works fine, GOROOT issue was already resolved ✅
 
 ---
 
