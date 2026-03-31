@@ -176,6 +176,123 @@ func TestWaitForTaskWithOptions_ResultAsObject(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+// --- WaitForTask public wrapper ---
+
+func TestWaitForTask_Wrapper(t *testing.T) {
+	// WaitForTask delegates to WaitForTaskWithOptions with default intervals.
+	// Use a fast server that immediately returns Stopped/Success so the test
+	// does not take 5 seconds waiting for the defaultPollInterval.
+	// We can't inject poll interval through WaitForTask, so we just verify
+	// that calling it on an empty session ID returns the expected error (no
+	// server needed — the validation fires before any HTTP call).
+	c := &VeeamClient{}
+	err := c.WaitForTask(context.Background(), "")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "session ID is empty")
+}
+
+// --- normalizeSessionResult branches ---
+
+func TestNormalizeSessionResult(t *testing.T) {
+	tests := []struct {
+		name  string
+		input interface{}
+		want  SessionResult
+	}{
+		{"string success", "Success", SessionResultSuccess},
+		{"string empty", "", SessionResultNone},
+		{"string failed", "Failed", SessionResultFailed},
+		{"map with nested result", map[string]interface{}{"result": "Success"}, SessionResultSuccess},
+		{"map with empty nested result", map[string]interface{}{"result": ""}, SessionResultNone},
+		{"map without result key", map[string]interface{}{"other": "value"}, SessionResultNone},
+		{"nil value", nil, SessionResultNone},
+		{"int value (unknown type)", 42, SessionResultNone},
+		{"bool value (unknown type)", true, SessionResultNone},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := normalizeSessionResult(tt.input)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// --- WaitForTaskWithOptions unknown-state branch ---
+
+func TestWaitForTaskWithOptions_UnknownStateThenStopped(t *testing.T) {
+	pollCount := int32(0)
+
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/oauth2/token" {
+			w.WriteHeader(http.StatusOK)
+			w.Write(newTestTokenResponse("test-token", "test-refresh", 900))
+			return
+		}
+
+		count := atomic.AddInt32(&pollCount, 1)
+
+		var session map[string]interface{}
+		if count < 3 {
+			// Return an unrecognized state — the code should treat this as
+			// "continue polling" per the default branch in WaitForTaskWithOptions.
+			session = map[string]interface{}{
+				"id":     "session-unknown",
+				"state":  "Pending", // not "Working" or "Stopped"
+				"result": "None",
+			}
+		} else {
+			session = map[string]interface{}{
+				"id":     "session-unknown",
+				"state":  "Stopped",
+				"result": "Success",
+			}
+		}
+
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(session)
+	}))
+	defer server.Close()
+
+	ctx := context.Background()
+	c, err := NewVeeamClientWithHTTPClient(ctx, server.URL, "admin", "secret", server.Client())
+	require.NoError(t, err)
+
+	err = c.WaitForTaskWithOptions(ctx, "session-unknown", 50*time.Millisecond, 5*time.Second)
+	assert.NoError(t, err)
+	assert.GreaterOrEqual(t, atomic.LoadInt32(&pollCount), int32(3))
+}
+
+// --- WaitForTaskWithOptions Stopped with unexpected result ---
+
+func TestWaitForTaskWithOptions_StoppedUnexpectedResult(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/oauth2/token" {
+			w.WriteHeader(http.StatusOK)
+			w.Write(newTestTokenResponse("test-token", "test-refresh", 900))
+			return
+		}
+
+		session := SessionModel{
+			ID:    "session-odd",
+			State: SessionStateStopped,
+			// "None" is not Success/Warning/Failed — hits the default case
+			Result: "None",
+		}
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(session)
+	}))
+	defer server.Close()
+
+	ctx := context.Background()
+	c, err := NewVeeamClientWithHTTPClient(ctx, server.URL, "admin", "secret", server.Client())
+	require.NoError(t, err)
+
+	err = c.WaitForTaskWithOptions(ctx, "session-odd", 50*time.Millisecond, 5*time.Second)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "unexpected result")
+}
+
 func TestParseSessionIDFromResponse(t *testing.T) {
 	tests := []struct {
 		name    string

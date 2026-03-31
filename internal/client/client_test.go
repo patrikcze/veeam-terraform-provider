@@ -3,6 +3,8 @@ package client
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -226,6 +228,233 @@ func TestTokenInfo_WillExpireSoon(t *testing.T) {
 			assert.Equal(t, tt.want, c.TokenInfo.WillExpireSoon(tt.buffer))
 		})
 	}
+}
+
+// --- NewVeeamClient tests ---
+
+func TestNewVeeamClient_EmptyHost(t *testing.T) {
+	ctx := context.Background()
+	c, err := NewVeeamClient(ctx, "", 9419, "admin", "secret", false)
+	assert.Error(t, err)
+	assert.Nil(t, c)
+	assert.Contains(t, err.Error(), "host is empty")
+}
+
+func TestNewVeeamClient_InsecureTrue(t *testing.T) {
+	// httptest.NewTLSServer uses a self-signed certificate. NewVeeamClient with
+	// insecure=true builds a transport with InsecureSkipVerify=true, which will
+	// accept that certificate. This exercises the insecure warning-log branch
+	// and the full client construction + authentication path.
+	server := newTokenServer(t)
+	defer server.Close()
+
+	// Parse "https://127.0.0.1:<port>" into separate host and port.
+	// net/url gives us the host:port string; we split it manually.
+	parsedURL, err := url.Parse(server.URL)
+	require.NoError(t, err)
+
+	hostOnly := parsedURL.Hostname()
+	portStr := parsedURL.Port()
+	var port int
+	_, scanErr := fmt.Sscan(portStr, &port)
+	require.NoError(t, scanErr)
+
+	ctx := context.Background()
+	c, err := NewVeeamClient(ctx, hostOnly, port, "admin", "secret", true)
+	require.NoError(t, err)
+	require.NotNil(t, c)
+	assert.Equal(t, "test-access-token", c.TokenInfo.AccessToken)
+}
+
+func TestNewVeeamClient_AuthFailure(t *testing.T) {
+	// Spin up a server that always rejects authentication.
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{
+			"errorCode": "Unauthorized",
+			"message":   "bad credentials",
+		})
+	}))
+	defer server.Close()
+
+	ctx := context.Background()
+	// Use WithHTTPClient so we can supply the test server TLS client.
+	c, err := NewVeeamClientWithHTTPClient(ctx, server.URL, "wrong", "creds", server.Client())
+	assert.Error(t, err)
+	assert.Nil(t, c)
+	assert.Contains(t, err.Error(), "authentication failed")
+}
+
+// --- RefreshToken failure: refresh fails AND re-auth fails ---
+
+func TestRefreshToken_RefreshAndReauthBothFail(t *testing.T) {
+	callCount := 0
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		values, _ := url.ParseQuery(string(body))
+		callCount++
+
+		if callCount == 1 && values.Get("grant_type") == "password" {
+			// First call: initial auth succeeds
+			w.WriteHeader(http.StatusOK)
+			w.Write(newTestTokenResponse("initial-token", "initial-refresh", 900))
+			return
+		}
+
+		// All subsequent calls fail (both refresh_token and fallback password grant)
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{
+			"errorCode": "Unauthorized",
+			"message":   "credentials revoked",
+		})
+	}))
+	defer server.Close()
+
+	ctx := context.Background()
+	c, err := NewVeeamClientWithHTTPClient(ctx, server.URL, "admin", "secret", server.Client())
+	require.NoError(t, err)
+
+	// Force token to expire soon so RefreshToken actually attempts a refresh
+	c.TokenInfo.ExpiresAt = time.Now().Add(30 * time.Second)
+
+	err = c.RefreshToken(ctx)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "authentication failed")
+}
+
+// --- postTokenRequest: malformed JSON response ---
+
+func TestPostTokenRequest_MalformedJSONResponse(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		// Return non-JSON to trigger unmarshal error in postTokenRequest
+		w.Write([]byte(`this is not json`))
+	}))
+	defer server.Close()
+
+	ctx := context.Background()
+	c, err := NewVeeamClientWithHTTPClient(ctx, server.URL, "admin", "secret", server.Client())
+	assert.Error(t, err)
+	assert.Nil(t, c)
+	assert.Contains(t, err.Error(), "failed to parse token response")
+}
+
+// --- doRequest: marshal failure ---
+
+func TestDoRequest_MarshalFailure(t *testing.T) {
+	server := newTokenServer(t)
+	defer server.Close()
+
+	ctx := context.Background()
+	c, err := NewVeeamClientWithHTTPClient(ctx, server.URL, "admin", "secret", server.Client())
+	require.NoError(t, err)
+
+	// A channel is not JSON-serializable — json.Marshal will return an error.
+	// PostJSON passes the payload through doRequest → json.Marshal, so this
+	// exercises the marshal-failure branch in doRequest.
+	err = c.PostJSON(ctx, "/api/v1/test", make(chan int), nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to marshal request payload")
+}
+
+// --- readAndClose error paths in HTTP verb methods ---
+//
+// We inject a custom RoundTripper that (a) handles the initial auth request
+// normally so the client can be constructed, then (b) returns a response whose
+// body always errors on Read for subsequent requests.
+
+// brokenBodyTransport wraps an inner RoundTripper. The first request (token
+// auth) is delegated normally; subsequent requests return a response with a
+// body that errors on Read.
+type brokenBodyTransport struct {
+	inner     http.RoundTripper
+	callCount int
+	readErr   error
+}
+
+func (t *brokenBodyTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	t.callCount++
+	if req.URL.Path == PathOAuth2Token {
+		// Let auth succeed normally so the client can initialise.
+		return t.inner.RoundTrip(req)
+	}
+	// Return a 200 with a body that always fails on Read.
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       errReader{err: t.readErr},
+		Header:     make(http.Header),
+	}, nil
+}
+
+func newBrokenBodyClient(t *testing.T, tokenServer *httptest.Server) *VeeamClient {
+	t.Helper()
+	transport := &brokenBodyTransport{
+		inner:   tokenServer.Client().Transport,
+		readErr: errors.New("simulated network read failure"),
+	}
+	httpClient := &http.Client{Transport: transport}
+	ctx := context.Background()
+	c, err := NewVeeamClientWithHTTPClient(ctx, tokenServer.URL, "admin", "secret", httpClient)
+	require.NoError(t, err)
+	return c
+}
+
+func TestGetJSON_ReadBodyError(t *testing.T) {
+	server := newTokenServer(t)
+	defer server.Close()
+	c := newBrokenBodyClient(t, server)
+
+	var result map[string]string
+	err := c.GetJSON(context.Background(), "/api/v1/test", &result)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to read response body")
+}
+
+func TestPostJSON_ReadBodyError(t *testing.T) {
+	server := newTokenServer(t)
+	defer server.Close()
+	c := newBrokenBodyClient(t, server)
+
+	err := c.PostJSON(context.Background(), "/api/v1/test", map[string]string{"k": "v"}, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to read response body")
+}
+
+func TestPutJSON_ReadBodyError(t *testing.T) {
+	server := newTokenServer(t)
+	defer server.Close()
+	c := newBrokenBodyClient(t, server)
+
+	err := c.PutJSON(context.Background(), "/api/v1/test", map[string]string{"k": "v"}, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to read response body")
+}
+
+func TestDeleteJSON_ReadBodyError(t *testing.T) {
+	server := newTokenServer(t)
+	defer server.Close()
+	c := newBrokenBodyClient(t, server)
+
+	err := c.DeleteJSON(context.Background(), "/api/v1/test")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to read response body")
+}
+
+// --- postTokenRequest: 4xx with no JSON message field ---
+
+func TestPostTokenRequest_4xxNoMessage(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		// Body is valid JSON but has no "message" field — hits the plain-status error path.
+		w.Write([]byte(`{"code":401}`))
+	}))
+	defer server.Close()
+
+	ctx := context.Background()
+	c, err := NewVeeamClientWithHTTPClient(ctx, server.URL, "admin", "secret", server.Client())
+	assert.Error(t, err)
+	assert.Nil(t, c)
+	assert.Contains(t, err.Error(), "401")
 }
 
 func TestNormalizeURL(t *testing.T) {
