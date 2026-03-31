@@ -208,3 +208,11 @@ const (
 	PathLicenseCapacity  = "/api/v1/license/capacity"
 	PathJobStates        = "/api/v1/jobs/states"
 )
+
+// ---------------------------------------------------------------------------
+// General Options
+// ---------------------------------------------------------------------------
+
+const (
+	PathGeneralOptions = "/api/v1/generalOptions"
+)

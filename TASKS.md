@@ -80,10 +80,12 @@
 
 ### Priority 2 — New Resources (High-Value API Coverage)
 
-- [ ] **T2.1** `veeam_general_options` — Singleton resource (GET/PUT)
+- [x] **T2.1** `veeam_general_options` — Singleton resource (GET/PUT)
   - API: `GET/PUT /api/v1/generalOptions`
   - Manages server-wide general options, email settings, event forwarding, notifications, storage latency
-  - High value: central configuration that affects all jobs
+  - Schema: storage latency control, email notifications (SMTP), SNMP notifications, syslog/event forwarding
+  - Pattern: GET → merge → PUT singleton (fixed ID `"general-options"`, no-op delete)
+  - Tests: 11 unit tests (Configure, Create/Read/Update/Delete/Import) ✅
 
 - [ ] **T2.2** `veeam_email_settings` — Singleton resource (GET/PUT)
   - API: `GET/PUT /api/v1/generalOptions/emailSettings`

@@ -186,6 +186,7 @@ func (p *Provider) Resources(ctx context.Context) []func() resource.Resource {
 		resources.NewConfigurationBackup,
 		resources.NewCredential,
 		resources.NewEncryptionPassword,
+		resources.NewGeneralOptions,
 		resources.NewManagedServer,
 		resources.NewProtectionGroup,
 		resources.NewProxy,
