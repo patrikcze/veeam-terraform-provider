@@ -216,3 +216,65 @@ const (
 const (
 	PathGeneralOptions = "/api/v1/generalOptions"
 )
+
+// ---------------------------------------------------------------------------
+// Email Settings
+// ---------------------------------------------------------------------------
+
+const (
+	PathEmailSettings            = "/api/v1/generalOptions/emailSettings"
+	PathEmailSettingsTestMessage = "/api/v1/generalOptions/emailSettings/testMessage"
+)
+
+// ---------------------------------------------------------------------------
+// Notification Settings
+// ---------------------------------------------------------------------------
+
+const (
+	PathNotificationSettings = "/api/v1/generalOptions/notifications"
+)
+
+// ---------------------------------------------------------------------------
+// Traffic Rules
+// ---------------------------------------------------------------------------
+
+const (
+	PathTrafficRules = "/api/v1/trafficRules"
+)
+
+// ---------------------------------------------------------------------------
+// Security Settings
+// ---------------------------------------------------------------------------
+
+const (
+	PathSecuritySettings = "/api/v1/security/settings"
+)
+
+// ---------------------------------------------------------------------------
+// KMS Servers
+// ---------------------------------------------------------------------------
+
+const (
+	PathKMSServers          = "/api/v1/kmsServers"
+	PathKMSServerByID       = "/api/v1/kmsServers/%s"
+	PathKMSServerChangeCert = "/api/v1/kmsServers/%s/changeCertificate"
+)
+
+// ---------------------------------------------------------------------------
+// Security Users
+// ---------------------------------------------------------------------------
+
+const (
+	PathSecurityUsers     = "/api/v1/security/users"
+	PathSecurityUserByID  = "/api/v1/security/users/%s"
+	PathSecurityUserRoles = "/api/v1/security/users/%s/roles"
+)
+
+// ---------------------------------------------------------------------------
+// AD Domains
+// ---------------------------------------------------------------------------
+
+const (
+	PathADDomains    = "/api/v1/adDomains"
+	PathADDomainByID = "/api/v1/adDomains/%s"
+)

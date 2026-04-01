@@ -181,17 +181,19 @@ func (p *Provider) Configure(ctx context.Context, req provider.ConfigureRequest,
 // Resources defines the resources implemented in the provider.
 func (p *Provider) Resources(ctx context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
+		resources.NewADDomain,
 		resources.NewBackupJob,
 		resources.NewCloudCredential,
 		resources.NewConfigurationBackup,
 		resources.NewCredential,
 		resources.NewEncryptionPassword,
-		resources.NewGeneralOptions,
+		resources.NewKMSServer,
 		resources.NewManagedServer,
 		resources.NewProtectionGroup,
 		resources.NewProxy,
 		resources.NewRepository,
 		resources.NewScaleOutRepository,
+		resources.NewSecurityUser,
 	}
 }
 
