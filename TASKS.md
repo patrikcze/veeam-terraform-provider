@@ -126,55 +126,55 @@
 
 ### Priority 3 — New Data Sources (Read-Only Visibility)
 
-- [ ] **T3.1** `veeam_security_roles` — Read-only
+- [x] **T3.1** `veeam_security_roles` — Read-only
   - API: `GET /api/v1/security/roles`
   - List available RBAC roles and permissions
 
-- [ ] **T3.2** `veeam_security_users` — Read-only
+- [x] **T3.2** `veeam_security_users` — Read-only
   - API: `GET /api/v1/security/users`
   - List configured RBAC users
 
-- [ ] **T3.3** `veeam_backup_objects` — Read-only
+- [x] **T3.3** `veeam_backup_objects` — Read-only
   - API: `GET /api/v1/backupObjects`
   - List objects within backups (VMs, machines)
 
-- [ ] **T3.4** `veeam_replicas` — Read-only
+- [x] **T3.4** `veeam_replicas` — Read-only
   - API: `GET /api/v1/replicas`
   - List VM replicas
 
-- [ ] **T3.5** `veeam_replica_points` — Read-only
+- [x] **T3.5** `veeam_replica_points` — Read-only
   - API: `GET /api/v1/replicaPoints`
   - List replica restore points
 
-- [ ] **T3.6** `veeam_proxy_states` — Read-only
+- [x] **T3.6** `veeam_proxy_states` — Read-only
   - API: `GET /api/v1/backupInfrastructure/proxies/states`
   - Proxy health/state information
 
-- [ ] **T3.7** `veeam_protected_computers` — Read-only
+- [x] **T3.7** `veeam_protected_computers` — Read-only
   - API: `GET /api/v1/agents/protectedComputers`
   - List agent-protected computers
 
-- [ ] **T3.8** `veeam_services` — Read-only
+- [x] **T3.8** `veeam_services` — Read-only
   - API: `GET /api/v1/services`
   - List VBR services and their status
 
-- [ ] **T3.9** `veeam_server_time` — Read-only
+- [x] **T3.9** `veeam_server_time` — Read-only
   - API: `GET /api/v1/serverTime`
   - Server time (useful for schedule validation)
 
-- [ ] **T3.10** `veeam_server_certificate` — Read-only
+- [x] **T3.10** `veeam_server_certificate` — Read-only
   - API: `GET /api/v1/serverCertificate`
   - Server TLS certificate details
 
-- [ ] **T3.11** `veeam_task_sessions` — Read-only
+- [x] **T3.11** `veeam_task_sessions` — Read-only
   - API: `GET /api/v1/taskSessions`
   - Granular task-level session details
 
-- [ ] **T3.12** `veeam_security_analyzer` — Read-only
+- [x] **T3.12** `veeam_security_analyzer` — Read-only
   - API: `GET /api/v1/securityAnalyzer/bestPractices`, `GET /api/v1/securityAnalyzer/lastRun`
   - Security compliance best practices check results
 
-- [ ] **T3.13** `veeam_malware_events` — Read-only
+- [x] **T3.13** `veeam_malware_events` — Read-only
   - API: `GET /api/v1/malwareDetection/events`
   - Malware detection events
 
