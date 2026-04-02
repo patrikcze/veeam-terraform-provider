@@ -87,36 +87,40 @@
   - Pattern: GET → merge → PUT singleton (fixed ID `"general-options"`, no-op delete)
   - Tests: 11 unit tests (Configure, Create/Read/Update/Delete/Import) ✅
 
-- [ ] **T2.2** `veeam_email_settings` — Singleton resource (GET/PUT)
-  - API: `GET/PUT /api/v1/generalOptions/emailSettings`
-  - SMTP configuration for notification delivery
-  - Action: `POST /api/v1/generalOptions/emailSettings/testMessage`
+- [x] **T2.2** `veeam_email_settings` — Singleton resource (GET/PUT)
+  - API: `GET/PUT /api/v1/generalOptions/emailSettings`, `POST .../testMessage`
+  - Schema: enabled, SMTP server/port/SSL/auth, from/to/subject, send_on_success/warning/error/daily_summary, send_test_message
+  - Tests: 12 unit tests ✅
 
-- [ ] **T2.3** `veeam_notification_settings` — Singleton resource (GET/PUT)
+- [x] **T2.3** `veeam_notification_settings` — Singleton resource (GET/PUT)
   - API: `GET/PUT /api/v1/generalOptions/notifications`
-  - Global notification rules
+  - Schema: 12 bool flags for success/warning/error notifications via email, SNMP, syslog
+  - Tests: 11 unit tests ✅
 
-- [ ] **T2.4** `veeam_traffic_rules` — Singleton resource (GET/PUT)
+- [x] **T2.4** `veeam_traffic_rules` — Singleton resource (GET/PUT)
   - API: `GET/PUT /api/v1/trafficRules`
-  - Network traffic throttling rules
+  - Schema: throttling_enabled (Bool), throttling_rules (JSON string for rules array)
+  - Tests: 13 unit tests ✅
 
-- [ ] **T2.5** `veeam_security_settings` — Singleton resource (GET/PUT)
+- [x] **T2.5** `veeam_security_settings` — Singleton resource (GET/PUT)
   - API: `GET/PUT /api/v1/security/settings`
-  - Security hardening configuration
+  - Schema: require_ssl/mfa, block_first_login, login_attempt_limit, inactivity_timeout_min, password_expiration_days/enabled
+  - Tests: 11 unit tests ✅
 
-- [ ] **T2.6** `veeam_kms_server` — Full CRUD resource
-  - API: `GET/POST /api/v1/kmsServers`, `GET/PUT/DELETE /api/v1/kmsServers/{id}`
-  - Key Management Server integration for encryption
-  - Action: `POST .../changeCertificate`
+- [x] **T2.6** `veeam_kms_server` — Full CRUD resource
+  - API: `GET/POST /api/v1/kmsServers`, `GET/PUT/DELETE /api/v1/kmsServers/{id}`, `POST .../changeCertificate`
+  - Schema: name, description, hostname, port, certificate_thumbprint
+  - Tests: 16 unit tests ✅
 
-- [ ] **T2.7** `veeam_security_user` — Partial CRUD resource (Create/Read/Delete)
-  - API: `GET/POST /api/v1/security/users`, `GET/DELETE /api/v1/security/users/{id}`
-  - RBAC user management with role assignment via `GET/PUT .../roles`
-  - No update — only create/delete + role assignment
+- [x] **T2.7** `veeam_security_user` — Partial CRUD resource (Create/Read/Delete)
+  - API: `GET/POST /api/v1/security/users`, `GET/DELETE /api/v1/security/users/{id}`, `GET/PUT .../roles`
+  - Schema: login, password (Sensitive), description, role — RequiresReplace on login+role
+  - Tests: 12 unit tests ✅
 
-- [ ] **T2.8** `veeam_ad_domain` — Partial CRUD resource (Create/Read/Delete)
+- [x] **T2.8** `veeam_ad_domain` — Partial CRUD resource (Create/Read/Delete)
   - API: `GET/POST /api/v1/adDomains`, `GET/DELETE /api/v1/adDomains/{id}`
-  - Active Directory domain registration
+  - Schema: name, username, password (Sensitive), description — RequiresReplace on name+username
+  - Tests: 11 unit tests ✅
 
 ---
 
