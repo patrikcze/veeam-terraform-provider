@@ -282,16 +282,24 @@ terraform import veeam_backup_job.vms_daily <job-id>
 
 | Resource | Description |
 |----------|-------------|
+| `veeam_ad_domain` | Active Directory domain registration |
 | `veeam_backup_job` | Backup jobs for VMware (`VSphereBackup`), Hyper-V (`HyperVBackup`), and Veeam Agent (`WindowsAgentBackup`, `LinuxAgentBackup`) with storage, schedule, and guest processing |
 | `veeam_cloud_credential` | Cloud credentials for AWS, Azure Blob, Azure Compute, Google Cloud |
 | `veeam_configuration_backup` | VBR configuration backup settings |
 | `veeam_credential` | Standard (Windows/domain) and Linux SSH credentials |
+| `veeam_email_settings` | SMTP email notification settings (singleton) |
 | `veeam_encryption_password` | Encryption passwords for backup data-at-rest encryption |
+| `veeam_general_options` | Server-level general options: storage latency, email, SNMP, syslog (singleton) |
+| `veeam_kms_server` | KMS (Key Management Service) server registration for encryption |
 | `veeam_managed_server` | Managed servers: ViHost, WindowsHost, LinuxHost |
+| `veeam_notification_settings` | Global job notification rules for email, SNMP, and syslog (singleton) |
 | `veeam_protection_group` | Agent-based protection groups (IndividualComputers, CloudMachines) |
 | `veeam_proxy` | Backup proxies: ViProxy (vSphere), HvProxy (Hyper-V), GeneralPurposeProxy |
 | `veeam_repository` | Backup repositories: WinLocal, LinuxLocal, Nfs, Smb with task/rate limits |
 | `veeam_scale_out_repository` | Scale-out backup repositories (SOBR) with performance extents |
+| `veeam_security_settings` | Server security hardening: SSL, MFA, lockout, password expiration (singleton) |
+| `veeam_security_user` | Security user accounts with RBAC role assignment |
+| `veeam_traffic_rules` | Network traffic throttling rules (singleton) |
 
 ## Data Sources
 
