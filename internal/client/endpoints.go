@@ -363,6 +363,7 @@ const (
 const (
 	PathSecurityAnalyzerBestPractices = "/api/v1/securityAnalyzer/bestPractices"
 	PathSecurityAnalyzerLastRun       = "/api/v1/securityAnalyzer/lastRun"
+	PathSecurityAnalyzerSchedule      = "/api/v1/securityAnalyzer/schedule"
 )
 
 // ---------------------------------------------------------------------------
@@ -371,4 +372,65 @@ const (
 
 const (
 	PathMalwareEvents = "/api/v1/malwareDetection/events"
+)
+
+// ---------------------------------------------------------------------------
+// Backup Infrastructure — Mount Servers
+// ---------------------------------------------------------------------------
+
+const (
+	PathMountServers    = "/api/v1/backupInfrastructure/mountServers"
+	PathMountServerByID = "/api/v1/backupInfrastructure/mountServers/%s"
+)
+
+// ---------------------------------------------------------------------------
+// Global VM Exclusions
+// ---------------------------------------------------------------------------
+
+const (
+	PathGlobalVMExclusions    = "/api/v1/globalExclusions/vm"
+	PathGlobalVMExclusionByID = "/api/v1/globalExclusions/vm/%s"
+)
+
+// ---------------------------------------------------------------------------
+// Agent Management — Recovery Tokens
+// ---------------------------------------------------------------------------
+
+const (
+	PathRecoveryTokens    = "/api/v1/agents/recoveryTokens"
+	PathRecoveryTokenByID = "/api/v1/agents/recoveryTokens/%s"
+)
+
+// ---------------------------------------------------------------------------
+// Inventory — Entra ID Tenants
+// ---------------------------------------------------------------------------
+
+const (
+	PathEntraIDTenants    = "/api/v1/inventory/entraId/tenants"
+	PathEntraIDTenantByID = "/api/v1/inventory/entraId/tenants/%s"
+)
+
+// ---------------------------------------------------------------------------
+// Inventory — Unstructured Data Servers
+// ---------------------------------------------------------------------------
+
+const (
+	PathUnstructuredDataServers    = "/api/v1/inventory/unstructuredDataServers"
+	PathUnstructuredDataServerByID = "/api/v1/inventory/unstructuredDataServers/%s"
+)
+
+// ---------------------------------------------------------------------------
+// General Options — Event Forwarding
+// ---------------------------------------------------------------------------
+
+const (
+	PathEventForwarding = "/api/v1/generalOptions/eventForwarding"
+)
+
+// ---------------------------------------------------------------------------
+// General Options — Storage Latency
+// ---------------------------------------------------------------------------
+
+const (
+	PathStorageLatency = "/api/v1/generalOptions/storageLatency"
 )

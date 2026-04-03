@@ -1051,3 +1051,133 @@ func TestCloudCredential_BuildSpec_GCP(t *testing.T) {
 	assert.Equal(t, "GoogleService", spec.Type)
 	assert.Equal(t, `{"type":"service_account"}`, spec.ServiceAccount)
 }
+
+// ---------------------------------------------------------------------------
+// Priority 6 resources — Metadata / Schema smoke tests
+// ---------------------------------------------------------------------------
+
+func TestResourceMetadata_MountServer(t *testing.T) {
+	r := NewMountServer()
+	var resp resource.MetadataResponse
+	r.Metadata(context.Background(), resource.MetadataRequest{ProviderTypeName: "veeam"}, &resp)
+	assert.Equal(t, "veeam_mount_server", resp.TypeName)
+}
+
+func TestResourceSchema_MountServer(t *testing.T) {
+	r := &MountServer{}
+	var resp resource.SchemaResponse
+	r.Schema(context.Background(), resource.SchemaRequest{}, &resp)
+	assert.Contains(t, resp.Schema.Attributes, "name")
+	assert.Contains(t, resp.Schema.Attributes, "managed_server_id")
+	assert.Contains(t, resp.Schema.Attributes, "type")
+}
+
+func TestResourceMetadata_GlobalVMExclusion(t *testing.T) {
+	r := NewGlobalVMExclusion()
+	var resp resource.MetadataResponse
+	r.Metadata(context.Background(), resource.MetadataRequest{ProviderTypeName: "veeam"}, &resp)
+	assert.Equal(t, "veeam_global_vm_exclusion", resp.TypeName)
+}
+
+func TestResourceSchema_GlobalVMExclusion(t *testing.T) {
+	r := &GlobalVMExclusion{}
+	var resp resource.SchemaResponse
+	r.Schema(context.Background(), resource.SchemaRequest{}, &resp)
+	assert.Contains(t, resp.Schema.Attributes, "name")
+	assert.Contains(t, resp.Schema.Attributes, "type")
+}
+
+func TestResourceMetadata_RecoveryToken(t *testing.T) {
+	r := NewRecoveryToken()
+	var resp resource.MetadataResponse
+	r.Metadata(context.Background(), resource.MetadataRequest{ProviderTypeName: "veeam"}, &resp)
+	assert.Equal(t, "veeam_recovery_token", resp.TypeName)
+}
+
+func TestResourceSchema_RecoveryToken(t *testing.T) {
+	r := &RecoveryToken{}
+	var resp resource.SchemaResponse
+	r.Schema(context.Background(), resource.SchemaRequest{}, &resp)
+	assert.Contains(t, resp.Schema.Attributes, "name")
+	assert.Contains(t, resp.Schema.Attributes, "managed_server_id")
+	assert.Contains(t, resp.Schema.Attributes, "token_value")
+}
+
+func TestResourceMetadata_EntraIDTenant(t *testing.T) {
+	r := NewEntraIDTenant()
+	var resp resource.MetadataResponse
+	r.Metadata(context.Background(), resource.MetadataRequest{ProviderTypeName: "veeam"}, &resp)
+	assert.Equal(t, "veeam_entra_id_tenant", resp.TypeName)
+}
+
+func TestResourceSchema_EntraIDTenant(t *testing.T) {
+	r := &EntraIDTenant{}
+	var resp resource.SchemaResponse
+	r.Schema(context.Background(), resource.SchemaRequest{}, &resp)
+	assert.Contains(t, resp.Schema.Attributes, "name")
+	assert.Contains(t, resp.Schema.Attributes, "tenant_id")
+	assert.Contains(t, resp.Schema.Attributes, "credentials_id")
+}
+
+func TestResourceMetadata_UnstructuredDataServer(t *testing.T) {
+	r := NewUnstructuredDataServer()
+	var resp resource.MetadataResponse
+	r.Metadata(context.Background(), resource.MetadataRequest{ProviderTypeName: "veeam"}, &resp)
+	assert.Equal(t, "veeam_unstructured_data_server", resp.TypeName)
+}
+
+func TestResourceSchema_UnstructuredDataServer(t *testing.T) {
+	r := &UnstructuredDataServer{}
+	var resp resource.SchemaResponse
+	r.Schema(context.Background(), resource.SchemaRequest{}, &resp)
+	assert.Contains(t, resp.Schema.Attributes, "name")
+	assert.Contains(t, resp.Schema.Attributes, "type")
+	assert.Contains(t, resp.Schema.Attributes, "host_name")
+}
+
+func TestResourceMetadata_SecurityAnalyzerSchedule(t *testing.T) {
+	r := NewSecurityAnalyzerSchedule()
+	var resp resource.MetadataResponse
+	r.Metadata(context.Background(), resource.MetadataRequest{ProviderTypeName: "veeam"}, &resp)
+	assert.Equal(t, "veeam_security_analyzer_schedule", resp.TypeName)
+}
+
+func TestResourceSchema_SecurityAnalyzerSchedule(t *testing.T) {
+	r := &SecurityAnalyzerSchedule{}
+	var resp resource.SchemaResponse
+	r.Schema(context.Background(), resource.SchemaRequest{}, &resp)
+	assert.Contains(t, resp.Schema.Attributes, "run_automatically")
+	assert.Contains(t, resp.Schema.Attributes, "daily_enabled")
+	assert.Contains(t, resp.Schema.Attributes, "monthly_enabled")
+}
+
+func TestResourceMetadata_EventForwarding(t *testing.T) {
+	r := NewEventForwarding()
+	var resp resource.MetadataResponse
+	r.Metadata(context.Background(), resource.MetadataRequest{ProviderTypeName: "veeam"}, &resp)
+	assert.Equal(t, "veeam_event_forwarding", resp.TypeName)
+}
+
+func TestResourceSchema_EventForwarding(t *testing.T) {
+	r := &EventForwarding{}
+	var resp resource.SchemaResponse
+	r.Schema(context.Background(), resource.SchemaRequest{}, &resp)
+	assert.Contains(t, resp.Schema.Attributes, "snmp_enabled")
+	assert.Contains(t, resp.Schema.Attributes, "syslog_enabled")
+}
+
+func TestResourceMetadata_StorageLatency(t *testing.T) {
+	r := NewStorageLatency()
+	var resp resource.MetadataResponse
+	r.Metadata(context.Background(), resource.MetadataRequest{ProviderTypeName: "veeam"}, &resp)
+	assert.Equal(t, "veeam_storage_latency", resp.TypeName)
+}
+
+func TestResourceSchema_StorageLatency(t *testing.T) {
+	r := &StorageLatency{}
+	var resp resource.SchemaResponse
+	r.Schema(context.Background(), resource.SchemaRequest{}, &resp)
+	assert.Contains(t, resp.Schema.Attributes, "enabled")
+	assert.Contains(t, resp.Schema.Attributes, "latency_limit_ms")
+	assert.Contains(t, resp.Schema.Attributes, "stop_jobs_enabled")
+}
