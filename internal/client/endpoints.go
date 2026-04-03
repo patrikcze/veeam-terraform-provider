@@ -278,3 +278,97 @@ const (
 	PathADDomains    = "/api/v1/adDomains"
 	PathADDomainByID = "/api/v1/adDomains/%s"
 )
+
+// ---------------------------------------------------------------------------
+// Security Roles
+// ---------------------------------------------------------------------------
+
+const (
+	PathSecurityRoles    = "/api/v1/security/roles"
+	PathSecurityRoleByID = "/api/v1/security/roles/%s"
+)
+
+// ---------------------------------------------------------------------------
+// Backup Objects
+// ---------------------------------------------------------------------------
+
+const (
+	PathBackupObjects    = "/api/v1/backupObjects"
+	PathBackupObjectByID = "/api/v1/backupObjects/%s"
+)
+
+// ---------------------------------------------------------------------------
+// Replicas
+// ---------------------------------------------------------------------------
+
+const (
+	PathReplicas    = "/api/v1/replicas"
+	PathReplicaByID = "/api/v1/replicas/%s"
+)
+
+// ---------------------------------------------------------------------------
+// Replica Points
+// ---------------------------------------------------------------------------
+
+const (
+	PathReplicaPoints    = "/api/v1/replicaPoints"
+	PathReplicaPointByID = "/api/v1/replicaPoints/%s"
+)
+
+// ---------------------------------------------------------------------------
+// Proxy States
+// ---------------------------------------------------------------------------
+
+const (
+	PathProxyStates = "/api/v1/backupInfrastructure/proxies/states"
+)
+
+// ---------------------------------------------------------------------------
+// Services
+// ---------------------------------------------------------------------------
+
+const (
+	PathServices = "/api/v1/services"
+)
+
+// ---------------------------------------------------------------------------
+// Server Time
+// ---------------------------------------------------------------------------
+
+const (
+	PathServerTime = "/api/v1/serverTime"
+)
+
+// ---------------------------------------------------------------------------
+// Server Certificate
+// ---------------------------------------------------------------------------
+
+const (
+	PathServerCertificate = "/api/v1/serverCertificate"
+)
+
+// ---------------------------------------------------------------------------
+// Task Sessions
+// ---------------------------------------------------------------------------
+
+const (
+	PathTaskSessions    = "/api/v1/taskSessions"
+	PathTaskSessionByID = "/api/v1/taskSessions/%s"
+)
+
+// ---------------------------------------------------------------------------
+// Security Analyzer
+// ---------------------------------------------------------------------------
+
+const (
+	PathSecurityAnalyzerBestPractices = "/api/v1/securityAnalyzer/bestPractices"
+	PathSecurityAnalyzerLastRun       = "/api/v1/securityAnalyzer/lastRun"
+)
+
+// ---------------------------------------------------------------------------
+// Malware Detection Events
+// ---------------------------------------------------------------------------
+
+const (
+	PathMalwareEvents = "/api/v1/malwareDetection/events"
+)

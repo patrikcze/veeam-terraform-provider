@@ -214,5 +214,19 @@ func (p *Provider) DataSources(ctx context.Context) []func() datasource.DataSour
 		datasources.NewServerInfoDataSource,
 		datasources.NewSessionsDataSource,
 		datasources.NewWanAcceleratorsDataSource,
+		// Priority 3 data sources
+		datasources.NewSecurityRolesDataSource,
+		datasources.NewSecurityUsersDataSource,
+		datasources.NewBackupObjectsDataSource,
+		datasources.NewReplicasDataSource,
+		datasources.NewReplicaPointsDataSource,
+		datasources.NewProxyStatesDataSource,
+		datasources.NewProtectedComputersDataSource,
+		datasources.NewServicesDataSource,
+		datasources.NewServerTimeDataSource,
+		datasources.NewServerCertificateDataSource,
+		datasources.NewTaskSessionsDataSource,
+		datasources.NewSecurityAnalyzerDataSource,
+		datasources.NewMalwareEventsDataSource,
 	}
 }
