@@ -11,29 +11,83 @@ Reference for all Veeam Terraform Provider resources.
 
 ## Available Resources
 
+### [veeam_ad_domain](ad_domain.md)
+Manages Active Directory domain registration in the Veeam inventory.
+
 ### [veeam_backup_job](backup_job.md)
-Manages backup jobs.
-
-### [veeam_repository](repository.md)
-Manages backup repositories.
-
-### [veeam_credential](credential.md)
-Manages standard and Linux/Windows credentials.
+Manages backup jobs for VMware (VSphereBackup), Hyper-V (HyperVBackup), and Veeam Agent workloads.
 
 ### [veeam_cloud_credential](cloud_credential.md)
-Manages cloud credentials used by Veeam for AWS, Azure, and GCP integrations.
-
-### [veeam_protection_group](protection_group.md)
-Manages Veeam agent protection groups for discovered and protected computers.
-
-### [veeam_scale_out_repository](scale_out_repository.md)
-Manages Veeam scale-out backup repositories.
+Manages cloud credentials for AWS, Azure Blob, Azure Compute, and Google Cloud integrations.
 
 ### [veeam_configuration_backup](configuration_backup.md)
-Manages configuration backup settings and can trigger configuration backup runs.
+Manages VBR configuration backup settings and can trigger configuration backup runs.
+
+### [veeam_credential](credential.md)
+Manages standard (Windows/domain) and Linux SSH credentials.
+
+### [veeam_email_settings](email_settings.md)
+Manages SMTP email notification settings (singleton).
 
 ### [veeam_encryption_password](encryption_password.md)
 Manages encryption passwords used by backup jobs and configuration backup.
+
+### [veeam_entra_id_tenant](entra_id_tenant.md)
+Manages a Microsoft Entra ID (Azure AD) tenant in the Veeam inventory.
+
+### [veeam_event_forwarding](event_forwarding.md)
+Manages SNMP trap and syslog event forwarding configuration (singleton).
+
+### [veeam_general_options](general_options.md)
+Manages server-level general options: storage latency, email, SNMP, syslog (singleton).
+
+### [veeam_global_vm_exclusion](global_vm_exclusion.md)
+Manages global VM exclusion entries (VirtualMachine, Folder, Tag, and more).
+
+### [veeam_kms_server](kms_server.md)
+Manages KMS (Key Management Service) server registration for encryption.
+
+### [veeam_managed_server](managed_server.md)
+Manages servers in the Veeam infrastructure: ViHost, WindowsHost, LinuxHost.
+
+### [veeam_mount_server](mount_server.md)
+Manages mount server registration in the backup infrastructure.
+
+### [veeam_notification_settings](notification_settings.md)
+Manages global job notification rules for email, SNMP, and syslog (singleton).
+
+### [veeam_protection_group](protection_group.md)
+Manages agent-based protection groups (IndividualComputers, CloudMachines).
+
+### [veeam_proxy](proxy.md)
+Manages backup proxies: ViProxy (vSphere), HvProxy (Hyper-V), GeneralPurposeProxy.
+
+### [veeam_recovery_token](recovery_token.md)
+Manages agent recovery tokens issued for managed servers.
+
+### [veeam_repository](repository.md)
+Manages backup repositories: WinLocal, LinuxLocal, Nfs, Smb with task/rate limits.
+
+### [veeam_scale_out_repository](scale_out_repository.md)
+Manages scale-out backup repositories (SOBR) with performance extents.
+
+### [veeam_security_analyzer_schedule](security_analyzer_schedule.md)
+Manages the security analyzer scan schedule (singleton).
+
+### [veeam_security_settings](security_settings.md)
+Manages server security hardening: SSL, MFA, lockout, password expiration (singleton).
+
+### [veeam_security_user](security_user.md)
+Manages security user accounts with RBAC role assignment.
+
+### [veeam_storage_latency](storage_latency.md)
+Manages storage latency control thresholds (singleton).
+
+### [veeam_traffic_rules](traffic_rules.md)
+Manages network traffic throttling rules (singleton).
+
+### [veeam_unstructured_data_server](unstructured_data_server.md)
+Manages unstructured data server registration for NAS backup.
 
 ## Common Patterns
 

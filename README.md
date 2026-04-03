@@ -289,35 +289,56 @@ terraform import veeam_backup_job.vms_daily <job-id>
 | `veeam_credential` | Standard (Windows/domain) and Linux SSH credentials |
 | `veeam_email_settings` | SMTP email notification settings (singleton) |
 | `veeam_encryption_password` | Encryption passwords for backup data-at-rest encryption |
+| `veeam_entra_id_tenant` | Microsoft Entra ID (Azure AD) tenant registration in the Veeam inventory |
+| `veeam_event_forwarding` | SNMP trap and syslog event forwarding configuration (singleton) |
 | `veeam_general_options` | Server-level general options: storage latency, email, SNMP, syslog (singleton) |
+| `veeam_global_vm_exclusion` | Global VM exclusion entries (VirtualMachine, Folder, Tag, etc.) |
 | `veeam_kms_server` | KMS (Key Management Service) server registration for encryption |
 | `veeam_managed_server` | Managed servers: ViHost, WindowsHost, LinuxHost |
+| `veeam_mount_server` | Mount server registration in the backup infrastructure |
 | `veeam_notification_settings` | Global job notification rules for email, SNMP, and syslog (singleton) |
 | `veeam_protection_group` | Agent-based protection groups (IndividualComputers, CloudMachines) |
 | `veeam_proxy` | Backup proxies: ViProxy (vSphere), HvProxy (Hyper-V), GeneralPurposeProxy |
+| `veeam_recovery_token` | Agent recovery tokens issued for managed servers |
 | `veeam_repository` | Backup repositories: WinLocal, LinuxLocal, Nfs, Smb with task/rate limits |
 | `veeam_scale_out_repository` | Scale-out backup repositories (SOBR) with performance extents |
+| `veeam_security_analyzer_schedule` | Security analyzer scan schedule configuration (singleton) |
 | `veeam_security_settings` | Server security hardening: SSL, MFA, lockout, password expiration (singleton) |
 | `veeam_security_user` | Security user accounts with RBAC role assignment |
+| `veeam_storage_latency` | Storage latency control thresholds (singleton) |
 | `veeam_traffic_rules` | Network traffic throttling rules (singleton) |
+| `veeam_unstructured_data_server` | Unstructured data server registration for NAS backup |
 
 ## Data Sources
 
 | Data Source | Description |
 |-------------|-------------|
-| `veeam_backups` | Backups and optional backup files |
 | `veeam_backup_jobs` | Backup jobs (all or filtered by ID/name) |
+| `veeam_backup_objects` | Backup objects contained within backups |
+| `veeam_backups` | Backups and optional backup files |
 | `veeam_credentials` | All saved credentials |
 | `veeam_job_states` | Aggregated job state overview |
 | `veeam_license` | Installed license and consumption |
+| `veeam_malware_events` | Malware detection events |
 | `veeam_managed_servers` | Managed servers |
+| `veeam_protected_computers` | Protected computers managed by Veeam agents |
 | `veeam_protection_groups` | Protection groups |
 | `veeam_proxies` | Backup proxies |
+| `veeam_proxy_states` | Backup proxy operational state |
+| `veeam_replica_points` | VM replica restore points |
+| `veeam_replicas` | VM replicas |
 | `veeam_repositories` | Repositories (all or filtered by ID/name) |
 | `veeam_repository_states` | Repository capacity and free space |
 | `veeam_restore_points` | Restore points |
+| `veeam_security_analyzer` | Security analyzer scan results |
+| `veeam_security_roles` | Available RBAC security roles |
+| `veeam_security_users` | Security user accounts |
+| `veeam_server_certificate` | TLS certificate installed on the VBR server |
 | `veeam_server_info` | VBR server version and configuration |
+| `veeam_server_time` | Current server date and time |
+| `veeam_services` | Veeam services running on the server |
 | `veeam_sessions` | Session history and status |
+| `veeam_task_sessions` | Task-level session details |
 | `veeam_wan_accelerators` | WAN accelerators |
 
 ## Development

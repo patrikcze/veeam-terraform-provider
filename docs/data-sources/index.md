@@ -12,43 +12,85 @@ Reference for all Veeam Terraform Provider data sources.
 ## Available Data Sources
 
 ### [veeam_backup_jobs](backup_jobs.md)
-Queries backup jobs.
+Query backup jobs (all or filtered by ID/name).
 
-### [veeam_repositories](repositories.md)
-Queries repositories.
-
-### [veeam_server_info](server_info.md)
-Get backup server version and installation details.
-
-### [veeam_sessions](sessions.md)
-Get session history and status data.
+### [veeam_backup_objects](backup_objects.md)
+Query backup objects contained within backups.
 
 ### [veeam_backups](backups.md)
 Query backups and optional backup files.
 
-### [veeam_restore_points](restore_points.md)
-List restore points globally or per backup object.
+### [veeam_credentials](credentials.md)
+List all saved credentials.
 
-### [veeam_proxies](proxies.md)
-Query backup proxies.
-
-### [veeam_managed_servers](managed_servers.md)
-Query managed servers.
-
-### [veeam_protection_groups](protection_groups.md)
-Query protection groups.
-
-### [veeam_wan_accelerators](wan_accelerators.md)
-Query WAN accelerators.
-
-### [veeam_repository_states](repository_states.md)
-Get repository capacity and health state.
+### [veeam_job_states](job_states.md)
+Get aggregated job state overview.
 
 ### [veeam_license](license.md)
 Get installed license and usage summary.
 
-### [veeam_job_states](job_states.md)
-Get aggregated job state overview.
+### [veeam_malware_events](malware_events.md)
+Query malware detection events.
+
+### [veeam_managed_servers](managed_servers.md)
+Query managed servers registered in the Veeam infrastructure.
+
+### [veeam_protected_computers](protected_computers.md)
+Query protected computers managed by Veeam agents.
+
+### [veeam_protection_groups](protection_groups.md)
+Query protection groups.
+
+### [veeam_proxies](proxies.md)
+Query backup proxies.
+
+### [veeam_proxy_states](proxy_states.md)
+Get backup proxy operational state.
+
+### [veeam_replica_points](replica_points.md)
+Query VM replica restore points.
+
+### [veeam_replicas](replicas.md)
+Query VM replicas.
+
+### [veeam_repositories](repositories.md)
+Query repositories (all or filtered by ID/name).
+
+### [veeam_repository_states](repository_states.md)
+Get repository capacity and health state.
+
+### [veeam_restore_points](restore_points.md)
+List restore points globally or per backup object.
+
+### [veeam_security_analyzer](security_analyzer.md)
+Query security analyzer scan results.
+
+### [veeam_security_roles](security_roles.md)
+List available RBAC security roles.
+
+### [veeam_security_users](security_users.md)
+List security user accounts.
+
+### [veeam_server_certificate](server_certificate.md)
+Get the TLS certificate installed on the VBR server.
+
+### [veeam_server_info](server_info.md)
+Get backup server version and installation details.
+
+### [veeam_server_time](server_time.md)
+Get current server date and time.
+
+### [veeam_services](services.md)
+List Veeam services running on the server.
+
+### [veeam_sessions](sessions.md)
+Get session history and status data.
+
+### [veeam_task_sessions](task_sessions.md)
+Query task-level session details.
+
+### [veeam_wan_accelerators](wan_accelerators.md)
+Query WAN accelerators.
 
 ## Common Patterns
 
