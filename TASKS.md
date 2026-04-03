@@ -234,37 +234,37 @@
 
 ### Priority 6 — Advanced Features & Polish
 
-- [ ] **T6.1** `veeam_mount_server` — Partial CRUD resource (Create/Read/Update)
+- [x] **T6.1** `veeam_mount_server` — Partial CRUD resource (Create/Read/Update, no-op Delete)
   - API: `GET/POST /api/v1/backupInfrastructure/mountServers`, `GET/PUT /api/v1/backupInfrastructure/mountServers/{id}`
-  - No delete endpoint — mount server lifecycle tied to managed server
+  - No delete endpoint — mount server lifecycle tied to managed server; Delete is a no-op
 
-- [ ] **T6.2** `veeam_global_vm_exclusion` — Partial CRUD resource (Create/Read/Delete)
+- [x] **T6.2** `veeam_global_vm_exclusion` — Partial CRUD resource (Create/Read/Delete, Update is pass-through)
   - API: `GET/POST /api/v1/globalExclusions/vm`, `GET/DELETE /api/v1/globalExclusions/vm/{id}`
-  - Global VM exclusion list management
+  - All key fields have RequiresReplace; Update method is a no-op pass-through
 
-- [ ] **T6.3** `veeam_recovery_token` — Full CRUD resource
+- [x] **T6.3** `veeam_recovery_token` — Full CRUD resource
   - API: `GET/POST /api/v1/agents/recoveryTokens`, `GET/PUT/DELETE /api/v1/agents/recoveryTokens/{id}`
-  - Agent recovery token management
+  - `token_value` is Sensitive and only captured on Create; preserved in state on subsequent reads
 
-- [ ] **T6.4** `veeam_entra_id_tenant` — Full CRUD resource
+- [x] **T6.4** `veeam_entra_id_tenant` — Full CRUD resource
   - API: `GET/POST /api/v1/inventory/entraId/tenants`, `GET/PUT/DELETE /api/v1/inventory/entraId/tenants/{id}`
-  - Microsoft Entra ID (Azure AD) tenant inventory management
+  - `tenant_id` carries RequiresReplace
 
-- [ ] **T6.5** `veeam_unstructured_data_server` — Full CRUD resource
+- [x] **T6.5** `veeam_unstructured_data_server` — Full CRUD resource
   - API: `GET/POST /api/v1/inventory/unstructuredDataServers`, `GET/PUT/DELETE /api/v1/inventory/unstructuredDataServers/{id}`
-  - NAS/file share backup source management
+  - `type` carries RequiresReplace
 
-- [ ] **T6.6** `veeam_security_analyzer_schedule` — Singleton resource (GET/PUT)
+- [x] **T6.6** `veeam_security_analyzer_schedule` — Singleton resource (GET → merge → PUT)
   - API: `GET/PUT /api/v1/securityAnalyzer/schedule`
-  - Manage security compliance scan schedule
+  - Fixed ID `security-analyzer-schedule`; no-op Delete; typed struct via `internal/models/security_analyzer.go`
 
-- [ ] **T6.7** Event forwarding resource
+- [x] **T6.7** `veeam_event_forwarding` — Singleton resource (GET → merge → PUT)
   - API: `GET/PUT /api/v1/generalOptions/eventForwarding`
-  - SNMP/syslog event forwarding configuration
+  - Fixed ID `event-forwarding`; map-based merge pattern; no-op Delete
 
-- [ ] **T6.8** Storage latency rules resource
+- [x] **T6.8** `veeam_storage_latency` — Singleton resource (GET → merge → PUT)
   - API: `GET/PUT /api/v1/generalOptions/storageLatency`
-  - Datastore latency throttle control + per-datastore overrides
+  - Fixed ID `storage-latency`; map-based merge pattern; no-op Delete
 
 ---
 
