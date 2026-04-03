@@ -198,3 +198,98 @@ output "total_credentials" {
 output "configuration_backup_id" {
   value = veeam_configuration_backup.config.id
 }
+
+# ---------------------------------------------------------------------------
+# Priority 6 — Advanced Resources
+# ---------------------------------------------------------------------------
+
+# 10. Entra ID Tenant
+resource "veeam_entra_id_tenant" "m365" {
+  name           = "Contoso M365 Tenant"
+  description    = "Microsoft 365 backup tenant"
+  tenant_id      = var.entra_tenant_id
+  credentials_id = var.entra_credentials_id
+}
+
+# 11. Event Forwarding (singleton)
+resource "veeam_event_forwarding" "main" {
+  snmp_enabled   = true
+  snmp_host      = var.snmp_host
+  snmp_port      = 162
+  snmp_community = "veeam-public"
+
+  syslog_enabled  = true
+  syslog_host     = var.syslog_host
+  syslog_port     = 514
+  syslog_protocol = "UDP"
+}
+
+# 12. Global VM Exclusion
+resource "veeam_global_vm_exclusion" "ci_vms" {
+  name        = "CI-Folder"
+  type        = "Folder"
+  host_name   = var.vcenter_host
+  object_id   = var.ci_folder_moref
+  description = "CI/CD VMs — excluded from backup jobs"
+}
+
+# 13. Mount Server (lifecycle tied to the managed server — delete is a no-op)
+resource "veeam_mount_server" "primary" {
+  name              = "backup01-mount"
+  description       = "Instant VM recovery mount server"
+  managed_server_id = veeam_managed_server.vcenter.id
+  type              = "WinServer"
+  credentials_id    = veeam_credential.vcenter_cred.id
+}
+
+# 14. Recovery Token
+resource "veeam_recovery_token" "agent01" {
+  name              = "agent01-recovery"
+  description       = "Recovery token for agent01 Windows agent"
+  managed_server_id = veeam_managed_server.linux_repo_host.id
+}
+
+# 15. Security Analyzer Schedule (singleton)
+resource "veeam_security_analyzer_schedule" "main" {
+  run_automatically    = true
+  daily_enabled        = true
+  daily_local_time     = "03:00"
+  monthly_enabled      = false
+  monthly_day_of_month = 1
+}
+
+# 16. Storage Latency (singleton)
+resource "veeam_storage_latency" "main" {
+  enabled               = true
+  latency_limit_ms      = 20
+  throttling_io_enabled = true
+  throttling_io_limit   = 512
+  stop_jobs_enabled     = true
+  stop_jobs_limit_ms    = 40
+}
+
+# 17. Unstructured Data Server
+resource "veeam_unstructured_data_server" "cifs" {
+  name           = "Corp File Server"
+  description    = "Corporate file share for unstructured data backup"
+  type           = "CifsShare"
+  host_name      = var.fileserver_hostname
+  credentials_id = veeam_credential.vcenter_cred.id
+}
+
+# ---------------------------------------------------------------------------
+# Priority 6 Outputs
+# ---------------------------------------------------------------------------
+
+output "entra_tenant_id" {
+  value = veeam_entra_id_tenant.m365.id
+}
+
+output "recovery_token_value" {
+  value     = veeam_recovery_token.agent01.token_value
+  sensitive = true
+}
+
+output "unstructured_server_id" {
+  value = veeam_unstructured_data_server.cifs.id
+}

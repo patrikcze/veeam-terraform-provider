@@ -270,25 +270,21 @@
 
 ### Priority 7 — Documentation & Examples
 
-- [ ] **T7.1** Complete example configurations for all resource types
-  - `examples/complete/main.tf` exists — verify all 10 resources are shown
-  - Add per-resource isolated examples in `examples/resources/`
+- [x] **T7.1** Complete example configurations for all resource types
+  - `examples/complete/main.tf` exists — verified all resources shown; P6 section appended
+  - Added per-resource isolated examples in `examples/resources/` for all 19 missing resources
 
-- [ ] **T7.2** Data source usage examples
-  - `examples/data-sources/` exists — expand with realistic filtering patterns
-  - Show data source → resource reference patterns
+- [x] **T7.2** Data source usage examples
+  - Added 14 example files in `examples/data-sources/` with list, by-ID, and cross-reference patterns
 
-- [ ] **T7.3** Import guide
-  - Document `terraform import` commands for every resource
-  - Add import examples to resource docs
+- [x] **T7.3** Import guide
+  - `docs/guides/import.md` — covers all resources with exact import commands and UUID discovery tips
 
-- [ ] **T7.4** Upgrade guide & migration notes
-  - Prepare for future API version bumps (V14)
-  - Document which file to change (`endpoints.go` + API version constant)
+- [x] **T7.4** Upgrade guide & migration notes
+  - `docs/guides/upgrade.md` — versioning policy, V13→V14 two-file migration, RequiresReplace table, sensitive fields table, singleton list
 
 - [ ] **T7.5** Regenerate docs via `tfplugindocs`
-  - Ensure all schema descriptions are complete and accurate
-  - Validate generated markdown against Terraform Registry format
+  - (skipped — manual doc management preferred, tfplugindocs not used)
 
 ---
 
