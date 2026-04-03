@@ -99,3 +99,76 @@ type CloudMachineObject struct {
 	ObjectID string                   `json:"objectId,omitempty"`
 	Value    string                   `json:"value,omitempty"`
 }
+
+// ---------------------------------------------------------------------------
+// ADObjects protection group — Active Directory-based computer discovery
+// ---------------------------------------------------------------------------
+
+// ADObjectsProtectionGroupSpec creates/updates AD-based protection groups.
+type ADObjectsProtectionGroupSpec struct {
+	ProtectionGroupSpec
+	ActiveDirectory *ADObjectsAccount       `json:"activeDirectory,omitempty"`
+	ADObjects       []ADObject              `json:"adObjects,omitempty"`
+	Options         *ProtectionGroupOptions `json:"options,omitempty"`
+}
+
+// ADObjectsProtectionGroupModel is the response model for ADObjects groups.
+type ADObjectsProtectionGroupModel struct {
+	ProtectionGroupModel
+	ActiveDirectory *ADObjectsAccount       `json:"activeDirectory,omitempty"`
+	ADObjects       []ADObject              `json:"adObjects,omitempty"`
+	Options         *ProtectionGroupOptions `json:"options,omitempty"`
+}
+
+// ADObjectsAccount references an AD domain for ADObjects groups.
+type ADObjectsAccount struct {
+	DomainID      string `json:"domainId"`
+	CredentialsID string `json:"credentialsId,omitempty"`
+}
+
+// ADObject is an Active Directory container, OU, or computer object.
+type ADObject struct {
+	Type     EADObjectType `json:"type"`
+	Name     string        `json:"name"`
+	ObjectID string        `json:"objectId,omitempty"`
+}
+
+// EADObjectType is the discriminator for AD object types.
+type EADObjectType string
+
+const (
+	ADObjectTypeOU        EADObjectType = "OrganizationalUnit"
+	ADObjectTypeContainer EADObjectType = "Container"
+	ADObjectTypeComputer  EADObjectType = "Computer"
+	ADObjectTypeGroup     EADObjectType = "Group"
+)
+
+// ---------------------------------------------------------------------------
+// CSVFile protection group — CSV file-based computer list import
+// ---------------------------------------------------------------------------
+
+// CSVFileProtectionGroupSpec creates/updates CSV file-based protection groups.
+type CSVFileProtectionGroupSpec struct {
+	ProtectionGroupSpec
+	DelimiterType ECSVDelimiterType       `json:"delimiterType,omitempty"`
+	CSVFilePath   string                  `json:"csvFilePath"`
+	Options       *ProtectionGroupOptions `json:"options,omitempty"`
+}
+
+// CSVFileProtectionGroupModel is the response model for CSVFile groups.
+type CSVFileProtectionGroupModel struct {
+	ProtectionGroupModel
+	DelimiterType ECSVDelimiterType       `json:"delimiterType,omitempty"`
+	CSVFilePath   string                  `json:"csvFilePath,omitempty"`
+	Options       *ProtectionGroupOptions `json:"options,omitempty"`
+}
+
+// ECSVDelimiterType controls the delimiter used in the CSV file.
+type ECSVDelimiterType string
+
+const (
+	CSVDelimiterComma     ECSVDelimiterType = "Comma"
+	CSVDelimiterSemicolon ECSVDelimiterType = "Semicolon"
+	CSVDelimiterTab       ECSVDelimiterType = "Tab"
+	CSVDelimiterSpace     ECSVDelimiterType = "Space"
+)

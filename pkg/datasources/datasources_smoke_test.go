@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewTier2DataSources_MetadataTypeNames(t *testing.T) {
+func TestDataSources_MetadataTypeNames(t *testing.T) {
 	tests := []struct {
 		name     string
 		factory  func() datasource.DataSource

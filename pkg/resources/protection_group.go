@@ -68,6 +68,19 @@ type ProtectionGroupCloudMachineModel struct {
 	Value    types.String `tfsdk:"value"`
 }
 
+// ProtectionGroupADAccountModel is the AD domain reference for ADObjects groups.
+type ProtectionGroupADAccountModel struct {
+	DomainID      types.String `tfsdk:"domain_id"`
+	CredentialsID types.String `tfsdk:"credentials_id"`
+}
+
+// ProtectionGroupADObjectModel is a single AD object entry.
+type ProtectionGroupADObjectModel struct {
+	Type     types.String `tfsdk:"type"`
+	Name     types.String `tfsdk:"name"`
+	ObjectID types.String `tfsdk:"object_id"`
+}
+
 // ProtectionGroupModel is the Terraform state model.
 type ProtectionGroupModel struct {
 	ID            types.String                       `tfsdk:"id"`
@@ -79,6 +92,10 @@ type ProtectionGroupModel struct {
 	CloudAccount  []ProtectionGroupCloudAccountModel `tfsdk:"cloud_account"`
 	CloudMachines []ProtectionGroupCloudMachineModel `tfsdk:"cloud_machines"`
 	Options       []ProtectionGroupOptionsModel      `tfsdk:"options"`
+	ADAccount     []ProtectionGroupADAccountModel    `tfsdk:"ad_account"`
+	ADObjects     []ProtectionGroupADObjectModel     `tfsdk:"ad_objects"`
+	CSVPath       types.String                       `tfsdk:"csv_file_path"`
+	CSVDelimiter  types.String                       `tfsdk:"csv_delimiter_type"`
 }
 
 func (r *ProtectionGroup) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -106,7 +123,7 @@ func (r *ProtectionGroup) Schema(_ context.Context, _ resource.SchemaRequest, re
 				Computed:            true,
 			},
 			"type": schema.StringAttribute{
-				MarkdownDescription: "Protection group type: `IndividualComputers`, `CloudMachines`, etc.",
+				MarkdownDescription: "Protection group type: `IndividualComputers`, `CloudMachines`, `ADObjects`, or `CSVFile`.",
 				Required:            true,
 			},
 			"is_disabled": schema.BoolAttribute{
@@ -159,6 +176,51 @@ func (r *ProtectionGroup) Schema(_ context.Context, _ resource.SchemaRequest, re
 						"value":     schema.StringAttribute{Optional: true},
 					},
 				},
+			},
+			"ad_account": schema.ListNestedAttribute{
+				MarkdownDescription: "AD domain reference for type `ADObjects`. Exactly one block required when type is `ADObjects`.",
+				Optional:            true,
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"domain_id": schema.StringAttribute{
+							MarkdownDescription: "ID of the Active Directory domain registered in VBR.",
+							Required:            true,
+						},
+						"credentials_id": schema.StringAttribute{
+							MarkdownDescription: "Credential ID used to connect to the domain. Optional when domain already has credentials.",
+							Optional:            true,
+						},
+					},
+				},
+			},
+			"ad_objects": schema.ListNestedAttribute{
+				MarkdownDescription: "List of Active Directory objects (OUs, containers, computers, groups) to include. Used with type `ADObjects`.",
+				Optional:            true,
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"type": schema.StringAttribute{
+							MarkdownDescription: "AD object type: `OrganizationalUnit`, `Container`, `Computer`, or `Group`.",
+							Required:            true,
+						},
+						"name": schema.StringAttribute{
+							MarkdownDescription: "Distinguished name or display name of the AD object.",
+							Required:            true,
+						},
+						"object_id": schema.StringAttribute{
+							MarkdownDescription: "Object GUID in Active Directory. Optional — used for stable identity across renames.",
+							Optional:            true,
+						},
+					},
+				},
+			},
+			"csv_file_path": schema.StringAttribute{
+				MarkdownDescription: "Path to the CSV file on the VBR server. Required for type `CSVFile`.",
+				Optional:            true,
+			},
+			"csv_delimiter_type": schema.StringAttribute{
+				MarkdownDescription: "CSV column delimiter: `Comma` (default), `Semicolon`, `Tab`, or `Space`. Used with type `CSVFile`.",
+				Optional:            true,
+				Computed:            true,
 			},
 			"options": schema.ListNestedAttribute{
 				MarkdownDescription: "Optional deployment options for backup agents in this protection group.",
@@ -281,6 +343,7 @@ func (r *ProtectionGroup) Create(ctx context.Context, req resource.CreateRequest
 		}
 	}
 
+	normalizeUnknownStateFields(&data)
 	resp.Diagnostics.Append(resp.State.Set(ctx, data)...)
 }
 
@@ -303,6 +366,7 @@ func (r *ProtectionGroup) Read(ctx context.Context, req resource.ReadRequest, re
 		)
 		return
 	}
+	normalizeUnknownStateFields(&data)
 	resp.Diagnostics.Append(resp.State.Set(ctx, data)...)
 }
 
@@ -384,6 +448,7 @@ func (r *ProtectionGroup) Update(ctx context.Context, req resource.UpdateRequest
 		return
 	}
 
+	normalizeUnknownStateFields(&plan)
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 }
 
@@ -441,6 +506,24 @@ func (r *ProtectionGroup) buildCreateSpec(data *ProtectionGroupModel) interface{
 		}
 	}
 
+	if strings.EqualFold(data.Type.ValueString(), string(models.ProtectionGroupTypeADObjects)) {
+		return &models.ADObjectsProtectionGroupSpec{
+			ProtectionGroupSpec: base,
+			ActiveDirectory:     buildProtectionGroupADAccount(data.ADAccount),
+			ADObjects:           buildProtectionGroupADObjects(data.ADObjects),
+			Options:             buildProtectionGroupOptions(data.Options),
+		}
+	}
+
+	if strings.EqualFold(data.Type.ValueString(), string(models.ProtectionGroupTypeCSVFile)) {
+		return &models.CSVFileProtectionGroupSpec{
+			ProtectionGroupSpec: base,
+			CSVFilePath:         data.CSVPath.ValueString(),
+			DelimiterType:       models.ECSVDelimiterType(data.CSVDelimiter.ValueString()),
+			Options:             buildProtectionGroupOptions(data.Options),
+		}
+	}
+
 	return &models.IndividualComputersProtectionGroupSpec{
 		ProtectionGroupSpec: base,
 		Computers:           buildProtectionGroupComputers(data.Computers),
@@ -449,31 +532,45 @@ func (r *ProtectionGroup) buildCreateSpec(data *ProtectionGroupModel) interface{
 }
 
 func (r *ProtectionGroup) buildUpdateModel(data *ProtectionGroupModel) interface{} {
+	baseModel := models.ProtectionGroupModel{
+		ID:          data.ID.ValueString(),
+		Name:        data.Name.ValueString(),
+		Description: data.Description.ValueString(),
+		Type:        models.EProtectionGroupType(data.Type.ValueString()),
+		IsDisabled:  !data.IsDisabled.IsNull() && data.IsDisabled.ValueBool(),
+	}
+
 	if strings.EqualFold(data.Type.ValueString(), string(models.ProtectionGroupTypeCloudMachines)) {
 		return &models.CloudMachinesProtectionGroupModel{
-			ProtectionGroupModel: models.ProtectionGroupModel{
-				ID:          data.ID.ValueString(),
-				Name:        data.Name.ValueString(),
-				Description: data.Description.ValueString(),
-				Type:        models.EProtectionGroupType(data.Type.ValueString()),
-				IsDisabled:  !data.IsDisabled.IsNull() && data.IsDisabled.ValueBool(),
-			},
-			CloudAccount:  buildProtectionGroupCloudAccount(data.CloudAccount),
-			CloudMachines: buildProtectionGroupCloudMachines(data.CloudMachines),
-			Options:       buildProtectionGroupOptions(data.Options),
+			ProtectionGroupModel: baseModel,
+			CloudAccount:         buildProtectionGroupCloudAccount(data.CloudAccount),
+			CloudMachines:        buildProtectionGroupCloudMachines(data.CloudMachines),
+			Options:              buildProtectionGroupOptions(data.Options),
+		}
+	}
+
+	if strings.EqualFold(data.Type.ValueString(), string(models.ProtectionGroupTypeADObjects)) {
+		return &models.ADObjectsProtectionGroupModel{
+			ProtectionGroupModel: baseModel,
+			ActiveDirectory:      buildProtectionGroupADAccount(data.ADAccount),
+			ADObjects:            buildProtectionGroupADObjects(data.ADObjects),
+			Options:              buildProtectionGroupOptions(data.Options),
+		}
+	}
+
+	if strings.EqualFold(data.Type.ValueString(), string(models.ProtectionGroupTypeCSVFile)) {
+		return &models.CSVFileProtectionGroupModel{
+			ProtectionGroupModel: baseModel,
+			CSVFilePath:          data.CSVPath.ValueString(),
+			DelimiterType:        models.ECSVDelimiterType(data.CSVDelimiter.ValueString()),
+			Options:              buildProtectionGroupOptions(data.Options),
 		}
 	}
 
 	return &models.IndividualComputersProtectionGroupModel{
-		ProtectionGroupModel: models.ProtectionGroupModel{
-			ID:          data.ID.ValueString(),
-			Name:        data.Name.ValueString(),
-			Description: data.Description.ValueString(),
-			Type:        models.EProtectionGroupType(data.Type.ValueString()),
-			IsDisabled:  !data.IsDisabled.IsNull() && data.IsDisabled.ValueBool(),
-		},
-		Computers: buildProtectionGroupComputers(data.Computers),
-		Options:   buildProtectionGroupOptions(data.Options),
+		ProtectionGroupModel: baseModel,
+		Computers:            buildProtectionGroupComputers(data.Computers),
+		Options:              buildProtectionGroupOptions(data.Options),
 	}
 }
 
@@ -644,19 +741,36 @@ func (r *ProtectionGroup) readProtectionGroup(ctx context.Context, data *Protect
 		typeValue = getStringValue(probe, "type")
 	}
 
+	endpoint := fmt.Sprintf(client.PathProtectionGroupByID, data.ID.ValueString())
+
 	if strings.EqualFold(typeValue, string(models.ProtectionGroupTypeCloudMachines)) {
 		var result models.CloudMachinesProtectionGroupModel
-		endpoint := fmt.Sprintf(client.PathProtectionGroupByID, data.ID.ValueString())
 		if err := r.client.GetJSON(ctx, endpoint, &result); err != nil {
 			return err
 		}
-
 		r.syncFromAPICloud(data, &result)
 		return nil
 	}
 
+	if strings.EqualFold(typeValue, string(models.ProtectionGroupTypeADObjects)) {
+		var result models.ADObjectsProtectionGroupModel
+		if err := r.client.GetJSON(ctx, endpoint, &result); err != nil {
+			return err
+		}
+		r.syncFromAPIADObjects(data, &result)
+		return nil
+	}
+
+	if strings.EqualFold(typeValue, string(models.ProtectionGroupTypeCSVFile)) {
+		var result models.CSVFileProtectionGroupModel
+		if err := r.client.GetJSON(ctx, endpoint, &result); err != nil {
+			return err
+		}
+		r.syncFromAPICSVFile(data, &result)
+		return nil
+	}
+
 	var result models.IndividualComputersProtectionGroupModel
-	endpoint := fmt.Sprintf(client.PathProtectionGroupByID, data.ID.ValueString())
 	if err := r.client.GetJSON(ctx, endpoint, &result); err != nil {
 		return err
 	}
@@ -712,8 +826,15 @@ func validateProtectionGroupPlan(data *ProtectionGroupModel) error {
 
 	typeValue := strings.TrimSpace(data.Type.ValueString())
 	if !strings.EqualFold(typeValue, string(models.ProtectionGroupTypeIndividualComputers)) &&
-		!strings.EqualFold(typeValue, string(models.ProtectionGroupTypeCloudMachines)) {
-		return fmt.Errorf("type must be one of %q or %q", models.ProtectionGroupTypeIndividualComputers, models.ProtectionGroupTypeCloudMachines)
+		!strings.EqualFold(typeValue, string(models.ProtectionGroupTypeCloudMachines)) &&
+		!strings.EqualFold(typeValue, string(models.ProtectionGroupTypeADObjects)) &&
+		!strings.EqualFold(typeValue, string(models.ProtectionGroupTypeCSVFile)) {
+		return fmt.Errorf("type must be one of %q, %q, %q, or %q",
+			models.ProtectionGroupTypeIndividualComputers,
+			models.ProtectionGroupTypeCloudMachines,
+			models.ProtectionGroupTypeADObjects,
+			models.ProtectionGroupTypeCSVFile,
+		)
 	}
 
 	if strings.EqualFold(typeValue, string(models.ProtectionGroupTypeIndividualComputers)) {
@@ -798,6 +919,49 @@ func validateProtectionGroupPlan(data *ProtectionGroupModel) error {
 				}
 			default:
 				return fmt.Errorf("cloud_machines[%d].type must be one of %q, %q, %q", index, models.CloudMachinesObjectTypeMachine, models.CloudMachinesObjectTypeRegion, models.CloudMachinesObjectTypeTag)
+			}
+		}
+	}
+
+	if strings.EqualFold(typeValue, string(models.ProtectionGroupTypeADObjects)) {
+		if len(data.ADAccount) != 1 {
+			return fmt.Errorf("exactly one ad_account block is required for type %q", models.ProtectionGroupTypeADObjects)
+		}
+		if data.ADAccount[0].DomainID.IsNull() || data.ADAccount[0].DomainID.IsUnknown() || strings.TrimSpace(data.ADAccount[0].DomainID.ValueString()) == "" {
+			return fmt.Errorf("ad_account[0].domain_id must be set")
+		}
+		if len(data.ADObjects) == 0 {
+			return fmt.Errorf("at least one ad_objects block is required for type %q", models.ProtectionGroupTypeADObjects)
+		}
+		for index, obj := range data.ADObjects {
+			if obj.Name.IsNull() || obj.Name.IsUnknown() || strings.TrimSpace(obj.Name.ValueString()) == "" {
+				return fmt.Errorf("ad_objects[%d].name must be set", index)
+			}
+			objType := strings.TrimSpace(obj.Type.ValueString())
+			switch objType {
+			case string(models.ADObjectTypeOU), string(models.ADObjectTypeContainer),
+				string(models.ADObjectTypeComputer), string(models.ADObjectTypeGroup):
+			default:
+				return fmt.Errorf("ad_objects[%d].type must be one of %q, %q, %q, %q",
+					index, models.ADObjectTypeOU, models.ADObjectTypeContainer,
+					models.ADObjectTypeComputer, models.ADObjectTypeGroup)
+			}
+		}
+	}
+
+	if strings.EqualFold(typeValue, string(models.ProtectionGroupTypeCSVFile)) {
+		if data.CSVPath.IsNull() || data.CSVPath.IsUnknown() || strings.TrimSpace(data.CSVPath.ValueString()) == "" {
+			return fmt.Errorf("csv_file_path must be set for type %q", models.ProtectionGroupTypeCSVFile)
+		}
+		if !data.CSVDelimiter.IsNull() && !data.CSVDelimiter.IsUnknown() && data.CSVDelimiter.ValueString() != "" {
+			delimVal := data.CSVDelimiter.ValueString()
+			switch delimVal {
+			case string(models.CSVDelimiterComma), string(models.CSVDelimiterSemicolon),
+				string(models.CSVDelimiterTab), string(models.CSVDelimiterSpace):
+			default:
+				return fmt.Errorf("csv_delimiter_type must be one of %q, %q, %q, %q",
+					models.CSVDelimiterComma, models.CSVDelimiterSemicolon,
+					models.CSVDelimiterTab, models.CSVDelimiterSpace)
 			}
 		}
 	}
@@ -993,5 +1157,187 @@ func (r *ProtectionGroup) waitForProtectionGroupDeleted(ctx context.Context, pro
 			return fmt.Errorf("timed out after %s", timeout)
 		case <-ticker.C:
 		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// ADObjects sync and helpers
+// ---------------------------------------------------------------------------
+
+func (r *ProtectionGroup) syncFromAPIADObjects(data *ProtectionGroupModel, api *models.ADObjectsProtectionGroupModel) {
+	if api.Name != "" {
+		data.Name = types.StringValue(api.Name)
+	}
+	if api.Description != "" {
+		data.Description = types.StringValue(api.Description)
+	}
+	if string(api.Type) != "" {
+		data.Type = types.StringValue(string(api.Type))
+	}
+	data.IsDisabled = types.BoolValue(api.IsDisabled)
+
+	// Clear fields belonging to other types.
+	data.Computers = nil
+	data.CloudAccount = nil
+	data.CloudMachines = nil
+	data.CSVPath = types.StringNull()
+	data.CSVDelimiter = types.StringNull()
+
+	if api.ActiveDirectory != nil {
+		account := ProtectionGroupADAccountModel{
+			DomainID:      types.StringValue(api.ActiveDirectory.DomainID),
+			CredentialsID: types.StringNull(),
+		}
+		if api.ActiveDirectory.CredentialsID != "" {
+			account.CredentialsID = types.StringValue(api.ActiveDirectory.CredentialsID)
+		}
+		data.ADAccount = []ProtectionGroupADAccountModel{account}
+	}
+
+	if len(api.ADObjects) > 0 {
+		items := make([]ProtectionGroupADObjectModel, 0, len(api.ADObjects))
+		for _, obj := range api.ADObjects {
+			item := ProtectionGroupADObjectModel{
+				Type:     types.StringValue(string(obj.Type)),
+				Name:     types.StringValue(obj.Name),
+				ObjectID: types.StringNull(),
+			}
+			if obj.ObjectID != "" {
+				item.ObjectID = types.StringValue(obj.ObjectID)
+			}
+			items = append(items, item)
+		}
+		data.ADObjects = items
+	}
+
+	if len(data.Options) > 0 && api.Options != nil {
+		data.Options = syncProtectionGroupOptions(data.Options, api.Options)
+	}
+}
+
+func buildProtectionGroupADAccount(items []ProtectionGroupADAccountModel) *models.ADObjectsAccount {
+	if len(items) == 0 {
+		return nil
+	}
+	item := items[0]
+	account := &models.ADObjectsAccount{
+		DomainID: item.DomainID.ValueString(),
+	}
+	if !item.CredentialsID.IsNull() && !item.CredentialsID.IsUnknown() {
+		account.CredentialsID = item.CredentialsID.ValueString()
+	}
+	return account
+}
+
+func buildProtectionGroupADObjects(items []ProtectionGroupADObjectModel) []models.ADObject {
+	out := make([]models.ADObject, 0, len(items))
+	for _, item := range items {
+		entry := models.ADObject{
+			Type: models.EADObjectType(item.Type.ValueString()),
+			Name: item.Name.ValueString(),
+		}
+		if !item.ObjectID.IsNull() && !item.ObjectID.IsUnknown() {
+			entry.ObjectID = item.ObjectID.ValueString()
+		}
+		out = append(out, entry)
+	}
+	return out
+}
+
+// ---------------------------------------------------------------------------
+// CSVFile sync
+// ---------------------------------------------------------------------------
+
+func (r *ProtectionGroup) syncFromAPICSVFile(data *ProtectionGroupModel, api *models.CSVFileProtectionGroupModel) {
+	if api.Name != "" {
+		data.Name = types.StringValue(api.Name)
+	}
+	if api.Description != "" {
+		data.Description = types.StringValue(api.Description)
+	}
+	if string(api.Type) != "" {
+		data.Type = types.StringValue(string(api.Type))
+	}
+	data.IsDisabled = types.BoolValue(api.IsDisabled)
+
+	// Clear fields belonging to other types.
+	data.Computers = nil
+	data.CloudAccount = nil
+	data.CloudMachines = nil
+	data.ADAccount = nil
+	data.ADObjects = nil
+
+	if api.CSVFilePath != "" {
+		data.CSVPath = types.StringValue(api.CSVFilePath)
+	}
+	if string(api.DelimiterType) != "" {
+		data.CSVDelimiter = types.StringValue(string(api.DelimiterType))
+	} else {
+		data.CSVDelimiter = types.StringValue(string(models.CSVDelimiterComma))
+	}
+
+	if len(data.Options) > 0 && api.Options != nil {
+		data.Options = syncProtectionGroupOptions(data.Options, api.Options)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Shared options sync helper (avoids duplication across all four sync funcs)
+// ---------------------------------------------------------------------------
+
+func syncProtectionGroupOptions(_ []ProtectionGroupOptionsModel, apiOpts *models.ProtectionGroupOptions) []ProtectionGroupOptionsModel {
+	options := ProtectionGroupOptionsModel{
+		DistributionServerID:      types.StringNull(),
+		DistributionRepositoryID:  types.StringNull(),
+		InstallBackupAgent:        types.BoolValue(apiOpts.InstallBackupAgent),
+		InstallCBTDriver:          types.BoolValue(apiOpts.InstallCBTDriver),
+		InstallApplicationPlugins: types.BoolValue(apiOpts.InstallApplicationPlugins),
+		UpdateAutomatically:       types.BoolValue(apiOpts.UpdateAutomatically),
+		RebootIfRequired:          types.BoolValue(apiOpts.RebootIfRequired),
+		ApplicationPlugins:        types.ListNull(types.StringType),
+	}
+	if apiOpts.DistributionServerID != "" {
+		options.DistributionServerID = types.StringValue(apiOpts.DistributionServerID)
+	}
+	if apiOpts.DistributionRepositoryID != "" {
+		options.DistributionRepositoryID = types.StringValue(apiOpts.DistributionRepositoryID)
+	}
+	if len(apiOpts.ApplicationPlugins) > 0 {
+		values := make([]attr.Value, 0, len(apiOpts.ApplicationPlugins))
+		for _, plugin := range apiOpts.ApplicationPlugins {
+			values = append(values, types.StringValue(plugin))
+		}
+		options.ApplicationPlugins = types.ListValueMust(types.StringType, values)
+	}
+	return []ProtectionGroupOptionsModel{options}
+}
+
+// normalizeUnknownStateFields ensures all fields have a defined null/empty
+// value after create/read so the Terraform framework does not see unknown
+// values in the final state.
+func normalizeUnknownStateFields(data *ProtectionGroupModel) {
+	if data.Computers == nil {
+		data.Computers = []ProtectionGroupComputerModel{}
+	}
+	if data.CloudAccount == nil {
+		data.CloudAccount = []ProtectionGroupCloudAccountModel{}
+	}
+	if data.CloudMachines == nil {
+		data.CloudMachines = []ProtectionGroupCloudMachineModel{}
+	}
+	if data.ADAccount == nil {
+		data.ADAccount = []ProtectionGroupADAccountModel{}
+	}
+	if data.ADObjects == nil {
+		data.ADObjects = []ProtectionGroupADObjectModel{}
+	}
+	if data.CSVPath.IsUnknown() {
+		data.CSVPath = types.StringNull()
+	}
+	if data.CSVDelimiter.IsUnknown() {
+		data.CSVDelimiter = types.StringNull()
+	}
+	if data.Options == nil {
+		data.Options = []ProtectionGroupOptionsModel{}
 	}
 }

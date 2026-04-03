@@ -16,7 +16,7 @@ import (
 // Metadata type name smoke tests
 // ---------------------------------------------------------------------------
 
-func TestPrio3DataSources_MetadataTypeNames(t *testing.T) {
+func TestVisibilityDataSources_MetadataTypeNames(t *testing.T) {
 	tests := []struct {
 		name     string
 		factory  func() datasource.DataSource
