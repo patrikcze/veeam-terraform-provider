@@ -74,6 +74,10 @@ linters:
     - zerologlint
 
   exclusions:
+    paths:
+      - vendor
+      - bin
+      - dist
     # Exclude common unchecked-error patterns that are genuinely safe to ignore.
     rules:
       - text: "Error return value of .*(Close|Flush|Write|Encode|print|Remove|Setenv). is not checked"
@@ -101,9 +105,5 @@ linters:
           disabled: true
 
 issues:
-  exclude-dirs:
-    - vendor
-    - bin
-    - dist
   max-issues-per-linter: 0
   max-same-issues: 0

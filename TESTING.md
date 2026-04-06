@@ -159,9 +159,14 @@ The test suite aims to achieve:
 
 ## Continuous Integration
 
-Unit tests and `go vet` run automatically as a gate in `.github/workflows/release.yml`
-before each tagged release. There is no separate PR/merge CI workflow; run
-`make check` locally before opening a pull request.
+Two workflows are active:
+
+| Workflow | File | Trigger | What it runs |
+|---|---|---|---|
+| **CI** | `.github/workflows/ci.yml` | Every PR and push to `master` | fmt-check, vet, golangci-lint, unit tests, build matrix |
+| **Release** | `.github/workflows/release.yml` | Push of `v*` tag | Unit tests + GoReleaser (signed or unsigned) |
+
+Run `make check` locally before opening a pull request to catch the same issues CI will flag.
 
 ## Adding New Tests
 
