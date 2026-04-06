@@ -2,6 +2,10 @@ version: "2"
 
 run:
   timeout: 5m
+  exclude-dirs:
+    - vendor
+    - bin
+    - dist
 
 formatters:
   enable:
@@ -101,9 +105,5 @@ linters:
           disabled: true
 
 issues:
-  exclude-dirs:
-    - vendor
-    - bin
-    - dist
   max-issues-per-linter: 0
   max-same-issues: 0
