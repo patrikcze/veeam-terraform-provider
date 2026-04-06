@@ -14,7 +14,7 @@ make install        # Build and install to ~/.terraform.d/plugins/
 ### Test
 ```sh
 make test           # Unit tests only (./internal/... and ./pkg/...)
-make check          # Run fmt-check, vet, lint, and unit tests together
+make check          # Run fmt-check, vet, lint, and unit tests together (mirrors PR CI)
 
 # Acceptance tests (require VEEAM_HOST, VEEAM_USERNAME, VEEAM_PASSWORD, VEEAM_INSECURE)
 make testacc                     # All acceptance tests
@@ -22,6 +22,8 @@ make testacc-credential          # Single resource acceptance test
 make testacc-repository
 make testacc-backup-job
 make testacc-workflow
+make testacc-proxy
+make testacc-scale-out-repository
 ```
 
 To run a single unit test:

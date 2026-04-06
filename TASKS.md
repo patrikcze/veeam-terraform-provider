@@ -210,25 +210,32 @@
 
 ### Priority 5 — Infrastructure & CI/CD
 
-- [ ] **T5.1** CI pipeline setup (GitHub Actions)
-  - Lint (`golangci-lint`), vet, fmt-check, unit tests on every PR
-  - Build matrix: linux/amd64, linux/arm64, darwin/amd64, darwin/arm64, windows/amd64
-  - Acceptance test job (manual trigger with secrets)
+- [x] **T5.1** CI pipeline setup (GitHub Actions)
+  - Added `.github/workflows/ci.yml`: fmt-check, vet, golangci-lint, unit tests on every PR/push to master
+  - Build matrix job: linux/amd64, linux/arm64, darwin/arm64, windows/amd64 — runs after lint+test gate
+  - Acceptance test job intentionally omitted (requires live VBR — see T5.4)
+  - Uses `go-version-file: go.mod` so CI tracks the authoritative Go version automatically ✅
 
-- [ ] **T5.2** GoReleaser configuration
-  - Automated binary builds + GitHub Releases
-  - Terraform Registry signing (GPG key)
-  - Changelog generation from conventional commits
+- [x] **T5.2** GoReleaser configuration
+  - `.goreleaser.yml` fully configured: multi-platform builds, GPG-conditional signing, changelog groups ✅
+  - `release.yml` handles both signed (GPG_PRIVATE_KEY secret present) and unsigned release paths ✅
+  - Changelog groups follow conventional commits (feat/fix/docs/others) ✅
+  - NOTE: `release.yml` pins `go-version: '1.24.4'`; `go.mod` declares `go 1.26.1` — Go's GOTOOLCHAIN=auto
+    resolves this at runtime but aligning these explicitly is advisable before the first public release.
 
-- [ ] **T5.3** Terraform Registry publishing preparation
-  - `terraform-registry-manifest.json` already exists
-  - Verify registry metadata, provider docs format (`tfplugindocs`)
-  - Test `terraform init` from local registry mirror
+- [x] **T5.3** Terraform Registry publishing preparation (review only — not publishing yet)
+  - `terraform-registry-manifest.json` exists with correct `protocol_versions: ["6.0"]` ✅
+  - Fixed: `terraform-registry-manifest.json` now included in each platform zip (required by Registry) ✅
+  - Binary naming follows registry convention: `terraform-provider-veeam_vVERSION` ✅
+  - SHA256SUMS + SHA256SUMS.sig produced by GoReleaser ✅
+  - Remaining before publishing: (1) claim `patrikcze` namespace on registry.terraform.io,
+    (2) register GPG public key in the Registry UI, (3) push a signed tag
 
-- [ ] **T5.4** Acceptance test environment automation
-  - Docker/Vagrant-based VBR test environment (or documented manual setup)
-  - `scripts/setup-ubuntu-test-env.sh` exists — verify and extend
-  - Environment variable template for CI secrets
+- [ ] **T5.4** Acceptance test environment automation — **POSTPONED**
+  - VBR requires Windows Server + SQL Server; not containerizable in CI
+  - `scripts/setup-ubuntu-test-env.sh` exists for developer machine setup
+  - Live validation workflow documented in `TESTING.md` (real VBR scenarios covered manually)
+  - Revisit if a shared VBR test instance becomes available
 
 ---
 
