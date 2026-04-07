@@ -64,7 +64,7 @@ func TestVSphereServerBuildSpec_TypeAlwaysViHost(t *testing.T) {
 	}
 	spec := r.buildSpec(data)
 	assert.Equal(t, models.ManagedServerTypeViHost, spec.Type)
-	assert.Equal(t, models.ManagedServerTypeViHost, spec.ManagedServerSpec.Type)
+	assert.Equal(t, models.ManagedServerTypeViHost, spec.Type)
 }
 
 // ---------------------------------------------------------------------------
