@@ -74,6 +74,20 @@ func fetchList(ctx context.Context, getter func(context.Context, string, interfa
 	return items, nil
 }
 
+// firstNestedID returns the "id" of the first element in a nested array field.
+// Used for APIs that return a list of objects (e.g. "roles") where we want the
+// primary role's ID without changing the schema to a list.
+func firstNestedID(data map[string]interface{}, key string) string {
+	arr, ok := data[key].([]interface{})
+	if !ok || len(arr) == 0 {
+		return ""
+	}
+	if entry, ok := arr[0].(map[string]interface{}); ok {
+		return getStringValue(entry, "id")
+	}
+	return ""
+}
+
 func normalizeDataSourceID(prefix string, value string) string {
 	if value == "" {
 		return prefix

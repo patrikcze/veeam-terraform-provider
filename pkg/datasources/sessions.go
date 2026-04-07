@@ -74,9 +74,14 @@ func (d *SessionsDataSource) Read(ctx context.Context, req datasource.ReadReques
 			return
 		}
 		data.Sessions = []SessionDataModel{{
-			ID: types.StringValue(getStringValue(item, "id")), Name: types.StringValue(getStringValue(item, "name")), JobID: types.StringValue(getStringValue(item, "jobId")),
-			SessionType: types.StringValue(getStringValue(item, "sessionType")), State: types.StringValue(getStringValue(item, "state")), Result: types.StringValue(getStringValue(item, "result")),
-			CreationTime: types.StringValue(getStringValue(item, "creationTime")), EndTime: types.StringValue(getStringValue(item, "endTime")),
+			ID:           types.StringValue(getStringValue(item, "id")),
+			Name:         types.StringValue(getStringValue(item, "name")),
+			JobID:        types.StringValue(getStringValue(item, "jobId")),
+			SessionType:  types.StringValue(getStringValue(item, "sessionType")),
+			State:        types.StringValue(getStringValue(item, "state")),
+			Result:       types.StringValue(sessionResultString(item)),
+			CreationTime: types.StringValue(getStringValue(item, "creationTime")),
+			EndTime:      types.StringValue(getStringValue(item, "endTime")),
 		}}
 		data.ID = types.StringValue(normalizeDataSourceID("session", data.SessionID.ValueString()))
 		resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
@@ -89,9 +94,29 @@ func (d *SessionsDataSource) Read(ctx context.Context, req datasource.ReadReques
 	}
 	out := make([]SessionDataModel, len(items))
 	for i, item := range items {
-		out[i] = SessionDataModel{ID: types.StringValue(getStringValue(item, "id")), Name: types.StringValue(getStringValue(item, "name")), JobID: types.StringValue(getStringValue(item, "jobId")), SessionType: types.StringValue(getStringValue(item, "sessionType")), State: types.StringValue(getStringValue(item, "state")), Result: types.StringValue(getStringValue(item, "result")), CreationTime: types.StringValue(getStringValue(item, "creationTime")), EndTime: types.StringValue(getStringValue(item, "endTime"))}
+		out[i] = SessionDataModel{
+			ID:           types.StringValue(getStringValue(item, "id")),
+			Name:         types.StringValue(getStringValue(item, "name")),
+			JobID:        types.StringValue(getStringValue(item, "jobId")),
+			SessionType:  types.StringValue(getStringValue(item, "sessionType")),
+			State:        types.StringValue(getStringValue(item, "state")),
+			Result:       types.StringValue(sessionResultString(item)),
+			CreationTime: types.StringValue(getStringValue(item, "creationTime")),
+			EndTime:      types.StringValue(getStringValue(item, "endTime")),
+		}
 	}
 	data.ID = types.StringValue("sessions")
 	data.Sessions = out
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+}
+
+// sessionResultString extracts the result string from a session item.
+// The VBR API returns result as a nested object {"result":"Success","message":"..."},
+// not as a flat string, so we must look inside the nested map first.
+func sessionResultString(item map[string]interface{}) string {
+	if nested, ok := item["result"].(map[string]interface{}); ok {
+		return getStringValue(nested, "result")
+	}
+	// fallback: some mock/test payloads use a flat string directly
+	return getStringValue(item, "result")
 }

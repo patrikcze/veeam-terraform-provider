@@ -77,10 +77,14 @@ func (d *ProxyStatesDataSource) Read(ctx context.Context, req datasource.ReadReq
 
 	mapped := make([]ProxyStateDataModel, len(items))
 	for i, item := range items {
+		status := "Offline"
+		if getBoolValue(item, "isOnline") {
+			status = "Online"
+		}
 		mapped[i] = ProxyStateDataModel{
 			ID:     types.StringValue(getStringValue(item, "id")),
 			Name:   types.StringValue(getStringValue(item, "name")),
-			Status: types.StringValue(getStringValue(item, "status")),
+			Status: types.StringValue(status),
 			Type:   types.StringValue(getStringValue(item, "type")),
 		}
 	}

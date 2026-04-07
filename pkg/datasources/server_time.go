@@ -69,9 +69,30 @@ func (d *ServerTimeDataSource) Read(ctx context.Context, req datasource.ReadRequ
 
 	payload := unwrapObjectData(result)
 
+	serverTime := getFirstStringValue(payload, "serverTime", "time", "currentTime")
 	data.ID = types.StringValue("server-time")
-	data.ServerTime = types.StringValue(getFirstStringValue(payload, "serverTime", "time", "currentTime"))
+	data.ServerTime = types.StringValue(serverTime)
 	data.TimeZone = types.StringValue(getFirstStringValue(payload, "timeZone", "timezone"))
-	data.UTCOffset = types.StringValue(getFirstStringValue(payload, "utcOffset", "utcoffset", "offset"))
+	// VBR API does not return utcOffset as a separate field; extract it from the
+	// RFC3339 timestamp suffix (e.g. "2024-01-25T12:31:50.73-05:00" → "-05:00").
+	data.UTCOffset = types.StringValue(extractUTCOffset(serverTime))
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+}
+
+// extractUTCOffset parses the timezone offset from an RFC3339 timestamp.
+// "2024-01-25T12:31:50.73-05:00" → "-05:00"
+// "2026-04-07T08:16:43.830742+00:00" → "+00:00"
+func extractUTCOffset(ts string) string {
+	if ts == "" {
+		return ""
+	}
+	for i := len(ts) - 1; i >= 0; i-- {
+		if ts[i] == '+' || ts[i] == '-' {
+			return ts[i:]
+		}
+		if ts[i] == 'Z' {
+			return "+00:00"
+		}
+	}
+	return ""
 }

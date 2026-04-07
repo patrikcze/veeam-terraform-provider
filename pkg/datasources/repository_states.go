@@ -83,14 +83,18 @@ func (d *RepositoryStatesDataSource) Read(ctx context.Context, req datasource.Re
 
 	mapped := make([]RepositoryStateDataModel, len(items))
 	for i, item := range items {
+		status := "Offline"
+		if getBoolValue(item, "isOnline") {
+			status = "Online"
+		}
 		mapped[i] = RepositoryStateDataModel{
 			ID:        types.StringValue(getStringValue(item, "id")),
 			Name:      types.StringValue(getStringValue(item, "name")),
 			Type:      types.StringValue(getStringValue(item, "type")),
-			Status:    types.StringValue(getStringValue(item, "status")),
-			Capacity:  types.Int64Value(getInt64Value(item, "capacity")),
-			FreeSpace: types.Int64Value(getInt64Value(item, "freeSpace")),
-			UsedSpace: types.Int64Value(getInt64Value(item, "usedSpace")),
+			Status:    types.StringValue(status),
+			Capacity:  types.Int64Value(getInt64Value(item, "capacityGB")),
+			FreeSpace: types.Int64Value(getInt64Value(item, "freeGB")),
+			UsedSpace: types.Int64Value(getInt64Value(item, "usedSpaceGB")),
 		}
 	}
 
