@@ -1,7 +1,9 @@
 # TASKS — Veeam Terraform Provider Backlog
 
 > Generated: 2026-03-27
+> Last updated: 2026-04-07
 > Based on: Swagger `1.3-rev1`, current codebase audit, real VBR validation notes.
+> Smoke test: All 27 datasources validated against live VBR on 2026-04-07 (see `examples/datasources-smoke-test/`).
 
 ---
 
@@ -21,22 +23,35 @@
 | `veeam_backup_job` | Done | Yes (LinuxAgentBackup, VSphereBackup models) |
 | `veeam_protection_group` | Done | Yes (IndividualComputers, CloudMachines) |
 
-### Implemented Data Sources (14)
+### Implemented Data Sources (27)
 | Data Source | Status | VBR Validated |
 |-------------|--------|---------------|
 | `veeam_backups` | Done | Yes |
 | `veeam_backup_jobs` | Done | Yes |
+| `veeam_backup_objects` | Done | Yes (smoke test 2026-04-07) |
 | `veeam_credentials` | Done | Yes |
 | `veeam_job_states` | Done | Yes |
 | `veeam_license` | Done | Yes |
+| `veeam_malware_events` | Done | Yes (smoke test 2026-04-07) |
 | `veeam_managed_servers` | Done | Yes |
+| `veeam_protected_computers` | Done | Yes (smoke test 2026-04-07) |
 | `veeam_protection_groups` | Done | Yes |
 | `veeam_proxies` | Done | Yes |
+| `veeam_proxy_states` | Done | Yes — `isOnline` bool → "Online"/"Offline" (smoke test 2026-04-07) |
+| `veeam_replicas` | Done | Yes (empty — no VM replicas in test env) |
+| `veeam_replica_points` | Done | Yes (empty — no VM replicas in test env) |
 | `veeam_repositories` | Done | Yes |
-| `veeam_repository_states` | Done | Yes |
+| `veeam_repository_states` | Done | Yes — `capacityGB`/`freeGB`/`usedSpaceGB` fields (smoke test 2026-04-07) |
 | `veeam_restore_points` | Done | Yes |
-| `veeam_server_info` | Done | Yes |
-| `veeam_sessions` | Done | Yes |
+| `veeam_security_analyzer` | Done | Yes — 38 checks; `bestPractice`/`note` fields; `creationTime` for lastRun (smoke test 2026-04-07) |
+| `veeam_security_roles` | Done | Yes (smoke test 2026-04-07) |
+| `veeam_security_users` | Done | Yes — `name` field (not `login`); roles via nested array (smoke test 2026-04-07) |
+| `veeam_server_certificate` | Done | Yes — `validBy` field (not `validTo`) (smoke test 2026-04-07) |
+| `veeam_server_info` | Done | Yes — `buildVersion`/`vbrId` fields (smoke test 2026-04-07) |
+| `veeam_server_time` | Done | Yes — `utc_offset` extracted from RFC3339 timestamp (smoke test 2026-04-07) |
+| `veeam_services` | Done | Yes — API returns only `name`/`port`; status/version always empty by design |
+| `veeam_sessions` | Done | Yes — `result` is nested object `{result,message,isCanceled}` (smoke test 2026-04-07) |
+| `veeam_task_sessions` | Done | Yes (smoke test 2026-04-07) |
 | `veeam_wan_accelerators` | Done | Yes |
 
 ### Test Coverage
