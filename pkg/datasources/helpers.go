@@ -41,15 +41,19 @@ func getInt64Value(data map[string]interface{}, key string) int64 {
 }
 
 func getDataList(data map[string]interface{}) []map[string]interface{} {
-	if raw, ok := data["data"]; ok {
-		if list, ok := raw.([]interface{}); ok {
-			items := make([]map[string]interface{}, 0, len(list))
-			for _, item := range list {
-				if entry, ok := item.(map[string]interface{}); ok {
-					items = append(items, entry)
+	// VBR API uses "data" for most paginated lists, but "items" for some
+	// endpoints (e.g. /api/v1/securityAnalyzer/bestPractices).
+	for _, key := range []string{"data", "items"} {
+		if raw, ok := data[key]; ok {
+			if list, ok := raw.([]interface{}); ok {
+				items := make([]map[string]interface{}, 0, len(list))
+				for _, item := range list {
+					if entry, ok := item.(map[string]interface{}); ok {
+						items = append(items, entry)
+					}
 				}
+				return items
 			}
-			return items
 		}
 	}
 	return []map[string]interface{}{}
