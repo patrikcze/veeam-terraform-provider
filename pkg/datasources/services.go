@@ -44,8 +44,8 @@ func (d *ServicesDataSource) Schema(_ context.Context, _ datasource.SchemaReques
 		"services": schema.ListNestedAttribute{Computed: true, NestedObject: schema.NestedAttributeObject{Attributes: map[string]schema.Attribute{
 			"id":      schema.StringAttribute{Computed: true},
 			"name":    schema.StringAttribute{Computed: true},
-			"status":  schema.StringAttribute{Computed: true},
-			"version": schema.StringAttribute{Computed: true},
+			"status":  schema.StringAttribute{Computed: true, MarkdownDescription: "Not returned by the VBR API; always empty."},
+			"version": schema.StringAttribute{Computed: true, MarkdownDescription: "Not returned by the VBR API; always empty."},
 		}}},
 	}}
 }

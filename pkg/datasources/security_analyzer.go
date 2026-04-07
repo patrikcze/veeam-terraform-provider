@@ -92,15 +92,17 @@ func (d *SecurityAnalyzerDataSource) Read(ctx context.Context, req datasource.Re
 	for i, item := range practices {
 		mapped[i] = SecurityBestPracticeDataModel{
 			ID:          types.StringValue(getStringValue(item, "id")),
-			Name:        types.StringValue(getStringValue(item, "name")),
+			Name:        types.StringValue(getFirstStringValue(item, "bestPractice", "name")),
 			Status:      types.StringValue(getStringValue(item, "status")),
-			Description: types.StringValue(getStringValue(item, "description")),
+			Description: types.StringValue(getFirstStringValue(item, "note", "description")),
 		}
 	}
 
+	// lastRun returns a session object: creationTime = when it ran,
+	// result.result = outcome (nested, same shape as /api/v1/sessions items).
 	data.ID = types.StringValue("security-analyzer")
-	data.LastRunTime = types.StringValue(getFirstStringValue(lastRunPayload, "lastRunTime", "runTime", "time"))
-	data.LastRunStatus = types.StringValue(getFirstStringValue(lastRunPayload, "lastRunStatus", "status", "result"))
+	data.LastRunTime = types.StringValue(getFirstStringValue(lastRunPayload, "creationTime", "lastRunTime", "runTime"))
+	data.LastRunStatus = types.StringValue(sessionResultString(lastRunPayload))
 	data.BestPractices = mapped
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }

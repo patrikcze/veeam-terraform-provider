@@ -72,11 +72,13 @@ func (d *SecurityUsersDataSource) Read(ctx context.Context, req datasource.ReadR
 	}
 
 	mapOne := func(item map[string]interface{}) SecurityUserDataModel2 {
+		// VBR API returns the account identifier as "name" (e.g. "DOMAIN\\user"),
+		// not as "login". The role is a nested array; we expose the first role's id.
 		return SecurityUserDataModel2{
 			ID:          types.StringValue(getStringValue(item, "id")),
-			Login:       types.StringValue(getStringValue(item, "login")),
+			Login:       types.StringValue(getFirstStringValue(item, "name", "login")),
 			Description: types.StringValue(getStringValue(item, "description")),
-			RoleID:      types.StringValue(getStringValue(item, "roleId")),
+			RoleID:      types.StringValue(firstNestedID(item, "roles")),
 		}
 	}
 

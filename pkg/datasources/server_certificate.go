@@ -80,7 +80,7 @@ func (d *ServerCertificateDataSource) Read(ctx context.Context, req datasource.R
 	data.Subject = types.StringValue(getFirstStringValue(payload, "subject", "subjectName"))
 	data.IssuedBy = types.StringValue(getFirstStringValue(payload, "issuedBy", "issuer"))
 	data.ValidFrom = types.StringValue(getFirstStringValue(payload, "validFrom", "notBefore"))
-	data.ValidTo = types.StringValue(getFirstStringValue(payload, "validTo", "notAfter"))
+	data.ValidTo = types.StringValue(getFirstStringValue(payload, "validBy", "validTo", "notAfter"))
 	data.SerialNumber = types.StringValue(getFirstStringValue(payload, "serialNumber", "serial"))
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
