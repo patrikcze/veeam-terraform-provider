@@ -72,10 +72,10 @@ func (d *ServerInfoDataSource) Read(ctx context.Context, req datasource.ReadRequ
 	payload := unwrapObjectData(result)
 
 	data.ID = types.StringValue("server_info")
-	data.InstallationID = types.StringValue(getFirstStringValue(payload, "installationId", "installationID", "installation_id"))
-	data.ServerName = types.StringValue(getFirstStringValue(payload, "serverName", "server_name", "name"))
-	data.BuildNumber = types.StringValue(getFirstStringValue(payload, "buildNumber", "build_number", "build"))
-	data.Version = types.StringValue(getFirstStringValue(payload, "version", "productVersion", "apiVersion"))
+	data.InstallationID = types.StringValue(getFirstStringValue(payload, "vbrId", "installationId", "installationID", "installation_id"))
+	data.ServerName = types.StringValue(getFirstStringValue(payload, "name", "serverName", "server_name"))
+	data.BuildNumber = types.StringValue(getFirstStringValue(payload, "buildVersion", "buildNumber", "build_number", "build"))
+	data.Version = types.StringValue(getFirstStringValue(payload, "buildVersion", "version", "productVersion", "apiVersion"))
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
