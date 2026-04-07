@@ -1312,32 +1312,17 @@ func syncProtectionGroupOptions(_ []ProtectionGroupOptionsModel, apiOpts *models
 	return []ProtectionGroupOptionsModel{options}
 }
 
-// normalizeUnknownStateFields ensures all fields have a defined null/empty
-// value after create/read so the Terraform framework does not see unknown
-// values in the final state.
+// normalizeUnknownStateFields clears unknown scalar values after create/read
+// so the Terraform framework does not see unknown values in the final state.
+// Optional list fields (cloud_account, cloud_machines, ad_account, ad_objects,
+// options, computers) are intentionally left as nil (null in state) when the
+// user did not configure them; converting nil→empty-slice causes a
+// "was null, but now cty.ListValEmpty" inconsistency error.
 func normalizeUnknownStateFields(data *ProtectionGroupModel) {
-	if data.Computers == nil {
-		data.Computers = []ProtectionGroupComputerModel{}
-	}
-	if data.CloudAccount == nil {
-		data.CloudAccount = []ProtectionGroupCloudAccountModel{}
-	}
-	if data.CloudMachines == nil {
-		data.CloudMachines = []ProtectionGroupCloudMachineModel{}
-	}
-	if data.ADAccount == nil {
-		data.ADAccount = []ProtectionGroupADAccountModel{}
-	}
-	if data.ADObjects == nil {
-		data.ADObjects = []ProtectionGroupADObjectModel{}
-	}
 	if data.CSVPath.IsUnknown() {
 		data.CSVPath = types.StringNull()
 	}
 	if data.CSVDelimiter.IsUnknown() {
 		data.CSVDelimiter = types.StringNull()
-	}
-	if data.Options == nil {
-		data.Options = []ProtectionGroupOptionsModel{}
 	}
 }
