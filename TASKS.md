@@ -3,25 +3,43 @@
 > Generated: 2026-03-27
 > Last updated: 2026-04-07
 > Based on: Swagger `1.3-rev1`, current codebase audit, real VBR validation notes.
-> Smoke test: All 27 datasources validated against live VBR on 2026-04-07 (see `examples/datasources-smoke-test/`).
+> Smoke test (datasources): All 27 datasources validated against live VBR on 2026-04-07 (see `examples/datasources-smoke-test/`).
+> Smoke test (resources): Created 2026-04-07 (see `examples/resources-smoke-test/`). Tier 1 singletons safe to apply anytime; Tier 3 requires vcenter_host/linux_server/windows_server vars.
 
 ---
 
 ## Current Status Summary
 
-### Implemented Resources (10)
+### Implemented Resources (27)
 | Resource | Status | VBR Validated |
 |----------|--------|---------------|
-| `veeam_credential` | Done | Yes |
-| `veeam_managed_server` | Done | Yes (LinuxHost) |
-| `veeam_repository` | Done | Yes (WinLocal) |
-| `veeam_proxy` | Done | Yes |
-| `veeam_scale_out_repository` | Done | Partial |
-| `veeam_cloud_credential` | Done | Yes (AzureStorage) |
-| `veeam_encryption_password` | Done | Yes |
-| `veeam_configuration_backup` | Done | Yes |
+| `veeam_ad_domain` | Done | — |
 | `veeam_backup_job` | Done | Yes (LinuxAgentBackup, VSphereBackup models) |
+| `veeam_cloud_credential` | Done | Yes (AzureStorage) |
+| `veeam_configuration_backup` | Done | Yes |
+| `veeam_credential` | Done | Yes |
+| `veeam_email_settings` | Done | — (previously unregistered, fixed 2026-04-07) |
+| `veeam_encryption_password` | Done | Yes |
+| `veeam_entra_id_tenant` | Done | — |
+| `veeam_event_forwarding` | Done | — |
+| `veeam_general_options` | Done | — (previously unregistered, fixed 2026-04-07) |
+| `veeam_global_vm_exclusion` | Done | — |
+| `veeam_kms_server` | Done | — |
+| `veeam_managed_server` | Done | Yes (ViHost/vSphere, LinuxHost, WindowsHost) |
+| `veeam_mount_server` | Done | — |
+| `veeam_notification_settings` | Done | — (previously unregistered, fixed 2026-04-07) |
 | `veeam_protection_group` | Done | Yes (IndividualComputers, CloudMachines) |
+| `veeam_proxy` | Done | Yes |
+| `veeam_recovery_token` | Done | — |
+| `veeam_repository` | Done | Yes (WinLocal) |
+| `veeam_scale_out_repository` | Done | Partial |
+| `veeam_security_analyzer_schedule` | Done | — |
+| `veeam_security_settings` | Done | — (previously unregistered, fixed 2026-04-07) |
+| `veeam_security_user` | Done | — |
+| `veeam_storage_latency` | Done | — |
+| `veeam_traffic_rules` | Done | — (previously unregistered, fixed 2026-04-07) |
+| `veeam_unstructured_data_server` | Done | — |
+| `veeam_vsphere_server` | Done | — (new 2026-04-07; dedicated ViHost resource) |
 
 ### Implemented Data Sources (27)
 | Data Source | Status | VBR Validated |
