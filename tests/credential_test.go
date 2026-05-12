@@ -13,6 +13,8 @@ import (
 	"github.com/patrikcze/terraform-provider-veeam/internal/client"
 )
 
+const testCredentialPasswordEnv = "VEEAM_TEST_CREDENTIAL_PASSWORD"
+
 func TestAccCredential_Basic(t *testing.T) {
 	ctx := context.Background()
 
@@ -21,7 +23,7 @@ func TestAccCredential_Basic(t *testing.T) {
 	}
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:                 func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccCredentialPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:             testAccCheckCredentialDestroy,
 		Steps: []resource.TestStep{
@@ -48,7 +50,7 @@ func TestAccCredential_WithDomain(t *testing.T) {
 	}
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:                 func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccCredentialPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:             testAccCheckCredentialDestroy,
 		Steps: []resource.TestStep{
@@ -75,7 +77,7 @@ func TestAccCredential_Update(t *testing.T) {
 	}
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:                 func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccCredentialPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:             testAccCheckCredentialDestroy,
 		Steps: []resource.TestStep{
@@ -107,7 +109,7 @@ func TestAccCredential_Import(t *testing.T) {
 	}
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:                 func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccCredentialPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:             testAccCheckCredentialDestroy,
 		Steps: []resource.TestStep{
@@ -125,6 +127,17 @@ func TestAccCredential_Import(t *testing.T) {
 			},
 		},
 	})
+}
+
+func testAccCredentialPreCheck(t *testing.T) {
+	testAccPreCheck(t)
+	if os.Getenv(testCredentialPasswordEnv) == "" {
+		t.Fatalf("%s must be set for credential acceptance tests", testCredentialPasswordEnv)
+	}
+}
+
+func testAccCredentialPasswordLiteral() string {
+	return strconv.Quote(os.Getenv(testCredentialPasswordEnv))
 }
 
 func testAccCheckCredentialExists(ctx context.Context, n string) resource.TestCheckFunc {
@@ -197,38 +210,38 @@ func testAccCheckCredentialDestroy(s *terraform.State) error {
 }
 
 func testAccCredentialConfig_basic() string {
-	return `
+	return fmt.Sprintf(`
 resource "veeam_credential" "test" {
   name        = "test-credential"
   description = "Test credential for acceptance tests"
   username    = "testuser"
-  password    = "testpass123"
+  password    = %s
   type        = "linux"
 }
-`
+`, testAccCredentialPasswordLiteral())
 }
 
 func testAccCredentialConfig_withDomain() string {
-	return `
+	return fmt.Sprintf(`
 resource "veeam_credential" "test" {
   name        = "test-credential-domain"
   description = "Test credential with domain"
   username    = "testuser"
-  password    = "testpass123"
+  password    = %s
   type        = "windows"
   domain      = "TESTDOMAIN"
 }
-`
+`, testAccCredentialPasswordLiteral())
 }
 
 func testAccCredentialConfig_updated() string {
-	return `
+	return fmt.Sprintf(`
 resource "veeam_credential" "test" {
   name        = "test-credential-updated"
   description = "Updated description"
   username    = "testuser"
-  password    = "testpass123"
+  password    = %s
   type        = "linux"
 }
-`
+`, testAccCredentialPasswordLiteral())
 }

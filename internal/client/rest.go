@@ -68,9 +68,10 @@ func (c *VeeamClient) doRequest(ctx context.Context, method, endpoint string, pa
 func parseErrorResponse(statusCode int, body []byte) error {
 	var apiErr models.APIError
 	if err := json.Unmarshal(body, &apiErr); err == nil && (apiErr.Message != "" || apiErr.ErrorCode != "") {
+		apiErr = sanitizeAPIError(apiErr)
 		return fmt.Errorf("API request failed (HTTP %d): %w", statusCode, &apiErr)
 	}
-	return fmt.Errorf("API request failed with HTTP %d: %s", statusCode, truncateBody(body, 200))
+	return fmt.Errorf("API request failed with HTTP %d: %s", statusCode, sanitizeErrorBody(body, 200))
 }
 
 // truncateBody returns first n bytes of body as string for error messages.

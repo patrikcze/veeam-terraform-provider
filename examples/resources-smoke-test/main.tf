@@ -128,7 +128,7 @@ resource "veeam_security_analyzer_schedule" "smoke" {
 # veeam_credential — Windows service account
 resource "veeam_credential" "smoke_windows" {
   username    = "SMOKE\\svc-veeam-test"
-  password    = "P@ssw0rd-smoke-test!"
+  password    = var.smoke_windows_credential_password
   description = "smoke-test: Windows credential"
   type        = "Standard"
 }
@@ -136,7 +136,7 @@ resource "veeam_credential" "smoke_windows" {
 # veeam_credential — Linux credential
 resource "veeam_credential" "smoke_linux" {
   username        = "smoke-linux-user"
-  password        = "P@ssw0rd-smoke-test!"
+  password        = var.smoke_linux_credential_password
   description     = "smoke-test: Linux credential"
   type            = "Linux"
   ssh_port        = 22
@@ -147,7 +147,7 @@ resource "veeam_credential" "smoke_linux" {
 # veeam_encryption_password — backup encryption key
 resource "veeam_encryption_password" "smoke" {
   hint     = "smoke-test encryption key"
-  password = "EncryptMe-smoke-1!"
+  password = var.smoke_encryption_password
 }
 
 # veeam_kms_server — KMS server entry (no outbound connection attempted on create)
@@ -163,7 +163,7 @@ resource "veeam_kms_server" "smoke" {
 # Comment out if no suitable account is available.
 # resource "veeam_security_user" "smoke" {
 #   login       = "SMOKE\\veeam-readonly"
-#   password    = "P@ssw0rd-smoke!"
+#   password    = var.smoke_security_user_password
 #   description = "smoke-test: read-only VBR user"
 #   role        = "ReadOnlyUser"
 # }
@@ -174,7 +174,7 @@ resource "veeam_kms_server" "smoke" {
 # resource "veeam_ad_domain" "smoke" {
 #   name        = "smoke.local"
 #   username    = "SMOKE\\Administrator"
-#   password    = "DomainP@ss!"
+#   password    = var.smoke_ad_domain_password
 #   description = "smoke-test: AD domain"
 # }
 
