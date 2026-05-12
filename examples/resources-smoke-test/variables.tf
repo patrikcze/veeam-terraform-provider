@@ -83,6 +83,24 @@ variable "linux_password" {
   default     = ""
 }
 
+variable "smoke_windows_credential_password" {
+  description = "Password to store in the standalone smoke-test Windows credential."
+  type        = string
+  sensitive   = true
+}
+
+variable "smoke_linux_credential_password" {
+  description = "Password to store in the standalone smoke-test Linux credential."
+  type        = string
+  sensitive   = true
+}
+
+variable "smoke_encryption_password" {
+  description = "Password to store in the standalone smoke-test encryption password."
+  type        = string
+  sensitive   = true
+}
+
 variable "nfs_share_path" {
   description = "NFS share path for a standalone NFS repository (e.g. nas.example.com:/export/veeam)."
   type        = string

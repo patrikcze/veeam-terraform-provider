@@ -21,9 +21,10 @@ This example demonstrates a health-check style configuration that queries all im
 ```hcl
 veeam_host     = "your-veeam-server.com"
 veeam_username = "admin"
-veeam_password = "your-password"
 veeam_insecure = false
 ```
+
+Set `veeam_password` with `TF_VAR_veeam_password` or a local, ignored `terraform.tfvars` file.
 
 2. **Initialize and apply**:
 

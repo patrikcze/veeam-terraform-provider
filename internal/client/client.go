@@ -225,6 +225,7 @@ func (c *VeeamClient) postTokenRequest(ctx context.Context, formData url.Values)
 		// Try to parse error response for actionable message
 		var apiErr models.APIError
 		if jsonErr := json.Unmarshal(body, &apiErr); jsonErr == nil && apiErr.Message != "" {
+			apiErr = sanitizeAPIError(apiErr)
 			return nil, fmt.Errorf("token request failed (HTTP %d): %w", resp.StatusCode, &apiErr)
 		}
 		return nil, fmt.Errorf("token request failed with HTTP %d", resp.StatusCode)

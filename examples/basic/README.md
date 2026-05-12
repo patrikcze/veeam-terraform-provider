@@ -21,10 +21,11 @@ This example demonstrates basic usage of the Veeam Terraform provider, including
 ```hcl
 veeam_host        = "your-veeam-server.com"
 veeam_username    = "admin"
-veeam_password    = "your-password"
 veeam_insecure    = false
 repository_host_name = "your-managed-server-name"
 ```
+
+Set `veeam_password` with `TF_VAR_veeam_password` or a local, ignored `terraform.tfvars` file.
 
 2. **Initialize Terraform**:
 

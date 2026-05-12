@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
@@ -13,7 +14,7 @@ func TestAccWorkflow_CredentialRepositoryBackupJob(t *testing.T) {
 	}
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:                 func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccCredentialPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
@@ -39,7 +40,7 @@ func TestAccWorkflow_CredentialRepositoryBackupJob(t *testing.T) {
 }
 
 func testAccWorkflowConfig_full() string {
-	return `
+	return fmt.Sprintf(`
 # Provider configuration
 terraform {
   required_providers {
@@ -80,7 +81,7 @@ resource "veeam_credential" "example" {
   name        = "workflow-credential"
   description = "Credential for workflow testing"
   username    = "backup-user"
-  password    = "secure-password"
+  password    = %s
   type        = "linux"
 }
 
@@ -115,5 +116,5 @@ output "repository_id" {
 output "backup_job_name" {
   value = veeam_backup_job.example.name
 }
-`
+`, testAccCredentialPasswordLiteral())
 }

@@ -39,6 +39,27 @@ func TestParseErrorResponse_WithPlainText(t *testing.T) {
 	assert.Contains(t, err.Error(), "Internal Server Error")
 }
 
+func TestParseErrorResponse_RedactsSensitiveAPIError(t *testing.T) {
+	body := []byte(`{"errorCode":"InvalidInput","message":"password=super-secret rejected","details":"refresh_token=refresh-123 access_key=access-456"}`)
+	err := parseErrorResponse(400, body)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), redactedValue)
+	assert.NotContains(t, err.Error(), "super-secret")
+	assert.NotContains(t, err.Error(), "refresh-123")
+	assert.NotContains(t, err.Error(), "access-456")
+}
+
+func TestParseErrorResponse_RedactsSensitiveJSONFallback(t *testing.T) {
+	body := []byte(`{"password":"super-secret","nested":{"tokenValue":"token-123"},"status":"bad request"}`)
+	err := parseErrorResponse(400, body)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), redactedValue)
+	assert.NotContains(t, err.Error(), "super-secret")
+	assert.NotContains(t, err.Error(), "token-123")
+}
+
 func TestParseErrorResponse_EmptyBody(t *testing.T) {
 	err := parseErrorResponse(403, []byte{})
 

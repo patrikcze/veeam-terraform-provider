@@ -87,7 +87,7 @@ resource "veeam_credential" "test" {
   name        = "test-credential"
   description = "Test credential for acceptance tests"
   username    = "testuser"
-  password    = "testpass123"
+  password    = var.test_credential_password
   type        = "linux"
 }
 ```
